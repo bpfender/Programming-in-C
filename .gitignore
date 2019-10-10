@@ -1,0 +1,6 @@
+# Ignore extensionless files (i.e binaries)
+*
+!/**/
+!*.*
+
+CS50 Resources/
