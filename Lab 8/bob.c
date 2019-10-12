@@ -4,6 +4,8 @@
 #define NDEBUG
 #include <assert.h>
 
+#define letterVal(X) X - 'a' + 1
+
 typedef enum bool { false,
                     true } bool;
 
@@ -11,12 +13,10 @@ void findPlanetBob(void);
 bool validNameStructure(char name[]);
 bool isVowel(char c);
 bool isPrime(int candidate);
-int sumLetters(char name[]);
 void test(void);
 
 int main(void) {
     test();
-
     findPlanetBob();
     return 0;
 }
@@ -33,7 +33,7 @@ void findPlanetBob(void) {
             name[1] = j;
 
             if (validNameStructure(name)) {
-                if (isPrime(sumLetters(name))) {
+                if (isPrime(letterVal(name[0]) + letterVal(name[1]) + letterVal(name[2]))) {
                     printf("%s\n", name);
                 }
             }
@@ -50,16 +50,15 @@ bool validNameStructure(char name[]) {
 }
 
 bool isVowel(char c) {
-    switch (c) {
+    switch (tolower(c)) {
         case 'a':
         case 'e':
         case 'i':
         case 'o':
         case 'u':
             return true;
-        default:
-            return false;
     }
+    return false;
 }
 
 bool isPrime(int candidate) {
@@ -81,19 +80,8 @@ bool isPrime(int candidate) {
     return true;
 }
 
-int sumLetters(char name[]) {
-    int i;
-    int sum = 0;
-    for (i = 0; i < 3; i++) {
-        sum += name[i] - 'a' + 1;
-    }
-    return sum;
-}
-
 void test(void) {
     assert(isPrime(3) == true);
-    assert(sumLetters("aaa") == 3);
-    assert(sumLetters("bbb") == 6);
     assert(isVowel('a') == true);
     assert(isVowel('t') == false);
     assert(validNameStructure("aaa") == false);
