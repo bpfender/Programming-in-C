@@ -8,12 +8,12 @@ typedef enum bool { false,
                     true } bool;
 
 int romanToArabic(char* roman);
+int* createDecimals(char* roman);
 int calculateSum(int* decimal, int size);
-int* convertToDecimals(char* roman);
 int numeralValue(char roman);
 
 bool validRoman(char* roman, int* decimal);
-bool checkRepetion(char* roman);
+bool checkRepetition(char* roman);
 bool checkUnique(char* roman);
 bool checkOrder(char* roman, int* decimal);
 int checkDoubleNumeral(int* decimal);
@@ -21,7 +21,7 @@ int checkDoubleNumeral(int* decimal);
 void test(void);
 
 int main(int argc, char* argv[]) {
-    test();
+    /*test();*/
 
     if (argc == 2) {
         printf("The roman number %s is equal to %d\n",
@@ -34,20 +34,45 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-/* QUESTION can this be shortened? */
+/*----- CALCULATION FUNCTIONS ------*/
 int romanToArabic(char* roman) {
     int* decimal = NULL;
+    int sum;
 
-    if ((decimal = convertToDecimals(roman)) == NULL) {
+    if ((decimal = createDecimals(roman)) == NULL) {
         fprintf(stderr, "Exiting program...\n");
+        free(decimal);
         exit(1);
     }
     if (!validRoman(roman, decimal)) {
-        printf("Hello\n");
+        free(decimal);
         exit(2);
     }
 
-    return calculateSum(decimal, strlen(roman));
+    sum = calculateSum(decimal, strlen(roman));
+    free(decimal);
+    return sum;
+}
+
+int* createDecimals(char* roman) {
+    int i;
+    int size = strlen(roman); /*TODO check this shouldn't be -1*/
+    int* decimals = NULL;
+
+    decimals = (int*)malloc(size * sizeof(int));
+    if (decimals == NULL) {
+        fprintf(stderr, "Memory allocation failed...\n");
+        return NULL;
+    }
+
+    for (i = 0; i < size; i++) {
+        decimals[i] = numeralValue(roman[i]);
+        if (decimals[i] == -1) {
+            free(decimals);
+            return NULL;
+        }
+    }
+    return decimals;
 }
 
 int calculateSum(int* decimal, int size) {
@@ -62,6 +87,38 @@ int calculateSum(int* decimal, int size) {
         }
     }
     return sum;
+}
+
+int numeralValue(char roman) {
+    switch (toupper(roman)) {
+        case 'M':
+            return 1000;
+        case 'D':
+            return 500;
+        case 'C':
+            return 100;
+        case 'L':
+            return 50;
+        case 'X':
+            return 10;
+        case 'V':
+            return 5;
+        case 'I':
+            return 1;
+        default:
+            fprintf(stderr, "%c is not a valid roman numeral\n", roman);
+            return -1;
+    }
+}
+
+/*------ INPUT VALIDATION FUNCTIONS ------*/
+bool validRoman(char* roman, int* decimal) {
+    if (checkRepetition(roman) == true &&
+        checkOrder(roman, decimal) == true &&
+        checkUnique(roman) == true) {
+        return true;
+    }
+    return false;
 }
 
 bool checkRepetition(char* roman) {
@@ -106,15 +163,6 @@ bool checkUnique(char* roman) {
     return true;
 }
 
-int checkDoubleNumeral(int* decimal) {
-    if (decimal[0] == 1 || decimal[0] == 10 || decimal[0] == 100) {
-        if (decimal[0] * 5 == decimal[1] || decimal[0] * 10 == decimal[1]) {
-            return decimal[1] - decimal[0];
-        }
-    }
-    return 0;
-}
-
 bool checkOrder(char* roman, int* decimal) {
     int i;
     int dbl_value;
@@ -123,14 +171,23 @@ bool checkOrder(char* roman, int* decimal) {
     for (i = 0; i < length - 1; i++) {
         if (decimal[i] < decimal[i + 1]) {
             if ((dbl_value = checkDoubleNumeral(decimal + i))) {
-                if (length - i > 2) {
-                    if (decimal[i] <= decimal[i + 2] &&
-                        decimal[i + 2] <= decimal[i + 1]) {
-                        fprintf(stderr, "Error here\n");
+                if (i < length - 3) {
+                    if (dbl_value == checkDoubleNumeral(decimal + i + 2)) {
+                        fprintf(stderr,
+                                "%c%c may not be followed by %c%c\n",
+                                roman[i], roman[i + 1],
+                                roman[i + 2], roman[i + 3]);
                         return false;
                     }
                 }
-
+                if (i < length - 2) {
+                    if (decimal[i] <= decimal[i + 2] &&
+                        decimal[i + 2] <= decimal[i + 1]) {
+                        fprintf(stderr, "%c may not follow %c%c\n",
+                                roman[i + 2], roman[i], roman[i + 1]);
+                        return false;
+                    }
+                }
                 if (i > 0) {
                     if (dbl_value > decimal[i - 1]) {
                         fprintf(stderr, "%c may not preceed %c%c\n",
@@ -149,56 +206,13 @@ bool checkOrder(char* roman, int* decimal) {
     return true;
 }
 
-bool validRoman(char* roman, int* decimal) {
-    if (checkRepetition(roman) == true &&
-        checkOrder(roman, decimal) == true &&
-        checkUnique(roman) == true) {
-        return true;
-    }
-    return false;
-}
-
-int* convertToDecimals(char* roman) {
-    int i;
-    int size = strlen(roman); /*TODO check this shouldn't be -1*/
-    int* decimals = NULL;
-
-    decimals = (int*)malloc(size * sizeof(int));
-    if (decimals == NULL) {
-        fprintf(stderr, "Memory allocation failed...\n");
-        return NULL;
-    }
-
-    for (i = 0; i < size; i++) {
-        decimals[i] = numeralValue(roman[i]);
-        if (decimals[i] == -1) {
-            free(decimals);
-            return NULL;
+int checkDoubleNumeral(int* decimal) {
+    if (decimal[0] == 1 || decimal[0] == 10 || decimal[0] == 100) {
+        if (decimal[0] * 5 == decimal[1] || decimal[0] * 10 == decimal[1]) {
+            return decimal[1] - decimal[0];
         }
     }
-    return decimals;
-}
-
-int numeralValue(char roman) {
-    switch (toupper(roman)) {
-        case 'M':
-            return 1000;
-        case 'D':
-            return 500;
-        case 'C':
-            return 100;
-        case 'L':
-            return 50;
-        case 'X':
-            return 10;
-        case 'V':
-            return 5;
-        case 'I':
-            return 1;
-        default:
-            fprintf(stderr, "%c is not a valid roman numeral\n", roman);
-            return -1;
-    }
+    return 0;
 }
 
 void test(void) {
@@ -229,19 +243,20 @@ void test(void) {
     assert(numeralValue('m') == 1000);
     assert(numeralValue('G') == -1);
 
-    dec_test = convertToDecimals(rom_dec_1);
+    dec_test = createDecimals(rom_dec_1);
     for (i = 0; i < (int)strlen(rom_dec_1); i++) {
         assert(dec_test[i] == dec_valid[i]);
     }
-    assert(convertToDecimals(rom_dec_2) == NULL);
+    free(dec_test);
+    assert(createDecimals(rom_dec_2) == NULL);
     free(dec_test);
 
     for (i = 0; i < 6; i++) {
-        dec_test = convertToDecimals(dbl_rom_1[i]);
+        dec_test = createDecimals(dbl_rom_1[i]);
         assert(checkDoubleNumeral(dec_test) == dbl_dec_1[i]);
         free(dec_test);
 
-        dec_test = convertToDecimals(dbl_rom_2[i]);
+        dec_test = createDecimals(dbl_rom_2[i]);
         assert(checkDoubleNumeral(dec_test) == 0);
         free(dec_test);
     }
@@ -254,6 +269,8 @@ void test(void) {
     }
 
     for (i = 0; i < 3; i++) {
-        assert(calculateSum(convertToDecimals(sum_rom[i]), strlen(sum_rom[i])) == sum_dec[i]);
+        dec_test = createDecimals(sum_rom[i]);
+        assert(calculateSum(dec_test, strlen(sum_rom[i])) == sum_dec[i]);
+        free(dec_test);
     }
 }
