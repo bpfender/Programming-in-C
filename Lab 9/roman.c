@@ -42,10 +42,10 @@ int romanToArabic(char* roman) {
 
     if ((decimal = createDecimals(roman)) == NULL) {
         fprintf(stderr, "Exiting program...\n");
-        free(decimal);
         exit(1);
     }
-    if (!validRoman(roman, decimal)) {
+    if (validRoman(roman, decimal) == false) {
+        fprintf(stderr, "Exiting program...\n");
         free(decimal);
         exit(2);
     }
@@ -60,7 +60,7 @@ int romanToArabic(char* roman) {
  */
 int* createDecimals(char* roman) {
     int i;
-    int size = strlen(roman); /*TODO check this shouldn't be -1*/
+    int size = strlen(roman);
     int* decimals = NULL;
 
     decimals = (int*)malloc(size * sizeof(int));
@@ -84,9 +84,10 @@ int* createDecimals(char* roman) {
  */
 int calculateSum(int* decimal, int size) {
     int i = 0;
-    int sum = decimal[size - 1];
+    int top_index = size - 1;
+    int sum = decimal[top_index];
 
-    for (i = size - 2; i >= 0; i--) {
+    for (i = top_index - 1; i >= 0; i--) {
         if (decimal[i] < decimal[i + 1]) {
             sum -= decimal[i];
         } else {
@@ -243,7 +244,8 @@ bool checkOrder(char* roman, int* decimal) {
 
 /* Check that numeral combination is a valid double numeral IV, IX, XL, XC, CD
  * or CM. Assumes valid input (i.e. can index 1 forward because this is checked
- * in checkOrder function)
+ * in checkOrder function). Will usually just be passed pointer to relevant part
+ * of decimal array
  */
 int checkDoubleNumeral(int* decimal) {
     if (decimal[0] == 1 || decimal[0] == 10 || decimal[0] == 100) {
