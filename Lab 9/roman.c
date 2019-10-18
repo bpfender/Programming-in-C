@@ -1,3 +1,20 @@
+/* ------PEER ASSESSMENT: ROMAN ------ */
+
+/* Feedback from Nathan Cubitt:
+ * Possibly over-engineered but robust on what it checks and does. 63%
+ * 
+ * Feedback from Kuan-Ting Huang:
+ * Really nice coding with no house-style issues. The entire program structure 
+ * is exactly what the professor wants. All conditions that Roman Numerals 
+ * should follow are listed, explained, and executed excellently 
+ * (especially the part of roman's order). Even  the reason for different 
+ * errors is in the output. Well down!​
+ * Overall: 70%
+ *
+ * Feedback from Ray Ma:
+ * NOT YET RECEIVED FEEDBACK
+ */
+
 #include <assert.h>
 #include <ctype.h>
 #include <stdio.h>
