@@ -9,7 +9,7 @@
 #define MOORE_GRID 3
 #define GENERATIONS 5
 
-typedef enum bools { false,
+/*typedef enum bools { false,
                      true } bools;
 
 /* QUESTION notation is a bit weird at the moment */
@@ -38,28 +38,39 @@ int main(void) {
     char next[CIRC_GRID][CIRC_GRID];
     int i;
 
+    NCURS_Simplewin sw;
+
     circuit.current = current;
     circuit.next = next;
 
     test();
 
-    NCURS_Simplewin sw;
-    Neill_NCURS_CharStyle(&sw, "H", COLOR_BLUE, COLOR_BLUE, A_NORMAL);
-    Neill_NCURS_CharStyle(&sw, "t", COLOR_RED, COLOR_RED, A_NORMAL);
-    Neill_NCURS_CharStyle(&sw, "c", COLOR_YELLOW, COLOR_YELLOW, A_NORMAL);
-    Neill_NCURS_CharStyle(&sw, " ", COLOR_BLACK, COLOR_BLACK, A_NORMAL);
-
-    if (loadCircuitFile("wirewcircuit1.txt", circuit.current) == false) {
+    if (loadCircuitFile("wirewcircuit2.txt", circuit.current) == false) {
         return 1;
     }
     if (checkCircuit(circuit.current) == false) {
         return 1;
     }
 
+    Neill_NCURS_Init(&sw);
+    Neill_NCURS_CharStyle(&sw, "H", COLOR_BLUE, COLOR_BLUE, A_NORMAL);
+    Neill_NCURS_CharStyle(&sw, "t", COLOR_RED, COLOR_RED, A_NORMAL);
+    Neill_NCURS_CharStyle(&sw, "c", COLOR_YELLOW, COLOR_YELLOW, A_NORMAL);
+    Neill_NCURS_CharStyle(&sw, " ", COLOR_BLACK, COLOR_BLACK, A_NORMAL);
+
+    do {
+        Neill_NCURS_PrintArray(&circuit.current[0][0], CIRC_GRID, CIRC_GRID, &sw);
+        nextGeneration(&circuit);
+        Neill_NCURS_Delay(50.0);
+        Neill_NCURS_Events(&sw);
+
+    } while (!sw.finished);
+
+    /*
     for (i = 0; i < GENERATIONS; i++) {
         nextGeneration(&circuit);
         printCircuit(circuit.current, i + 1);
-    }
+    }*/
 
     return 0;
 }
