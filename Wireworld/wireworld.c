@@ -25,36 +25,33 @@ typedef struct circuit_struct {
     char grid_b[CIRC_GRID][CIRC_GRID];
 } circuit_struct;
 
-void initStruct(circuit_struct* circuit);
-bool loadCircuitFile(char* filename, circuit_struct* circuit);
-bool getCircuitLine(char line[], FILE* fp);
-bool checkCircuit(char circuit[][CIRC_GRID]);
-bool checkSymbol(char c);
-void printCircuit(char circuit[][CIRC_GRID], int generation);
-
+/* ------ SIMULATION FUNCTIONS ------- */
 void nextGeneration(circuit_struct* circuit);
 void updateCurrent(circuit_struct* circuit);
 void nextCellState(circuit_struct* circuit);
 bool checkMooreNeighborhood(circuit_struct* circuit);
 bool checkBounds(int x, int y);
 
+/* ------ UTILITY & FILE READING FUNCTIONS ------ */
+void initStruct(circuit_struct* circuit);
+bool loadCircuitFile(char* filename, circuit_struct* circuit);
+bool getCircuitLine(char line[], FILE* fp);
+bool checkCircuit(char circuit[][CIRC_GRID]);
+bool checkSymbol(char c);
+void printCircuit(char circuit[][CIRC_GRID], int generation);
 void test(void);
 
+/* TODO IMPLEMENT ARGV ARGV */
 int main(void) {
     circuit_struct circuit;
     int i;
-    /* NCURS_Simplewin sw;*/
+    NCURS_Simplewin sw;
 
     test();
 
     initStruct(&circuit);
 
     if (loadCircuitFile("wirewcircuit1.txt", &circuit) == false) {
-        return 1;
-    }
-    /* TODO this is ugly*/
-
-    if (checkCircuit(circuit.current) == false) {
         return 1;
     }
     /*
@@ -64,13 +61,14 @@ int main(void) {
     Neill_NCURS_CharStyle(&sw, "c", COLOR_YELLOW, COLOR_YELLOW, A_NORMAL);
     Neill_NCURS_CharStyle(&sw, " ", COLOR_BLACK, COLOR_BLACK, A_NORMAL);
 
-     do {
+    do {
         Neill_NCURS_PrintArray(&circuit.current[0][0], CIRC_GRID, CIRC_GRID, &sw);
         nextGeneration(&circuit);
         Neill_NCURS_Delay(50.0);
         Neill_NCURS_Events(&sw);
 
-    } while (!sw.finished);*/
+    } while (!sw.finished);
+    Neill_NCURS_Done();*/
 
     for (i = 0; i < GENERATIONS; i++) {
         nextGeneration(&circuit);
@@ -129,6 +127,8 @@ void nextCellState(circuit_struct* circuit) {
                 *next = 'H';
                 break;
             }
+            /* FIXME something weird going on here? */
+            *next = 'c';
             break;
     }
 }
@@ -143,8 +143,8 @@ bool checkMooreNeighborhood(circuit_struct* circuit) {
     int x = circuit->x;
     int y = circuit->y;
 
-    for (i = -1; i < 2; i++) {
-        for (j = -1; j < 2; j++) {
+    for (i = -1; i <= 1; i++) {
+        for (j = -1; j <= 1; j++) {
             /* Check that coordinate is within circuit grid and ignore the 
              * central cell. Checking the central cell isn't necesarry here, 
              * but may improve portability of code
@@ -176,31 +176,43 @@ void initStruct(circuit_struct* circuit) {
 
 bool loadCircuitFile(char* filename, circuit_struct* circuit) {
     FILE* file;
-    int i = 0;
+    int line = 0;
 
     /* TODO more error handling aorund incorrect filenames? length etc. */
     file = fopen(filename, "r");
     if (file == NULL) {
-        fprintf(stderr, "Cannot open %s\n", filename);
+        fprintf(stderr, "Cannot open \"%s\"\nExiting\n", filename);
         return false;
     }
 
     /* File will always be (40 + \n) * 40 characters long. This does a quick
-     * sense check that the file is the expected size
+     * sense check that the file is the expected size so that it can fit into
+     * circuit array
      */
     fseek(file, 0, SEEK_END);
     if (ftell(file) != (CIRC_GRID + 1) * CIRC_GRID) {
-        fprintf(stderr, "Unexpected file size... Exiting\n");
+        fprintf(stderr, "Unexpected file size\nExiting\n");
+        fclose(file);
         return false;
     }
     rewind(file);
 
-    while (getCircuitLine(circuit->current[i], file) == true) {
-        i++;
+    /* TODO some error checking required here. */
+    while (getCircuitLine(circuit->current[line], file) == true) {
+        line++;
     }
 
-    /* TODO some error checking required here. */
-
+    /* Check loaded circuit is valid before copying to second circuit array.
+     * Circuit is initially copied to populate both arrays, as nextCellState()
+     * function modifies circuit arrays directly, only changing cells when
+     * necesarry rather than returning an "updated" value for each cell
+     * examined.
+     */
+    if (checkCircuit(circuit->current) == false) {
+        fprintf(stderr, "Exiting...\n");
+        fclose(file);
+        return false;
+    }
     memcpy(circuit->next, circuit->current, CIRC_GRID * CIRC_GRID);
 
     fclose(file);
@@ -210,8 +222,7 @@ bool loadCircuitFile(char* filename, circuit_struct* circuit) {
 /* Reads lines based on expected length of CIRC_GRID + '\n' characters. If the
  * line doesn't follow this format, an error will be returned. 
  */
-/* QUESTION is there any reason i would specify length of line? c.f. 2D arrays*/
-bool getCircuitLine(char line[], FILE* file) {
+bool getCircuitLine(char line[CIRC_GRID], FILE* file) {
     int c, i;
 
     for (i = 0; i < CIRC_GRID + 1; i++) {
@@ -219,35 +230,44 @@ bool getCircuitLine(char line[], FILE* file) {
 
         if (c == EOF) {
             if (ferror(file)) {
-                fprintf(stderr, "Error reading file\n");
+                fprintf(stderr, "Error reading file\nExiting...\n");
+                fclose(file);
                 exit(EXIT_FAILURE);
+            } else {
+                return false;
             }
-            return false;
-        } else if (c != '\n') {
-            line[i] = (char)c;
-        } else if (i != CIRC_GRID) {
-            fprintf(stderr, "Unexpected line length\n");
+        }
+        if ((c == '\n' && i < CIRC_GRID) ||
+            (i == CIRC_GRID && c != '\n')) {
+            fprintf(stderr, "Unexpected line length\nExiting...\n");
+            fclose(file);
             exit(EXIT_FAILURE);
+        }
+        if (i < CIRC_GRID) {
+            line[i] = (char)c;
         }
     }
     return true;
 }
 
-/* QUESTION this could just be integrated into the load functoin */
-bool checkCircuit(char circuit[][CIRC_GRID]) {
+/* Iterates through complete circuit array to check for any errors. Lists
+ * locations of any invalid characters
+ */
+bool checkCircuit(char circuit[CIRC_GRID][CIRC_GRID]) {
     int i, j;
+    bool check = true;
 
     for (i = 0; i < CIRC_GRID; i++) {
         for (j = 0; j < CIRC_GRID; j++) {
             if (checkSymbol(circuit[i][j]) == false) {
-                /* TODO could check whole circuit to find all problems? */
-                /* QUESTION how do variable argument functions work? */
-                fprintf(stderr, "Invalid symbol used in circuit\n");
-                return false;
+                fprintf(stderr,
+                        "Invalid symbol \"%c\" used in circuit at line %d, column %d\n",
+                        circuit[i][j], i + 1, j + 1);
+                check = false;
             }
         }
     }
-    return true;
+    return check;
 }
 
 bool checkSymbol(char c) {
@@ -257,7 +277,6 @@ bool checkSymbol(char c) {
         case 'c':
         case ' ':
             return true;
-            break;
     }
     return false;
 }
@@ -277,4 +296,9 @@ void printCircuit(char circuit[][CIRC_GRID], int generation) {
 }
 
 void test(void) {
+    assert(checkSymbol('c') == true);
+    assert(checkSymbol('H') == true);
+    assert(checkSymbol('t') == true);
+    assert(checkSymbol(' ') == true);
+    assert(checkSymbol('o') == false);
 }
