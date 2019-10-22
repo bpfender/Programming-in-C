@@ -38,7 +38,7 @@ bool loadCircuitFile(char* filename, circuit_struct* circuit);
 bool getCircuitLine(char line[], FILE* fp);
 bool checkCircuit(char circuit[][CIRC_GRID]);
 bool checkSymbol(char c);
-void printCircuit(char circuit[][CIRC_GRID], int generation);
+void printCircuit(char circuit[][CIRC_GRID]);
 void test(void);
 
 /* TODO IMPLEMENT ARGV ARGV */
@@ -72,7 +72,8 @@ int main(void) {
 
     for (i = 0; i < GENERATIONS; i++) {
         nextGeneration(&circuit);
-        printCircuit(circuit.current, i + 1);
+        printf("Generation %4d\n", i + 1);
+        printCircuit(circuit.current);
     };
     return 0;
 }
@@ -108,8 +109,7 @@ void updateCurrent(circuit_struct* circuit) {
 
 /* Checks what the next cell state should be based on current x/y-coordinates 
  * in the circuit_struct and returns corresponding value. Modifies array pointed
- * to by next directly to avoid writing ' ' and 'c' that already contain these
- * values
+ * to by next directly to avoid writing ' ' repeatedly
  */
 void nextCellState(circuit_struct* circuit) {
     char current = circuit->current[circuit->y][circuit->x];
@@ -127,7 +127,6 @@ void nextCellState(circuit_struct* circuit) {
                 *next = 'H';
                 break;
             }
-            /* FIXME something weird going on here? */
             *next = 'c';
             break;
     }
@@ -281,16 +280,12 @@ bool checkSymbol(char c) {
     return false;
 }
 
-void printCircuit(char circuit[][CIRC_GRID], int generation) {
+void printCircuit(char circuit[][CIRC_GRID]) {
     int i;
-    if (generation == 0) {
-        printf("STARTING CONFIGURATION\n\n");
-    } else {
-        printf("GENERATION: %4d of %d\n\n", generation, GENERATIONS);
-    }
+
     /* QUESTION is this  a naughty way of doing this? */
     /* FIXME hard coded line bounds at the moment */
-    for (i = 4; i < 15; i++) {
+    for (i = 0; i < CIRC_GRID; i++) {
         printf("%.*s\n", CIRC_GRID, circuit[i]);
     }
 }
