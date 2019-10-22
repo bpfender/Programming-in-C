@@ -1,81 +1,180 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "neillncurses.h"
 
 #define CIRC_GRID 40
-#define GRID_SIZE CIRC_GRID + 2 * PADDING
-
-#define MOORE_GRID 3
 #define GENERATIONS 5
 
 /*typedef enum bools { false,
-                     true } bools;
+                     true } bools;*/
 
-/* QUESTION notation is a bit weird at the moment */
+/* Contains current and next generation of circuit, as well as location in grid. 
+ * 2D arrays (grid_a & grid_b) should not be accessed directly. Instead use 
+ * "current" and "next" pointers. Pointers are defined mainly so that "copying"
+ * next array into current array just involves swapping pointers rather than
+ * copying all elements.
+ */
 typedef struct circuit_struct {
     char (*current)[CIRC_GRID];
     char (*next)[CIRC_GRID];
     int x;
     int y;
+    char grid_a[CIRC_GRID][CIRC_GRID];
+    char grid_b[CIRC_GRID][CIRC_GRID];
 } circuit_struct;
 
-bool loadCircuitFile(char* filename, char circuit[][CIRC_GRID]);
-char nextCellState(circuit_struct* circuit);
-void nextGeneration(circuit_struct* circuit);
-bool checkMooreNeighborhood(circuit_struct* circuit);
-bool checkSymbol(char c);
+void initStruct(circuit_struct* circuit);
+bool loadCircuitFile(char* filename, circuit_struct* circuit);
 bool getCircuitLine(char line[], FILE* fp);
-void updateCurrent(circuit_struct* circuit);
-void test(void);
-void printCircuit(char circuit[][CIRC_GRID], int generation);
 bool checkCircuit(char circuit[][CIRC_GRID]);
+bool checkSymbol(char c);
+void printCircuit(char circuit[][CIRC_GRID], int generation);
+
+void nextGeneration(circuit_struct* circuit);
+void updateCurrent(circuit_struct* circuit);
+void nextCellState(circuit_struct* circuit);
+bool checkMooreNeighborhood(circuit_struct* circuit);
 bool checkBounds(int x, int y);
+
+void test(void);
 
 int main(void) {
     circuit_struct circuit;
-    char current[CIRC_GRID][CIRC_GRID];
-    char next[CIRC_GRID][CIRC_GRID];
     int i;
-
-    NCURS_Simplewin sw;
-
-    circuit.current = current;
-    circuit.next = next;
+    /* NCURS_Simplewin sw;*/
 
     test();
 
-    if (loadCircuitFile("wirewcircuit2.txt", circuit.current) == false) {
+    initStruct(&circuit);
+
+    if (loadCircuitFile("wirewcircuit1.txt", &circuit) == false) {
         return 1;
     }
+    /* TODO this is ugly*/
+
     if (checkCircuit(circuit.current) == false) {
         return 1;
     }
-
+    /*
     Neill_NCURS_Init(&sw);
     Neill_NCURS_CharStyle(&sw, "H", COLOR_BLUE, COLOR_BLUE, A_NORMAL);
     Neill_NCURS_CharStyle(&sw, "t", COLOR_RED, COLOR_RED, A_NORMAL);
     Neill_NCURS_CharStyle(&sw, "c", COLOR_YELLOW, COLOR_YELLOW, A_NORMAL);
     Neill_NCURS_CharStyle(&sw, " ", COLOR_BLACK, COLOR_BLACK, A_NORMAL);
 
-    do {
+     do {
         Neill_NCURS_PrintArray(&circuit.current[0][0], CIRC_GRID, CIRC_GRID, &sw);
         nextGeneration(&circuit);
         Neill_NCURS_Delay(50.0);
         Neill_NCURS_Events(&sw);
 
-    } while (!sw.finished);
+    } while (!sw.finished);*/
 
-    /*
     for (i = 0; i < GENERATIONS; i++) {
         nextGeneration(&circuit);
         printCircuit(circuit.current, i + 1);
-    }*/
-
+    };
     return 0;
 }
 
-bool loadCircuitFile(char* filename, char circuit[][CIRC_GRID]) {
+/* ------ SIMULATION FUNCTIONS ------ */
+
+/* Iterate through circuit cells. x and y are being modified in circuit_struct
+ * directly so that the correct cell is checked when nextCellState() is called
+ */
+void nextGeneration(circuit_struct* circuit) {
+    int* x = &circuit->x;
+    int* y = &circuit->y;
+
+    for (*x = 0; *x < CIRC_GRID; (*x)++) {
+        for (*y = 0; *y < CIRC_GRID; (*y)++) {
+            nextCellState(circuit);
+        }
+    }
+
+    updateCurrent(circuit);
+}
+
+/* Swaps pointers of current and next, so that the current pointer points to the
+ * newly calculated next array
+ */
+void updateCurrent(circuit_struct* circuit) {
+    char(*tmp)[CIRC_GRID];
+
+    tmp = circuit->current;
+    circuit->current = circuit->next;
+    circuit->next = tmp;
+}
+
+/* Checks what the next cell state should be based on current x/y-coordinates 
+ * in the circuit_struct and returns corresponding value. Modifies array pointed
+ * to by next directly to avoid writing ' ' and 'c' that already contain these
+ * values
+ */
+void nextCellState(circuit_struct* circuit) {
+    char current = circuit->current[circuit->y][circuit->x];
+    char* next = &circuit->next[circuit->y][circuit->x];
+
+    switch (current) {
+        case 'H':
+            *next = 't';
+            break;
+        case 't':
+            *next = 'c';
+            break;
+        case 'c':
+            if (checkMooreNeighborhood(circuit) == true) {
+                *next = 'H';
+                break;
+            }
+            break;
+    }
+}
+
+/* Checks surrounding 8 cells for heads, returning true if conditions for 
+ * copper->head are met. Takes whole circuit_struct as argument to allow 
+ * additional bounds checking in checkBounds()
+ */
+bool checkMooreNeighborhood(circuit_struct* circuit) {
+    int i, j;
+    int head_count = 0;
+    int x = circuit->x;
+    int y = circuit->y;
+
+    for (i = -1; i < 2; i++) {
+        for (j = -1; j < 2; j++) {
+            /* Check that coordinate is within circuit grid and ignore the 
+             * central cell. Checking the central cell isn't necesarry here, 
+             * but may improve portability of code
+             */
+            if (checkBounds(x + i, y + j) && !(i == 0 && j == 0)) {
+                head_count += (circuit->current[y + j][x + i] == 'H');
+            }
+        }
+    }
+
+    return head_count == 1 || head_count == 2;
+}
+
+/* Checks that the coordinates tested fall within the bounds of the circuit
+ * grid. If they don't, returns 0;
+ */
+bool checkBounds(int x, int y) {
+    return (x >= 0 && x < CIRC_GRID) &&
+           (y >= 0 && y < CIRC_GRID);
+}
+
+/* ------ UTILITY AND FILE HANDLING FUNCTIONS ------ */
+
+/* Point current and next pointer to 2D circuit grids */
+void initStruct(circuit_struct* circuit) {
+    circuit->current = circuit->grid_a;
+    circuit->next = circuit->grid_b;
+}
+
+bool loadCircuitFile(char* filename, circuit_struct* circuit) {
     FILE* file;
     int i = 0;
 
@@ -86,55 +185,49 @@ bool loadCircuitFile(char* filename, char circuit[][CIRC_GRID]) {
         return false;
     }
 
-    while (getCircuitLine(circuit[i], file) == true) {
+    /* File will always be (40 + \n) * 40 characters long. This does a quick
+     * sense check that the file is the expected size
+     */
+    fseek(file, 0, SEEK_END);
+    if (ftell(file) != (CIRC_GRID + 1) * CIRC_GRID) {
+        fprintf(stderr, "Unexpected file size... Exiting\n");
+        return false;
+    }
+    rewind(file);
+
+    while (getCircuitLine(circuit->current[i], file) == true) {
         i++;
     }
 
-    /*while ((length = (getLine(buffer, CIRC_GRID + 1, file)))) {
-        if (length != CIRC_GRID) {
-            fprintf(stderr,
-                    "Circuit width in line %d is not %d cells wide\n",
-                    i, CIRC_GRID);
-            fclose(file);
-            return false;
-        }
-        if (i >= CIRC_GRID) {
-            fprintf(stderr,
-                    "Too many lines in input file\n");
-            fclose(file);
-            return false;
-        }
+    /* TODO some error checking required here. */
 
-        for (j = 0; j < CIRC_GRID; j++) {
-            circuit[i][j] = buffer[j];
-        }
-        i++;*/
+    memcpy(circuit->next, circuit->current, CIRC_GRID * CIRC_GRID);
 
     fclose(file);
     return true;
 }
 
-/* TODO unsure about this function... could it be better? plus error handling
- * what about fgets etc.
- * TODO could be rewritten to write directly into matrix. 
- * QUESTION as above, what is more elegant?
+/* Reads lines based on expected length of CIRC_GRID + '\n' characters. If the
+ * line doesn't follow this format, an error will be returned. 
  */
-bool getCircuitLine(char line[], FILE* fp) {
+/* QUESTION is there any reason i would specify length of line? c.f. 2D arrays*/
+bool getCircuitLine(char line[], FILE* file) {
     int c, i;
 
     for (i = 0; i < CIRC_GRID + 1; i++) {
-        c = getc(fp);
-        line[i] = (char)c;
+        c = getc(file);
 
-        if (c != '\n') {
-            line[i] = (char)c;
-        }
         if (c == EOF) {
-            if (ferror(fp)) {
+            if (ferror(file)) {
                 fprintf(stderr, "Error reading file\n");
                 exit(EXIT_FAILURE);
             }
             return false;
+        } else if (c != '\n') {
+            line[i] = (char)c;
+        } else if (i != CIRC_GRID) {
+            fprintf(stderr, "Unexpected line length\n");
+            exit(EXIT_FAILURE);
         }
     }
     return true;
@@ -169,46 +262,6 @@ bool checkSymbol(char c) {
     return false;
 }
 
-void nextGeneration(circuit_struct* circuit) {
-    int* x = &circuit->x;
-    int* y = &circuit->y;
-
-    for (*x = 0; *x < CIRC_GRID; (*x)++) {
-        for (*y = 0; *y < CIRC_GRID; (*y)++) {
-            circuit->next[*y][*x] = nextCellState(circuit);
-        }
-    }
-
-    updateCurrent(circuit);
-}
-
-void updateCurrent(circuit_struct* circuit) {
-    char(*tmp)[CIRC_GRID];
-
-    tmp = circuit->current;
-    circuit->current = circuit->next;
-    circuit->next = tmp;
-}
-
-char nextCellState(circuit_struct* circuit) {
-    char current = circuit->current[circuit->y][circuit->x];
-
-    switch (current) {
-        case 'H':
-            return 't';
-        case 't':
-            return 'c';
-        case 'c':;
-            if (checkMooreNeighborhood(circuit) == true) {
-                return 'H';
-            }
-            /* Fall through */
-            /* QUESTION how to prevent fall through warning? */
-        default:
-            return current;
-    }
-}
-
 void printCircuit(char circuit[][CIRC_GRID], int generation) {
     int i;
     if (generation == 0) {
@@ -221,34 +274,6 @@ void printCircuit(char circuit[][CIRC_GRID], int generation) {
     for (i = 4; i < 15; i++) {
         printf("%.*s\n", CIRC_GRID, circuit[i]);
     }
-}
-
-/* QUESTION does c90 allow negative indexing? does the size in [] make any difference
- * QUESTION is it better to treat as contiguous memory or 2d array?
- */
-/* Passing in parent grid size allows me to check circuit array directly and also test smaller matrices */
-/* QUESTION have written function with testing in mind */
-bool checkMooreNeighborhood(circuit_struct* circuit) {
-    int i, j;
-    int head_count = 0;
-    int x = circuit->x;
-    int y = circuit->y;
-
-    /* TODO this is horrible at the moment.. needs to be updated */
-    for (i = -1; i < 2; i++) {
-        for (j = -1; j < 2; j++) {
-            if (checkBounds(x + i, y + j) && !(i == 0 && j == 0)) {
-                head_count += (circuit->current[y + j][x + i] == 'H');
-            }
-        }
-    }
-
-    return head_count == 1 || head_count == 2;
-}
-
-bool checkBounds(int x, int y) {
-    return x >= 0 && x < CIRC_GRID &&
-           y >= 0 && y < CIRC_GRID;
 }
 
 void test(void) {
