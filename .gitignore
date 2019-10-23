@@ -20,3 +20,7 @@ Wireworld/neillncurses.c
 Wireworld/neillncurses.h
 
 .vscode/
+
+Wireworld/Test/
+
+Wireworld/wirew_edges.txt
