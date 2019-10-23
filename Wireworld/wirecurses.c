@@ -2,8 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#define GENERATIONS 1000
+#include "neillncurses.h"
 
 #define GRID_SIZE 40
 #define ROWS GRID_SIZE
@@ -46,16 +45,15 @@ int checkFileSize(FILE* file);
 int getCircuitLine(char line[COLS], FILE* fp);
 int checkCircuit(char circuit[ROWS][COLS]);
 int checkSymbol(char c);
-void printCircuit(char circuit[ROWS][COLS]);
 void test(void);
 
 int main(int argc, char* argv[]) {
-    int generation;
+    NCURS_Simplewin sw;
 
     circuit_struct circuit;
     initStruct(&circuit);
 
-    /*test();*/
+    test();
 
     if (argc != 2) {
         fprintf(stderr,
@@ -68,11 +66,20 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    for (generation = 0; generation < GENERATIONS; generation++) {
+    /* Initialise NCURS and display circuit world */
+    Neill_NCURS_Init(&sw);
+    Neill_NCURS_CharStyle(&sw, "H", COLOR_BLUE, COLOR_BLUE, A_NORMAL);
+    Neill_NCURS_CharStyle(&sw, "t", COLOR_RED, COLOR_RED, A_NORMAL);
+    Neill_NCURS_CharStyle(&sw, "c", COLOR_YELLOW, COLOR_YELLOW, A_NORMAL);
+    Neill_NCURS_CharStyle(&sw, " ", COLOR_BLACK, COLOR_BLACK, A_NORMAL);
+
+    do {
+        Neill_NCURS_PrintArray(&circuit.current[0][0], COLS, ROWS, &sw);
+        Neill_NCURS_Delay(200.0);
+        Neill_NCURS_Events(&sw);
         nextGeneration(&circuit);
-        printf("Generation %4d\n", generation + 1);
-        printCircuit(circuit.current);
-    };
+    } while (!sw.finished);
+    Neill_NCURS_Done();
 
     return 0;
 }
@@ -287,14 +294,6 @@ int checkSymbol(char c) {
             return SUCCESS;
     }
     return SYMB_ERR;
-}
-
-void printCircuit(char circuit[ROWS][COLS]) {
-    int i;
-
-    for (i = 0; i < ROWS; i++) {
-        printf("%.*s\n", COLS, circuit[i]);
-    }
 }
 
 void test(void) {
