@@ -216,7 +216,7 @@ int loadCircuitFile(char* filename, circuit_struct* circuit) {
     return SUCCESS;
 }
 
-/* File will always be (40 + \n) * 40 characters long. This does a quick
+/* File should always be (40 + \n) * 40 characters long. This does a quick
  * sense check that the file is the expected size so that it can fit into
  * circuit array
  */
@@ -229,8 +229,8 @@ int checkFileSize(FILE* file) {
     return SUCCESS;
 }
 
-/* Reads whole circuit file and passes through exit_codes generated withing
- * readLine(). Mainly here for improved readability in loadCircuitFile()
+/* Reads whole circuit file and passes through exit_codes generated within
+ * readLine()
  */
 int readCircuit(circuit_struct* circuit, FILE* file) {
     int line = 0;
@@ -241,19 +241,19 @@ int readCircuit(circuit_struct* circuit, FILE* file) {
         line++;
     }
 
-    if (exit_code != SUCCESS) {
-        if (exit_code == READ_ERR) {
-            fprintf(stderr, "Error reading file\n");
-        } else if (exit_code == LINE_ERR) {
-            fprintf(stderr, "Unexpected line length in line %d\n", line + 1);
-        }
+    if (exit_code == READ_ERR) {
+        fprintf(stderr, "Error reading file\n");
+    } else if (exit_code == LINE_ERR) {
+        fprintf(stderr, "Unexpected line length in line %d\n", line + 1);
     }
 
     return exit_code;
 }
 
 /* Reads lines based on expected length of CIRC_GRID + '\n' characters. If the
- * line doesn't follow this format, an error will be returned. 
+ * line doesn't follow this format, an error will be returned. Returns LINE_READ
+ * if line is read successfully, or SUCCESS when EOF is reached. If line is
+ * returns relevant error code.
  */
 int readLine(char line[COLS], FILE* file) {
     int c, i;
@@ -268,10 +268,12 @@ int readLine(char line[COLS], FILE* file) {
                 return READ_ERR;
             }
         }
+        /* '\n' character is expected at end of 40 char line */
         if ((i < COLS && c == '\n') ||
             (i == COLS && c != '\n')) {
             return LINE_ERR;
         }
+        /* Read in only circuit chars, not '\n' at end of line */
         if (i < COLS) {
             line[i] = (char)c;
         }
@@ -312,9 +314,11 @@ int checkSymbol(char c) {
 }
 
 void test(void) {
+    int i, j;
+
     circuit_struct test_circuit;
     char test_grid[ROWS][COLS];
-    int i, j;
+    FILE* test_file;
 
     /* Check that array pointers in struct are correctly assigned to point to
      * 2D array and that arrays get updated properly
@@ -379,6 +383,31 @@ void test(void) {
      */
     test_grid[25][36] = 'o';
     assert(checkCircuit(test_grid) == SYMB_ERR);
+
+    /* Check line function returns as expected
+     */
+    test_file = fopen("./Test/testline.txt", "r");
+    if (test_file == NULL) {
+        fprintf(stderr, "Cannot open \"testline.txt\"\n");
+        exit(EXIT_FAILURE);
+    }
+    /* First read of full line should return line successfully read */
+    assert(readLine(test_circuit.current[0], test_file) == LINE_READ);
+    /* Second read should return EOF file reached */
+    assert(readLine(test_circuit.current[0], test_file) == SUCCESS);
+    fclose(test_file);
+
+    /* Check that read file funtion reads in whole circuit correctly */
+    test_file = fopen("./Test/testcircuit.txt", "r");
+    if (test_file == NULL) {
+        fprintf(stderr, "Cannot open \"testcircuit.txt\"\n");
+        exit(EXIT_FAILURE);
+    }
+    /* File should read in successfully */
+    assert(readCircuit(&test_circuit, test_file) == SUCCESS);
+    /* Check that last charcter in file is in last array element */
+    assert(test_circuit.current[ROWS - 1][COLS - 1] == 'c');
+    fclose(test_file);
 
     /* Check that various error flags are returned correctly from 
      * loadCircuitFile() function if invalid files are read
