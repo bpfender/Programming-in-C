@@ -8,7 +8,7 @@
 #define ROWS GRID_SIZE
 #define COLS GRID_SIZE
 
-/* Exit codes for diagnosis of states when read and checking file */
+/* Exit codes for diagnosis of states when reading and checking file */
 #define OPEN_ERR -1
 #define SYMB_ERR -2
 #define SIZE_ERR -3
@@ -17,7 +17,7 @@
 #define SUCCESS 0
 #define LINE_READ 1
 
-/* Contains current and next generation of circuit, as well as coordinates
+/* Contains current and next generation of circuit, as well as coordinates.
  * 2D arrays (grid_a & grid_b) should not be accessed directly. Instead use 
  * "current" and "next" pointers. Pointers are defined so that "copying"
  * next array into current array just involves swapping pointers.
@@ -42,7 +42,8 @@ int checkBounds(int x, int y);
 void initStruct(circuit_struct* circuit);
 int loadCircuitFile(char* filename, circuit_struct* circuit);
 int checkFileSize(FILE* file);
-int getCircuitLine(char line[COLS], FILE* fp);
+int readCircuit(circuit_struct* circuit, FILE* file);
+int readLine(char line[COLS], FILE* fp);
 int checkCircuit(char circuit[ROWS][COLS]);
 int checkSymbol(char c);
 void test(void);
@@ -53,7 +54,7 @@ int main(int argc, char* argv[]) {
     circuit_struct circuit;
     initStruct(&circuit);
 
-    test();
+    /*test();*/
 
     if (argc != 2) {
         fprintf(stderr,
@@ -102,9 +103,9 @@ void nextGeneration(circuit_struct* circuit) {
     updateCurrent(circuit);
 }
 
-/* Swaps pointers of current and next, so that the "current" pointer points to the
- * newly calculated next array and "next" points to the old array that can be
- * overwritten 
+/* Swaps pointers of current and next, so that the "current" pointer points to 
+ * the newly calculated next array and "next" points to the old array that can 
+ * be overwritten 
  */
 void updateCurrent(circuit_struct* circuit) {
     char(*tmp)[COLS];
@@ -115,8 +116,8 @@ void updateCurrent(circuit_struct* circuit) {
 }
 
 /* Checks what the next cell state should be based on current x/y-coordinates 
- * in the circuit_struct and returns corresponding value. Modifies array pointed
- * to by next directly to avoid writing ' ' repeatedly
+ * in the circuit_struct and returns corresponding value. Modifies array 
+ * pointed to by next directly to avoid writing ' ' repeatedly
  */
 void nextCellState(circuit_struct* circuit) {
     int neigbors;
@@ -184,7 +185,6 @@ void initStruct(circuit_struct* circuit) {
 
 int loadCircuitFile(char* filename, circuit_struct* circuit) {
     FILE* file;
-    int line = 0;
     int exit_code;
 
     file = fopen(filename, "r");
@@ -199,16 +199,7 @@ int loadCircuitFile(char* filename, circuit_struct* circuit) {
         return SIZE_ERR;
     }
 
-    while ((exit_code = getCircuitLine(circuit->current[line], file)) == LINE_READ) {
-        line++;
-    }
-
-    if (exit_code != SUCCESS) {
-        if (exit_code == READ_ERR) {
-            fprintf(stderr, "Error reading file\n");
-        } else if (exit_code == LINE_ERR) {
-            fprintf(stderr, "Unexpected line length in line %d\n", line + 1);
-        }
+    if ((exit_code = readCircuit(circuit, file)) != SUCCESS) {
         fclose(file);
         return exit_code;
     }
@@ -218,7 +209,7 @@ int loadCircuitFile(char* filename, circuit_struct* circuit) {
         return SYMB_ERR;
     }
     /* Copy circuit so that spaces are all popuplated in right place. Avoids 
-       having to repeately write spaces from nextCellState() */
+       having to repeately write spaces when calling nextCellState() */
     memcpy(circuit->next, circuit->current, ROWS * COLS);
 
     fclose(file);
@@ -238,20 +229,44 @@ int checkFileSize(FILE* file) {
     return SUCCESS;
 }
 
+/* Reads whole circuit file and passes through exit_codes generated withing
+ * readLine(). Mainly here for improved readability in loadCircuitFile()
+ */
+int readCircuit(circuit_struct* circuit, FILE* file) {
+    int line = 0;
+    int exit_code;
+
+    while ((exit_code =
+                readLine(circuit->current[line], file)) == LINE_READ) {
+        line++;
+    }
+
+    if (exit_code != SUCCESS) {
+        if (exit_code == READ_ERR) {
+            fprintf(stderr, "Error reading file\n");
+        } else if (exit_code == LINE_ERR) {
+            fprintf(stderr, "Unexpected line length in line %d\n", line + 1);
+        }
+    }
+
+    return exit_code;
+}
+
 /* Reads lines based on expected length of CIRC_GRID + '\n' characters. If the
  * line doesn't follow this format, an error will be returned. 
  */
-int getCircuitLine(char line[COLS], FILE* file) {
+int readLine(char line[COLS], FILE* file) {
     int c, i;
 
     for (i = 0; i < COLS + 1; i++) {
         c = getc(file);
 
         if (c == EOF) {
-            if (ferror(file)) {
+            if (feof(file)) {
+                return SUCCESS;
+            } else {
                 return READ_ERR;
             }
-            return SUCCESS;
         }
         if ((i < COLS && c == '\n') ||
             (i == COLS && c != '\n')) {
@@ -269,7 +284,7 @@ int getCircuitLine(char line[COLS], FILE* file) {
  */
 int checkCircuit(char circuit[ROWS][COLS]) {
     int i, j;
-    int code = SUCCESS;
+    int exit_code = SUCCESS;
 
     for (i = 0; i < ROWS; i++) {
         for (j = 0; j < COLS; j++) {
@@ -277,12 +292,12 @@ int checkCircuit(char circuit[ROWS][COLS]) {
                 fprintf(stderr,
                         "Invalid symbol \"%c\" in line %d, column %d\n",
                         circuit[i][j], i + 1, j + 1);
-                code = SYMB_ERR;
+                exit_code = SYMB_ERR;
             }
         }
     }
 
-    return code;
+    return exit_code;
 }
 
 int checkSymbol(char c) {
