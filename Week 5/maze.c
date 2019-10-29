@@ -3,7 +3,6 @@
 #include <stdlib.h>
 
 typedef struct maze {
-    char* layout;
     char** grid;
     int size_x;
     int size_y;
@@ -14,6 +13,7 @@ typedef struct maze {
 int exploreMaze(maze* maze, int x, int y);
 void findEntrance(maze* maze);
 int checkExit(maze* maze);
+void printMaze(maze* maze);
 void test(void);
 
 int main(void) {
@@ -24,7 +24,8 @@ int main(void) {
 int createMazeArray(maze* maze) {
     int i;
 
-    maze->grid = (int**)malloc(maze->size_y * sizeof(char));
+    /* TODO what the fuck! sizeof(char*)? */
+    maze->grid = (char**)malloc(maze->size_y * sizeof(char*));
 
     if (maze->grid == NULL) {
         fprintf(stderr, "Memory allocation error\n");
@@ -32,7 +33,7 @@ int createMazeArray(maze* maze) {
     }
 
     for (i = 0; i < maze->size_y; i++) {
-        maze->grid[i] = (int*)malloc(maze->size_x * sizeof(char));
+        maze->grid[i] = (char*)malloc(maze->size_x * sizeof(char));
         if (maze->grid[i] == NULL) {
             fprintf(stderr, "Memory allocation error\n");
             return 0;
@@ -55,44 +56,52 @@ int exploreMaze(maze* maze, int x, int y) {
     printf("x:%d y:%d\n", x, y);
 
     /* TODO how best to mark exit from maze? */
-    if (maze->layout[x + y * maze->size_x] == 'X') {
+    if (maze->grid[y][x] == 'X') {
         return 1;
     }
 
-    maze->layout[x + y * maze->size_x] = '#';
+    maze->grid[y][x] = '#';
 
-    if (y > 0 && maze->layout[x + (y - 1) * maze->size_x] != '#') {
+    if (y > 0 && maze->grid[y - 1][x] != '#') {
         if (exploreMaze(maze, x, y - 1)) {
+            maze->grid[y][x] = '.';
             return 1;
         }
     }
-    if (x < maze->size_x - 1 && maze->layout[x + 1 + y * maze->size_x] != '#') {
+    if (x < maze->size_x - 1 && maze->grid[y][x + 1] != '#') {
         if (exploreMaze(maze, x + 1, y)) {
+            maze->grid[y][x] = '.';
             return 1;
         }
     }
-    if (x > 0 && maze->layout[x - 1 + y * maze->size_x] != '#') {
+    if (x > 0 && maze->grid[y][x - 1] != '#') {
         if (exploreMaze(maze, x - 1, y)) {
+            maze->grid[y][x] = '.';
             return 1;
         }
     }
-    if (y < maze->size_y - 1 && maze->layout[x + (y + 1) * maze->size_x] != '#') {
+    if (y < maze->size_y - 1 && maze->grid[y + 1][x] != '#') {
         if (exploreMaze(maze, x, y + 1)) {
+            maze->grid[y][x] = '.';
             return 1;
         }
     }
+
+    maze->grid[y][x] = ' ';
     return 0;
 }
 
 /* TODO handling around two entrances */
 void findEntrance(maze* maze) {
     int x = 0, y = 0;
-    while (maze->layout[x] != ' ' && x < maze->size_x) {
+
+    /*TODO check order of operators. Can this be rewrriten in a more foolproof way? !! */
+    while (x < maze->size_x && maze->grid[0][x] != ' ') {
         x++;
     }
 
     /* TODO how is the maze array going to be constructed? */
-    while (maze->layout[y * maze->size_x] != ' ' && y < maze->size_y) {
+    while (y < maze->size_y && maze->grid[y][0] != ' ') {
         y++;
     }
 
@@ -100,23 +109,55 @@ void findEntrance(maze* maze) {
     maze->entrance_y = y;
 }
 
+void printMaze(maze* maze) {
+    int i, j;
+
+    for (i = 0; i < maze->size_y; i++) {
+        for (j = 0; j < maze->size_x; j++) {
+            printf("%c", maze->grid[i][j]);
+        }
+        printf("\n");
+    }
+}
+
 void test(void) {
     maze test_maze;
+
+    const int grid_size = 6;
+
     int maze_exit;
+    int i, j;
 
-    char test_array[16] = {'#', ' ', '#', '#',
-                           '#', ' ', '#', '#',
-                           '#', ' ', ' ', '#',
-                           '#', 'X', '#', '#'};
+    char test_grid[6][6] = {{'#', ' ', '#', '#', '#', '#'},
+                            {'#', ' ', ' ', ' ', ' ', '#'},
+                            {'#', ' ', '#', '#', ' ', '#'},
+                            {'#', '#', ' ', '#', ' ', '#'},
+                            {'#', ' ', ' ', ' ', ' ', '#'},
+                            {'#', 'X', '#', '#', '#', '#'}};
 
-    test_maze.size_x = 4;
-    test_maze.size_y = 4;
+    test_maze.size_x = grid_size;
+    test_maze.size_y = grid_size;
 
-    test_maze.layout = &test_array;
+    if (!createMazeArray(&test_maze)) {
+        fprintf(stderr, "TEST ERROR\n");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("%d %d\n", test_maze.size_x, test_maze.size_y);
+
+    for (i = 0; i < grid_size; i++) {
+        for (j = 0; j < grid_size; j++) {
+            test_maze.grid[i][j] = test_grid[i][j];
+        }
+    }
+
+    printMaze(&test_maze);
 
     findEntrance(&test_maze);
     printf("x: %d y: %d\n", test_maze.entrance_x, test_maze.entrance_y);
 
-    maze_exit = exploreMaze(&test_maze, 1, 0);
+    maze_exit = exploreMaze(&test_maze, 0, 1);
     printf("Exit status: %d\n", maze_exit);
+
+    printMaze(&test_maze);
 }
