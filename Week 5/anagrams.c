@@ -8,16 +8,32 @@
 
 /* TODO malloc of word? */
 typedef struct node {
-    char* str;
+    char str[50];
     struct node* next;
 } node;
 
 int isAnagram(char* str1, char* str2);
+node* createNode(char* str);
+node* loadDictionary(char* filename);
+
+void traverseLinkedList(node* ptr);
+void destroyLinkedList(node* ptr);
+int getLine(char** buffer, int* size, FILE* file);
+
 void test(void);
 
 int main(void) {
     test();
     return 0;
+}
+
+void anagramsLinkedList(node* ptr, char* str) {
+    if (isAnagram(str, ptr->str)) {
+        printf("%s", ptr->str);
+    }
+    if (ptr->next != NULL) {
+        anagramsLinkedList(ptr->next, str);
+    }
 }
 
 node* createNode(char* str) {
@@ -30,6 +46,35 @@ node* createNode(char* str) {
     strcpy(ptr->str, str);
     ptr->next = NULL;
     return ptr;
+}
+
+node* loadDictionary(char* filename) {
+    node* start = NULL;
+    node* curr = NULL;
+    FILE* file;
+
+    char* line_buff = NULL;
+    int buff_size;
+
+    file = fopen(filename, "r");
+    if (file == NULL) {
+        fprintf(stderr, "Cannot open \"%s\"\n", filename);
+        return 0;
+    }
+
+    if (getLine(&line_buff, &buff_size, file)) {
+        start = curr = createNode(line_buff);
+    }
+
+    while (getLine(&line_buff, &buff_size, file)) {
+        curr->next = createNode(line_buff);
+        curr = curr->next;
+    }
+
+    free(line_buff);
+    fclose(file);
+
+    return start;
 }
 
 /* TODO is this right? */
@@ -68,20 +113,31 @@ int isAnagram(char* str1, char* str2) {
 /* Must be passed inititialised buffer TODO expand to create buffer */
 int getLine(char** buffer, int* size, FILE* file) {
     const int factor = 2;
-    long int file_pos = ftell(file);
-    long int i = 0;
+    int file_pos = (int)ftell(file);
+    int i = 0;
 
+    /* FIXME 20 magic number */
+    if (*buffer == NULL) {
+        *size = 5;
+        *buffer = (char*)malloc(*size * sizeof(char));
+    }
+    if (*buffer == NULL) {
+        fprintf(stderr, "Memory allocation failed\n");
+        return -1;
+    }
+
+    /*TODO return values around last string are a bit funny */
     /*TODO rewrite this with fgets and buffered inputs */
-    while (fgets(*buffer + i, *size, file)) {
+    while (fgets(*buffer + i, *size - i, file)) {
         i = ftell(file) - file_pos;
-
         if ((*buffer)[i - 1] == '\n') {
             return i;
         }
+
         if (!(i < *size - 1)) {
             *size *= factor;
             /* TODO, can this be nicer? */
-            *buffer = (char*)realloc(*buffer, *size * sizeof(char));
+            *buffer = realloc(*buffer, *size * sizeof(char));
             if (*buffer == NULL) {
                 fprintf(stderr, "Memory allocation failed\n");
                 return -1;
@@ -99,8 +155,10 @@ int getLine(char** buffer, int* size, FILE* file) {
 void test(void) {
     FILE* test_file;
     char* filename = "test_lines.txt";
+    node* start;
+    node* current;
 
-    int size = 2;
+    int size = 5;
     char* buffer = (char*)malloc(size * sizeof(char));
     if (buffer == NULL) {
         fprintf(stderr, "ERROR\n");
@@ -117,10 +175,30 @@ void test(void) {
         exit(EXIT_FAILURE);
     }
 
-    printf("%d %s\n", getLine(&buffer, &size, test_file), buffer);
-    printf("%d %s\n", getLine(&buffer, &size, test_file), buffer);
-    printf("%d %s\n", getLine(&buffer, &size, test_file), buffer);
-    printf("%d %s\n", getLine(&buffer, &size, test_file), buffer);
+    printf("%d ", getLine(&buffer, &size, test_file));
+    printf("%s\n", buffer);
+    printf("%d ", getLine(&buffer, &size, test_file));
+    printf("%s\n", buffer);
+    printf("%d ", getLine(&buffer, &size, test_file));
+    printf("%s\n", buffer);
+    printf("%d ", getLine(&buffer, &size, test_file));
+    printf("%s\n", buffer);
+    printf("%d ", getLine(&buffer, &size, test_file));
+    printf("%s\n", buffer);
 
     fclose(test_file);
+
+    start = loadDictionary("./eng_370k_shuffle_short.txt");
+    printf("\n\n");
+    printf("%s", start->str);
+    current = start->next;
+    printf("%s", current->str);
+    current = current->next;
+    printf("%s", current->str);
+    current = current->next;
+
+    anagramsLinkedList(start, "sternaig");
+
+    free(buffer);
+    destroyLinkedList(start);
 }
