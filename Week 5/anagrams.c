@@ -5,15 +5,16 @@
 #include <string.h>
 
 #define ALPHABET 26
+#define BUFFER_SIZE 10
 
 /* TODO malloc of word? */
 typedef struct node {
-    char str[50];
+    char* str;
     struct node* next;
 } node;
 
 int isAnagram(char* str1, char* str2);
-node* createNode(char* str);
+node* createNode(char* str, int size);
 node* loadDictionary(char* filename);
 
 void traverseLinkedList(node* ptr);
@@ -36,11 +37,16 @@ void anagramsLinkedList(node* ptr, char* str) {
     }
 }
 
-node* createNode(char* str) {
+node* createNode(char* str, int size) {
     node* ptr = (node*)malloc(sizeof(node));
     if (ptr == NULL) {
         fprintf(stderr, "Node allocation failed\n");
         exit(EXIT_FAILURE);
+    }
+
+    ptr->str = (char*)malloc((size + 1) * sizeof(char));
+    if (ptr->str == NULL) {
+        fprintf(stderr, "ERRROR\n");
     }
 
     strcpy(ptr->str, str);
@@ -51,6 +57,7 @@ node* createNode(char* str) {
 node* loadDictionary(char* filename) {
     node* start = NULL;
     node* curr = NULL;
+    int size;
     FILE* file;
 
     char* line_buff = NULL;
@@ -62,12 +69,11 @@ node* loadDictionary(char* filename) {
         return 0;
     }
 
-    if (getLine(&line_buff, &buff_size, file)) {
-        start = curr = createNode(line_buff);
+    if ((size = getLine(&line_buff, &buff_size, file))) {
+        start = curr = createNode(line_buff, size);
     }
-
-    while (getLine(&line_buff, &buff_size, file)) {
-        curr->next = createNode(line_buff);
+    while ((size = getLine(&line_buff, &buff_size, file))) {
+        curr->next = createNode(line_buff, size);
         curr = curr->next;
     }
 
@@ -79,6 +85,7 @@ node* loadDictionary(char* filename) {
 
 /* TODO is this right? */
 void destroyLinkedList(node* ptr) {
+    free(ptr->str);
     if (ptr->next != NULL) {
         destroyLinkedList(ptr->next);
     }
@@ -129,12 +136,13 @@ int getLine(char** buffer, int* size, FILE* file) {
     /*TODO return values around last string are a bit funny */
     /*TODO rewrite this with fgets and buffered inputs */
     while (fgets(*buffer + i, *size - i, file)) {
+        /* Additional -1 for index, because file pos will be one higher after reading \n */
         i = ftell(file) - file_pos;
         if ((*buffer)[i - 1] == '\n') {
             return i;
         }
 
-        if (!(i < *size - 1)) {
+        if (!(i - 1 < *size - 1)) {
             *size *= factor;
             /* TODO, can this be nicer? */
             *buffer = realloc(*buffer, *size * sizeof(char));
@@ -158,7 +166,7 @@ void test(void) {
     node* start;
     node* current;
 
-    int size = 5;
+    int size = 20;
     char* buffer = (char*)malloc(size * sizeof(char));
     if (buffer == NULL) {
         fprintf(stderr, "ERROR\n");
@@ -175,20 +183,23 @@ void test(void) {
         exit(EXIT_FAILURE);
     }
 
-    printf("%d ", getLine(&buffer, &size, test_file));
-    printf("%s\n", buffer);
-    printf("%d ", getLine(&buffer, &size, test_file));
-    printf("%s\n", buffer);
-    printf("%d ", getLine(&buffer, &size, test_file));
-    printf("%s\n", buffer);
-    printf("%d ", getLine(&buffer, &size, test_file));
-    printf("%s\n", buffer);
-    printf("%d ", getLine(&buffer, &size, test_file));
-    printf("%s\n", buffer);
+    assert(getLine(&buffer, &size, test_file) == 11);
+    assert(strcmp(buffer, "farandoles\n") == 0);
+    assert(getLine(&buffer, &size, test_file) == 9);
+    assert(strcmp(buffer, "bronzine\n") == 0);
+    assert(getLine(&buffer, &size, test_file) == 13);
+    assert(strcmp(buffer, "auscultatory\n") == 0);
+    assert(getLine(&buffer, &size, test_file) == 6);
+    assert(strcmp(buffer, "bifer\n") == 0);
+    assert(getLine(&buffer, &size, test_file) == 10);
+    assert(strcmp(buffer, "steepgrass") == 0);
+    assert(getLine(&buffer, &size, test_file) == 0);
 
     fclose(test_file);
 
-    start = loadDictionary("./eng_370k_shuffle_short.txt");
+    printf("I am here\n");
+
+    start = loadDictionary("./test_lines.txt");
     printf("\n\n");
     printf("%s", start->str);
     current = start->next;
