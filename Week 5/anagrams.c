@@ -133,16 +133,15 @@ int getLine(char** buffer, int* size, FILE* file) {
         return -1;
     }
 
-    /*TODO return values around last string are a bit funny */
-    /*TODO rewrite this with fgets and buffered inputs */
     while (fgets(*buffer + i, *size - i, file)) {
-        /* Additional -1 for index, because file pos will be one higher after reading \n */
+        /* Additional i-1 for index, because file pos will be one higher after reading \n */
+        /* TODO some clearer coding around returning i would be preferred */
         i = ftell(file) - file_pos;
         if ((*buffer)[i - 1] == '\n') {
             return i;
         }
 
-        if (!(i - 1 < *size - 1)) {
+        if (!(i < *size - 1)) {
             *size *= factor;
             /* TODO, can this be nicer? */
             *buffer = realloc(*buffer, *size * sizeof(char));
@@ -164,9 +163,8 @@ void test(void) {
     FILE* test_file;
     char* filename = "test_lines.txt";
     node* start;
-    node* current;
 
-    int size = 20;
+    int size = 5;
     char* buffer = (char*)malloc(size * sizeof(char));
     if (buffer == NULL) {
         fprintf(stderr, "ERROR\n");
@@ -197,17 +195,7 @@ void test(void) {
 
     fclose(test_file);
 
-    printf("I am here\n");
-
-    start = loadDictionary("./test_lines.txt");
-    printf("\n\n");
-    printf("%s", start->str);
-    current = start->next;
-    printf("%s", current->str);
-    current = current->next;
-    printf("%s", current->str);
-    current = current->next;
-
+    start = loadDictionary("./eng_370k_shuffle.txt");
     anagramsLinkedList(start, "sternaig");
 
     free(buffer);
