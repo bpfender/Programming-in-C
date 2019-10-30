@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 typedef struct maze {
     char** grid;
@@ -52,9 +53,8 @@ void freeMazeArray(maze* maze) {
     free(maze->grid);
 }
 
+/* TODO still requires work around identifying the exit of the maze */
 int exploreMaze(maze* maze, int x, int y) {
-    printf("x:%d y:%d\n", x, y);
-
     /* TODO how best to mark exit from maze? */
     if (maze->grid[y][x] == 'X') {
         return 1;
@@ -109,6 +109,51 @@ void findEntrance(maze* maze) {
     maze->entrance_y = y;
 }
 
+int loadMaze(char* filename, maze* maze) {
+    FILE* file;
+
+    file = fopen(filename, "r");
+    if (file == NULL) {
+        fprintf(stderr, "Cannot open \"%s\"\n", filename);
+        return 0;
+    }
+}
+
+/* Must be passed inititialised buffer TODO expand to create buffer */
+int getLine(char** buffer, int* size, FILE* file) {
+    const int factor = 2;
+    int i = ftell(file);
+    char c;
+
+    char* ptr = *buffer;
+
+    /*TODO error checking around inputs and buffer */
+
+    while (fgets(*buffer, *size, file)) {
+        if (ftell(file) - i == size) {
+        }
+
+        ptr += i;
+    }
+
+    for (i = 0; (c = getc(file)) != '\n'; i++) {
+        *buffer[i] = (char)c;
+        i++;
+
+        if (!(i < *size)) {
+            *size *= factor;
+
+            /* TODO, can this be nicer? */
+            *buffer = (char*)realloc(*buffer, *size * sizeof(char));
+            if (*buffer == NULL) {
+                fprintf(stderr, "Memory allocation failed\n");
+                return -1;
+            }
+        }
+    }
+    return i;
+}
+
 void printMaze(maze* maze) {
     int i, j;
 
@@ -160,4 +205,6 @@ void test(void) {
     printf("Exit status: %d\n", maze_exit);
 
     printMaze(&test_maze);
+
+    freeMazeArray(&test_maze);
 }
