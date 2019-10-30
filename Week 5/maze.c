@@ -119,6 +119,16 @@ int loadMaze(char* filename, maze* maze) {
     }
 }
 
+int readMazeSize(maze* maze, char* line) {
+    /* TODO what could go wrong with this? Also can we talk bmore about string literals */
+    if (sscanf(line, "(%d,%d)", &maze->size_x, &maze->size_y) == 2) {
+        return 1;
+    }
+
+    fprintf(stderr, "Grid size input error\n");
+    return 0;
+}
+
 /* Must be passed inititialised buffer TODO expand to create buffer */
 int getLine(char** buffer, int* size, FILE* file) {
     const int factor = 2;
@@ -127,20 +137,14 @@ int getLine(char** buffer, int* size, FILE* file) {
 
     char* ptr = *buffer;
 
-    /*TODO error checking around inputs and buffer */
+    /*TODO rewrite this with fgets and buffered inputs */
 
-    while (fgets(*buffer, *size, file)) {
-        if (ftell(file) - i == size) {
-        }
-
-        ptr += i;
-    }
-
+    /*TODO no EOF handlign yet */
     for (i = 0; (c = getc(file)) != '\n'; i++) {
         *buffer[i] = (char)c;
         i++;
 
-        if (!(i < *size)) {
+        if (!(i < (*size) - 2)) {
             *size *= factor;
 
             /* TODO, can this be nicer? */
@@ -151,6 +155,9 @@ int getLine(char** buffer, int* size, FILE* file) {
             }
         }
     }
+    *buffer[i + 1] = '\n';
+    *buffer[i + 2] = '\0';
+
     return i;
 }
 
@@ -207,4 +214,7 @@ void test(void) {
     printMaze(&test_maze);
 
     freeMazeArray(&test_maze);
+
+    readMazeSize(&test_maze, "(15 , 20)");
+    printf("sizex: %d sizey: %d\n", test_maze.size_x, test_maze.size_y);
 }
