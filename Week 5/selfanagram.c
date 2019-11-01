@@ -34,10 +34,11 @@ int main(void) {
 void selfAnagram(node* ptr, char* str) {
     if (ptr->prev == ptr) {
         printf("%s ", str);
+        words++;
     } else {
         if (isAnagram(str, ptr->str)) {
+            words++;
             printf("%s ", ptr->str);
-            i++;
             pruneNode(ptr);
         }
     }
@@ -245,9 +246,9 @@ void test(void) {
     printf("%s\n", next->str);
     printf("\n");
 
-    /*while (start->next != NULL) {
+    while (start->next != NULL) {
         printf("%d  ", i++);
-        printf("words %d ", )
+        printf("words %d ", words);
         selfAnagram(start, start->str);
         next = start->next;
         free(start->str);
@@ -256,7 +257,7 @@ void test(void) {
         start->prev = start;
         printf("\n");
         printf("\n");
-    }*/
+    }
 
     free(buffer);
     destroyLinkedList(start);

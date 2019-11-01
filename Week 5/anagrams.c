@@ -30,7 +30,7 @@ int main(void) {
 
 void anagramsLinkedList(node* ptr, char* str) {
     if (isAnagram(str, ptr->str)) {
-        printf("%s", ptr->str);
+        printf("%s\n", ptr->str);
     }
     if (ptr->next != NULL) {
         anagramsLinkedList(ptr->next, str);
@@ -138,7 +138,8 @@ int getLine(char** buffer, int* size, FILE* file) {
         /* TODO some clearer coding around returning i would be preferred */
         i = ftell(file) - file_pos;
         if ((*buffer)[i - 1] == '\n') {
-            return i;
+            (*buffer)[i - 1] = '\0';
+            return i - 1;
         }
 
         if (!(i < *size - 1)) {
@@ -181,14 +182,14 @@ void test(void) {
         exit(EXIT_FAILURE);
     }
 
-    assert(getLine(&buffer, &size, test_file) == 11);
-    assert(strcmp(buffer, "farandoles\n") == 0);
-    assert(getLine(&buffer, &size, test_file) == 9);
-    assert(strcmp(buffer, "bronzine\n") == 0);
-    assert(getLine(&buffer, &size, test_file) == 13);
-    assert(strcmp(buffer, "auscultatory\n") == 0);
-    assert(getLine(&buffer, &size, test_file) == 6);
-    assert(strcmp(buffer, "bifer\n") == 0);
+    assert(getLine(&buffer, &size, test_file) == 10);
+    assert(strcmp(buffer, "farandoles") == 0);
+    assert(getLine(&buffer, &size, test_file) == 8);
+    assert(strcmp(buffer, "bronzine") == 0);
+    assert(getLine(&buffer, &size, test_file) == 12);
+    assert(strcmp(buffer, "auscultatory") == 0);
+    assert(getLine(&buffer, &size, test_file) == 5);
+    assert(strcmp(buffer, "bifer") == 0);
     assert(getLine(&buffer, &size, test_file) == 10);
     assert(strcmp(buffer, "steepgrass") == 0);
     assert(getLine(&buffer, &size, test_file) == 0);
