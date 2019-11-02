@@ -7,7 +7,6 @@
 #define ALPHABET 26
 #define BUFFER_SIZE 10
 
-/* TODO malloc of word? */
 typedef struct node {
     char* str;
     struct node* next;

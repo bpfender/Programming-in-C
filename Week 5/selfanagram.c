@@ -7,20 +7,22 @@
 #define ALPHABET 26
 #define BUFFER_SIZE 10
 
-/* TODO malloc of word? */
 typedef struct node {
     char* str;
+    int len;
+    int count[ALPHABET];
     struct node* next;
     struct node* prev;
 } node;
 
-int isAnagram(char* str1, char* str2);
 node* createNode(node* prev, char* str, int size);
 node* loadDictionary(char* filename);
 void pruneNode(node* ptr);
+void charCounts(int counts[ALPHABET], char* str);
+int compareCounts(int count1[ALPHABET], int count2[ALPHABET]);
 
 void traverseLinkedList(node* ptr);
-void destroyLinkedList(node* ptr);
+void unloadLinkedList(node* ptr);
 int getLine(char** buffer, int* size, FILE* file);
 
 void test(void);
@@ -31,28 +33,21 @@ int main(void) {
     return 0;
 }
 
-void selfAnagram(node* ptr, char* str) {
+void selfAnagram(node* ptr, int count[ALPHABET], int size) {
     if (ptr->prev == ptr) {
-        printf("%s ", str);
+        printf("%s ", ptr->str);
         words++;
     } else {
-        if (isAnagram(str, ptr->str)) {
-            words++;
-            printf("%s ", ptr->str);
-            pruneNode(ptr);
+        if (size == ptr->len) {
+            if (compareCounts(ptr->count, count)) {
+                words++;
+                printf("%s ", ptr->str);
+                pruneNode(ptr);
+            }
         }
     }
     if (ptr->next != NULL) {
-        selfAnagram(ptr->next, str);
-    }
-}
-
-void anagramsLinkedList(node* ptr, char* str) {
-    if (isAnagram(str, ptr->str)) {
-        printf("%s ", ptr->str);
-    }
-    if (ptr->next != NULL) {
-        anagramsLinkedList(ptr->next, str);
+        selfAnagram(ptr->next, count, size);
     }
 }
 
@@ -80,6 +75,9 @@ node* createNode(node* prev, char* str, int size) {
     }
 
     strcpy(ptr->str, str);
+    charCounts(ptr->count, str);
+    ptr->len = size;
+
     ptr->next = NULL;
     ptr->prev = prev;
     return ptr;
@@ -115,38 +113,30 @@ node* loadDictionary(char* filename) {
     return start;
 }
 
-/* TODO is this right? */
-void destroyLinkedList(node* ptr) {
-    free(ptr->str);
-    if (ptr->next != NULL) {
-        destroyLinkedList(ptr->next);
+void charCounts(int counts[ALPHABET], char* str) {
+    int i;
+    for (i = 0; str[i] != '\0'; i++) {
+        counts[tolower(str[i]) - 'a']++;
     }
-    free(ptr);
 }
 
-int isAnagram(char* str1, char* str2) {
+int compareCounts(int count1[ALPHABET], int count2[ALPHABET]) {
     int i;
-    int count[ALPHABET] = {0};
-
-    /* What about invalid inputs non alphabetical chars? */
-    for (i = 0; str1[i] != '\0'; i++) {
-        if (isalpha(str1[i])) {
-            count[tolower(str1[i]) - 'a']++;
-        }
-    }
-
-    for (i = 0; str2[i] != '\0'; i++) {
-        if (isalpha(str2[i])) {
-            count[tolower(str2[i]) - 'a']--;
-        }
-    }
-
     for (i = 0; i < ALPHABET; i++) {
-        if (count[i]) {
+        if (count1[i] != count2[i]) {
             return 0;
         }
     }
     return 1;
+}
+
+/* TODO is this right? */
+void unloadLinkedList(node* ptr) {
+    free(ptr->str);
+    if (ptr->next != NULL) {
+        unloadLinkedList(ptr->next);
+    }
+    free(ptr);
 }
 
 /* MODIFIED TO RETURN NULL CHARACTER TERMINATED LINE \n removed*/
@@ -208,10 +198,6 @@ void test(void) {
         exit(EXIT_FAILURE);
     }
 
-    assert(isAnagram("aa", "bb") == 0);
-    assert(isAnagram("aa", "aa") == 1);
-    assert(isAnagram("astringe", "gantries") == 1);
-
     test_file = fopen(filename, "r");
     if (test_file == NULL) {
         fprintf(stderr, "Cannot open \"%s\"\n", filename);
@@ -233,7 +219,6 @@ void test(void) {
     fclose(test_file);
 
     start = loadDictionary("./eng_370k_shuffle.txt");
-    anagramsLinkedList(start, "misconstrual");
     printf("\n");
 
     printf("%s\n", start->str);
@@ -249,7 +234,7 @@ void test(void) {
     while (start->next != NULL) {
         printf("%d  ", i++);
         printf("words %d ", words);
-        selfAnagram(start, start->str);
+        selfAnagram(start, start->count, start->len);
         next = start->next;
         free(start->str);
         free(start);
@@ -260,5 +245,5 @@ void test(void) {
     }
 
     free(buffer);
-    destroyLinkedList(start);
+    unloadLinkedList(start);
 }
