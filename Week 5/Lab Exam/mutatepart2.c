@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define N 21
+#define N 101
 
 void populateBoard(int grid[N][N]);
 void printBoard(int grid[N][N]);
@@ -16,7 +16,7 @@ int main(void) {
     int grid[N][N];
 
     populateBoard(grid);
-    for (i = 0; i < N * N * N; i++) {
+    for (i = 0; i < N * N * N * N; i++) {
         mutate(grid);
     }
 
