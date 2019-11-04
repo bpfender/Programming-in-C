@@ -130,7 +130,6 @@ int compareCounts(int count1[ALPHABET], int count2[ALPHABET]) {
     return 1;
 }
 
-/* TODO is this right? */
 void unloadLinkedList(node* ptr) {
     free(ptr->str);
     if (ptr->next != NULL) {

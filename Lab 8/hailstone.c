@@ -9,10 +9,6 @@ unsigned int HailstoneLength(unsigned int seed);
 unsigned int HailstoneLargest(unsigned int seed);
 void test(void);
 
-/* QUESTION program seems to hang for larger values (overflow? is there a way of detecting
- * this, also correct type specifcation?), 
- * how can this be written more efficiently with caching?
- */
 int main(void) {
     unsigned int i;
     unsigned int current_length, longest_found = 0, longest_seed;

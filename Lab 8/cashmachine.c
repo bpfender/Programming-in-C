@@ -11,8 +11,10 @@ int main(void) {
 
     do {
         printf("How much money would you like ? ");
-        /* QUESTION error handling for scanf? */
-        scanf("%d", &requested_amount);
+        if (!scanf("%d", &requested_amount)) {
+            fprintf(stderr, "Invalid input\n");
+            return 1;
+        }
     } while (!requestAmount(requested_amount));
 
     printf("OK, dispensing ...\n");

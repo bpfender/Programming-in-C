@@ -127,7 +127,7 @@ trie_node* loadDictionary(char* filename) {
                 counts[i]--;
             }
         }
-        /* QUESTION is it possible to make tries space efficient? */
+
         /* Add word to trie location at end of linked list */
         if (curr->start == NULL) {
             curr->start = curr->current = createNode(line_buff, word_len);

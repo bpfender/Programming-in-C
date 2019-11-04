@@ -71,7 +71,6 @@ bool isPrime(int candidate) {
         return false;
     }
 
-    /* QUESTION is this naughty? */
     for (j = 3; j <= candidate / 2; j += 2) {
         if (candidate % j == 0) {
             return false;

@@ -32,7 +32,6 @@ int createList(int** list) {
 
     *list = (int*)malloc(size * sizeof(int));
     if (*list == NULL) {
-        /* QUESTION should this print to error stream? What are streams? */
         printf("Memory allocation failed...\n");
         abort();
     }

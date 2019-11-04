@@ -18,7 +18,6 @@ int main(void) {
 
     printf("How many iterations do you want to do?  ");
     scanf("%d", &iterations);
-    /* QUESTION is there a neat way to do error ahdnlign on scanf */
 
     for (i = 0; i < iterations; i++) {
         attempts = i + 1;
@@ -38,10 +37,8 @@ int main(void) {
 
 float generateCoord() {
     return (float)rand() / RAND_MAX;
-    /* QUESTION do i have to cast here to return a float? */
 }
 
-/* QUESTION should i just link in th emaths library? */
 bool MonteCarloFinder(float x_coord, float y_coord) {
     if (x_coord * x_coord + y_coord * y_coord <= RADIUS * RADIUS) {
         return 1;

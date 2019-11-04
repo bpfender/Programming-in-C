@@ -82,7 +82,6 @@ node* loadDictionary(char* filename) {
     return start;
 }
 
-/* TODO is this right? */
 void destroyLinkedList(node* ptr) {
     free(ptr->str);
     if (ptr->next != NULL) {

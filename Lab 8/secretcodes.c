@@ -21,7 +21,6 @@ int main(void) {
     return 0;
 }
 
-/* QUESTION would it not be better to define the types as chars here? */
 int scode(int a) {
     if (isalpha(a)) {
         if (isupper(a)) {
