@@ -168,11 +168,14 @@ int loadMaze(char* filename, maze* maze) {
         }
 
         if (line > maze->size_y - 1) {
-            printf("%d ", line);
             fprintf(stderr, "Too many lines in file\n");
             return 0;
         }
         line++;
+    }
+    if (line != maze->size_y) {
+        fprintf(stderr, "Too few lines in file\n");
+        return 0;
     }
 
     free(buffer);
