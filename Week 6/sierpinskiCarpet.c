@@ -48,7 +48,7 @@ void sierpinski(char grid[][SIERP_SIZE], int sub_size) {
         }
     }
 
-    if (sub_size == 1) {
+    if (sub_size <= 1) {
         return;
     }
 
