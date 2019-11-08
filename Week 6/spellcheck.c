@@ -2,12 +2,19 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define MAX_WORDS 37019
+#define MAX_LEN 40
 
 typedef struct list {
-    char sorted[MAX_WORDS];
+    char sorted[MAX_WORDS][MAX_LEN];
+    int index;
 } list;
+
+void insertWord(list* list, char* word);
+
+void shiftList(list* list, int pos);
 
 void test(void);
 int checkPosition(char* s1, char* s2);
@@ -16,6 +23,33 @@ int getLine(char** buffer, int* size, FILE* file);
 int main(void) {
     test();
     return 0;
+}
+
+void insertWord(list* list, char* word) {
+    int i;
+
+    if (list->index == 0) {
+        strcpy(list->sorted[0], word);
+        list->index++;
+        return;
+    } else {
+        for (i = 0; i <= list->index; i++) {
+            if (checkPosition(word, list->sorted[i]) == 0) {
+                printf("Hello\n");
+                shiftList(list, i);
+                strcpy(list->sorted[i], word);
+                list->index++;
+                return;
+            }
+        }
+    }
+}
+
+void shiftList(list* list, int pos) {
+    int i;
+    for (i = list->index; i >= pos; i--) {
+        strcpy(list->sorted[i + 1], list->sorted[i]);
+    }
 }
 
 int checkPosition(char* s1, char* s2) {
@@ -49,7 +83,7 @@ int getLine(char** buffer, int* size, FILE* file) {
     }
     if (*buffer == NULL) {
         fprintf(stderr, "Memory allocation failed\n");
-        return -1;
+        exit(EXIT_FAILURE);
     }
 
     while (fgets(*buffer + i, *size - i, file)) {
@@ -67,21 +101,43 @@ int getLine(char** buffer, int* size, FILE* file) {
             *buffer = realloc(*buffer, *size * sizeof(char));
             if (*buffer == NULL) {
                 fprintf(stderr, "Memory allocation failed\n");
-                return -1;
+                exit(EXIT_FAILURE);
             }
         }
     }
 
     if (!feof(file)) {
         fprintf(stderr, "Error reading file\n");
-        return -1;
+        exit(EXIT_FAILURE);
     }
     return i;
 }
 
 void test(void) {
+    int i;
+    list test_list;
+
+    test_list.index = 1;
+    strcpy(test_list.sorted[0], "hello");
+    strcpy(test_list.sorted[1], "goodbye");
+
+    assert(checkPosition("apple", "hello") == 0);
     assert(checkPosition("ass", "abba") == 1);
     assert(checkPosition("cat", "decapod") == 0);
     assert(checkPosition("benedict", "george") == 0);
     assert(checkPosition("hello", "alien") == 1);
+
+    shiftList(&test_list, 0);
+    test_list.index = 2;
+    assert(strcmp("hello", test_list.sorted[1]) == 0);
+    assert(strcmp("goodbye", test_list.sorted[2]) == 0);
+
+    insertWord(&test_list, "apple");
+    for (i = 0; i < 10; i++) {
+        printf("Index %d %s\n", i, test_list.sorted[i]);
+    }
+
+    assert(strcmp("apple", test_list.sorted[0]) == 0);
+    assert(strcmp("hello", test_list.sorted[1]) == 0);
+    assert(strcmp("goodbye", test_list.sorted[3]) == 0);
 }
