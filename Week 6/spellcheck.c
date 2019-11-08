@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_WORDS 5
+#define MAX_WORDS 370119
 #define MAX_LEN 40
 
 typedef struct list {
@@ -29,7 +29,7 @@ int main(void) {
 
     /*test();*/
 
-    loadDictionary(&list, "../Week 5/Text Files/test_lines.txt");
+    loadDictionary(&list, "../Week 5/Text Files/eng_370k_shuffle.txt");
 
     for (i = 0; i < MAX_WORDS; i++) {
         printf("Index %d %s\n", i, list.sorted[i]);
