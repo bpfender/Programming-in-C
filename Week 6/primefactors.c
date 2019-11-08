@@ -1,31 +1,36 @@
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #define START_PRIME 2
+#define PRIME_LIST_SIZE 10
 
-typedef struct primes {
-    int val;
-    int count;
-} primes;
+typedef struct prime_factor {
+    long val;
+    long count;
+} prime_factor;
 
-void primeFactors(int n, int prime);
-int nextPrime(int prime);
-int isPrime(int candidate);
+typedef struct prime_list {
+    prime_factor* list;
+    size_t size;
+} prime_list;
+
+void primeFactors(unsigned long n, unsigned long prime);
+unsigned long nextPrime(unsigned long prime);
+unsigned long isPrime(unsigned long candidate);
 void test(void);
 
 int main(void) {
     test();
+
     return 0;
 }
 
-int primeDivisor() {
-    return 0;
-}
-
-void primeFactors(int n, int prime) {
+void primeFactors(unsigned long n, unsigned long prime) {
     if (n % prime == 0) {
         n /= prime;
-        printf("%d ", prime);
+
+        printf("%li ", prime);
         if (n == 1) {
             printf("\n");
             return;
@@ -37,15 +42,15 @@ void primeFactors(int n, int prime) {
     primeFactors(n, prime);
 }
 
-int nextPrime(int prime) {
+unsigned long nextPrime(unsigned long prime) {
     while (!isPrime(++prime)) {
     }
 
     return prime;
 }
 
-int isPrime(int candidate) {
-    int i;
+unsigned long isPrime(unsigned long candidate) {
+    unsigned long i;
 
     if (candidate == 2) {
         return 1;
@@ -68,5 +73,6 @@ void test(void) {
 
     primeFactors(210, START_PRIME);
     primeFactors(117, START_PRIME);
-    primeFactors(1532579687, START_PRIME);
+    primeFactors(1532579688, START_PRIME);
+    primeFactors(38654705664, START_PRIME);
 }
