@@ -4,45 +4,79 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_WORDS 37019
+#define MAX_WORDS 5
 #define MAX_LEN 40
 
 typedef struct list {
     char sorted[MAX_WORDS][MAX_LEN];
-    int index;
+    size_t index;
 } list;
 
+int loadDictionary(list* list, char* filename);
 void insertWord(list* list, char* word);
-
 void shiftList(list* list, int pos);
 
-void test(void);
 int checkPosition(char* s1, char* s2);
+
 int getLine(char** buffer, int* size, FILE* file);
 
+void test(void);
+
 int main(void) {
-    test();
+    int i;
+    static list list;
+    list.index = 0;
+
+    /*test();*/
+
+    loadDictionary(&list, "../Week 5/Text Files/test_lines.txt");
+
+    for (i = 0; i < MAX_WORDS; i++) {
+        printf("Index %d %s\n", i, list.sorted[i]);
+    }
+
     return 0;
 }
 
 void insertWord(list* list, char* word) {
-    int i;
-
+    size_t i;
+    printf("Index %li\n", list->index);
     if (list->index == 0) {
         strcpy(list->sorted[0], word);
         list->index++;
         return;
-    } else {
-        for (i = 0; i <= list->index; i++) {
-            if (checkPosition(word, list->sorted[i]) == 0) {
-                printf("Hello\n");
-                shiftList(list, i);
-                strcpy(list->sorted[i], word);
-                list->index++;
-                return;
-            }
+    }
+
+    for (i = 0; i < list->index; i++) {
+        if (checkPosition(word, list->sorted[i]) == 0) {
+            shiftList(list, i);
+            strcpy(list->sorted[i], word);
+            list->index++;
+            return;
         }
     }
+    strcpy(list->sorted[i], word);
+    list->index++;
+}
+
+int loadDictionary(list* list, char* filename) {
+    char* buffer = NULL;
+    int size;
+
+    FILE* file;
+    file = fopen(filename, "r");
+    if (file == NULL) {
+        fprintf(stderr, "Cannot open \"%s\"\n", filename);
+        return 0;
+    }
+
+    while (getLine(&buffer, &size, file)) {
+        insertWord(list, buffer);
+    }
+
+    fclose(file);
+    free(buffer);
+    return 1;
 }
 
 void shiftList(list* list, int pos) {
@@ -71,6 +105,7 @@ int checkPosition(char* s1, char* s2) {
 }
 
 /* MODIFIED TO RETURN NULL CHARACTER TERMINATED LINE \n removed*/
+/* FIXME return value need to be modified */
 int getLine(char** buffer, int* size, FILE* file) {
     const int factor = 2;
     int file_pos = (int)ftell(file);
