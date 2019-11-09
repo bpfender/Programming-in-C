@@ -7,6 +7,11 @@
 #define SIZE 3
 #define QUEUE 362880
 
+typedef enum swap_t { UP,
+                      DOWN,
+                      LEFT,
+                      RIGHT } swap_t;
+
 typedef struct grid_t {
     int board[SIZE][SIZE];
     size_t x;
@@ -28,6 +33,11 @@ void solvePuzzle(queue_t* queue, char* start);
 /* BUILDING CHILDREN */
 int createChildren(queue_t* queue, size_t parent);
 void buildChild(queue_t* queue, size_t parent, size_t x_swap, size_t y_swap);
+void createChild(grid_t* parent, grid_t* child, size_t x_swap, size_t y_swap, size_t index);
+int checkUnique(queue_t* queue, int grid[SIZE][SIZE]);
+int checkTarget(int grid[SIZE][SIZE]);
+void enqueue(queue_t* queue, grid_t* grid);
+
 int compareBoards(int grid1[SIZE][SIZE], int grid2[SIZE][SIZE]);
 void swap(int* n1, int* n2);
 
@@ -56,39 +66,72 @@ void solvePuzzle(queue_t* queue, char* start) {
 }
 
 int createChildren(queue_t* queue, size_t parent) {
+    grid_t tmp_grid;
+
     size_t x = queue->queue[parent].x;
     size_t y = queue->queue[parent].y;
 
     if (x < SIZE - 1) {
-        buildChild(queue, parent, x + 1, y);
-        if (compareBoards(queue->queue[queue->index].board, target)) {
-            printf("Board found\n");
+        createChild(&queue->queue[parent], &tmp_grid, x + 1, y, parent);
+        if (checkTarget(queue->queue[queue->index].board)) {
             return 1;
+        }
+        if (checkUnique(queue, tmp_grid.board)) {
+            enqueue(queue, &tmp_grid);
         }
     }
     if (x > 0) {
-        buildChild(queue, parent, x - 1, y);
-        if (compareBoards(queue->queue[queue->index].board, target)) {
-            printf("Board found\n");
-            return 1;
-        }
     }
     if (y < SIZE - 1) {
-        buildChild(queue, parent, x, y + 1);
-        if (compareBoards(queue->queue[queue->index].board, target)) {
-            printf("Board found\n");
-            return 1;
-        }
     }
     if (y > 0) {
-        buildChild(queue, parent, x, y - 1);
+        /*buildChild(queue, parent, x, y - 1);
         if (compareBoards(queue->queue[queue->index].board, target)) {
             printf("Board found\n");
             return 1;
-        }
+        }*/
     }
     parent++;
     return 0;
+}
+
+void createChild(grid_t* parent, grid_t* child, size_t x_swap, size_t y_swap, size_t parent_index) {
+    size_t x_free = parent->x;
+    size_t y_free = parent->y;
+
+    /* Copy original grid */
+    memcpy(child->board, parent->board, SIZE * SIZE * sizeof(int));
+
+    /* Swap cells */
+    swap(&child->board[y_free][x_free], &child->board[y_swap][x_swap]);
+
+    child->x = x_swap;
+    child->y = y_swap;
+    child->parent = parent_index;
+}
+
+int checkUnique(queue_t* queue, int grid[SIZE][SIZE]) {
+    size_t i;
+    for (i = 0; i <= queue->index; i++) {
+        if (compareBoards(queue->queue[i].board, grid)) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+int checkTarget(int grid[SIZE][SIZE]) {
+    /* QUESTION in termsof notation better to have a const */
+    int target[SIZE][SIZE] = {{1, 2, 3},
+                              {4, 5, 6},
+                              {7, 8, 0}};
+
+    return compareBoards(target, grid);
+}
+
+void enqueue(queue_t* queue, grid_t* grid) {
+    size_t index = ++queue->index;
+    memcpy(&queue->queue[index], grid, sizeof(grid_t));
 }
 
 void buildChild(queue_t* queue, size_t parent, size_t x_swap, size_t y_swap) {
@@ -273,7 +316,22 @@ void test(void) {
         printBoard(test_queue.queue[i].board);
     }
 
-    /* Test solver */
-    printf("Solve start\n\n");
-    solvePuzzle(&test_queue, "1234 5678");
+    /* Testing of checkTarget() */
+    loadBoard(test_grid, "12345678 ");
+    assert(checkTarget(test_grid) == 1);
+
+    /* Testing of checkUnique */
+    /* TODO requires more extensive testing */
+    initQueue(&test_queue, "12345678 ");
+    loadBoard(test_grid, "12345678 ");
+    assert(checkUnique(&test_queue, test_grid) == 0);
+
+    loadBoard(test_grid, "123 45678");
+    assert(checkUnique(&test_queue, test_grid) == 1);
+
+    /* Testing of createChild() */
+    initQueue(&test_queue, "1234 5678");
+    createChild(&test_queue.queue[0], &test_board, 1, 1 + 1, 0);
+    assert(test_board.x == 1 && test_board.y == 2);
+    printBoard(test_board.board);
 }
