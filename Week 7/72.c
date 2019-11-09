@@ -25,10 +25,6 @@ typedef struct queue_t {
     size_t index;
 } queue_t;
 
-static int target[SIZE][SIZE] = {{1, 2, 3},
-                                 {4, 5, 6},
-                                 {7, 8, 0}};
-
 void solvePuzzle(queue_t* queue, char* start);
 
 /* BUILDING CHILDREN */
@@ -38,6 +34,7 @@ void createChild(grid_t* parent, grid_t* child, size_t x_swap, size_t y_swap, si
 int checkUnique(queue_t* queue, int grid[SIZE][SIZE]);
 int checkTarget(int grid[SIZE][SIZE]);
 void enqueue(queue_t* queue, grid_t* grid);
+int move(swap_t dir, queue_t* queue, size_t parent);
 
 int compareBoards(int grid1[SIZE][SIZE], int grid2[SIZE][SIZE]);
 void swap(int* n1, int* n2);
@@ -77,88 +74,53 @@ void solvePuzzle(queue_t* queue, char* start) {
 }
 
 int createChildren(queue_t* queue, size_t parent) {
-    grid_t tmp_grid;
-
     size_t x = queue->children[parent].x;
     size_t y = queue->children[parent].y;
 
     if (x < SIZE - 1) {
-        createChild(&queue->children[parent], &tmp_grid, x + 1, y, parent);
-        if (checkTarget(tmp_grid.board)) {
-            enqueue(queue, &tmp_grid);
+        if (move(RIGHT, queue, parent)) {
             return 1;
-        }
-        if (checkUnique(queue, tmp_grid.board)) {
-            enqueue(queue, &tmp_grid);
         }
     }
     if (x > 0) {
-        createChild(&queue->children[parent], &tmp_grid, x - 1, y, parent);
-        if (checkTarget(tmp_grid.board)) {
-            enqueue(queue, &tmp_grid);
+        if (move(LEFT, queue, parent)) {
             return 1;
-        }
-        if (checkUnique(queue, tmp_grid.board)) {
-            enqueue(queue, &tmp_grid);
         }
     }
     if (y < SIZE - 1) {
-        createChild(&queue->children[parent], &tmp_grid, x, y + 1, parent);
-        if (checkTarget(tmp_grid.board)) {
-            enqueue(queue, &tmp_grid);
+        if (move(DOWN, queue, parent)) {
             return 1;
-        }
-        if (checkUnique(queue, tmp_grid.board)) {
-            enqueue(queue, &tmp_grid);
         }
     }
     if (y > 0) {
-        createChild(&queue->children[parent], &tmp_grid, x, y - 1, parent);
-        if (checkTarget(tmp_grid.board)) {
-            enqueue(queue, &tmp_grid);
+        if (move(UP, queue, parent)) {
             return 1;
         }
-        if (checkUnique(queue, tmp_grid.board)) {
-            enqueue(queue, &tmp_grid);
-        }
-        /*buildChild(queue, parent, x, y - 1);
-        if (compareBoards(queue->children[queue->index].board, target)) {
-            printf("Board found\n");
-            return 1;
-        }*/
     }
     return 0;
 }
 
 int move(swap_t dir, queue_t* queue, size_t parent) {
+    grid_t tmp;
+
     size_t x = queue->children[parent].x;
     size_t y = queue->children[parent].y;
     size_t x2 = x + (dir == RIGHT) - (dir == LEFT);
-    size_t y2 = y + (dir == DOWN) = (dir == UP);
-
-    grid_t tmp;
+    size_t y2 = y + (dir == DOWN) - (dir == UP);
 
     memcpy(tmp.board, &queue->children[parent], SIZE * SIZE * sizeof(int));
-    swap(tmp.board[x][y], tmp.board[x2][y2]);
+    swap(&tmp.board[x][y], &tmp.board[x2][y2]);
 
-    /* switch (dir) {
-        case UP:
-            swap(tmp.board[x][y], tmp.board[x][y + 1]);
-            break;
-        case DOWN:
-            swap(tmp.board[x][y], tmp.board[x][y - 1]);
-            break;
-        case LEFT:
-            swap(tmp.board[x][y], tmp.board[x + 1][y]);
-            break;
-        case RIGHT:
-            swap(tmp.board[x][y], tmp.board[x - 1][y]);
-            break;
-    }*/
+    tmp.x = x2;
+    tmp.y = y2;
+    tmp.parent = parent;
+    tmp.step = queue->children[parent].step + 1;
 
     if (checkUnique(queue, tmp.board)) {
         enqueue(queue, &tmp);
     }
+
+    return checkTarget(tmp.board);
 }
 
 void createChild(grid_t* parent, grid_t* child, size_t x_swap, size_t y_swap, size_t parent_index) {
