@@ -22,13 +22,14 @@ typedef struct grid_t {
 
 typedef struct queue_t {
     grid_t children[QUEUE];
-    size_t index;
+    size_t start;
+    size_t end;
 } queue_t;
 
 void solvePuzzle(queue_t* queue, char* start);
 
 /* BUILDING CHILDREN */
-int getChildren(queue_t* queue, size_t parent);
+int getChildren(queue_t* queue);
 int swapTile(swap_t dir, queue_t* queue, size_t parent);
 int checkUnique(queue_t* queue, int grid[SIZE][SIZE]);
 int checkTarget(int grid[SIZE][SIZE]);
@@ -51,17 +52,16 @@ int main(void) {
 }
 
 void solvePuzzle(queue_t* queue, char* start) {
-    size_t parent = 0;
     size_t index;
     initQueue(queue, start);
 
-    while (!getChildren(queue, parent++)) {
+    while (!getChildren(queue)) {
     }
 
-    printf("Iterations: %li\n", parent);
-    printf("Steps: %li\n", queue->children[queue->index].step);
+    printf("Iterations: %li\n", queue->start);
+    printf("Steps: %li\n", queue->children[queue->end].step);
 
-    index = queue->index;
+    index = queue->end;
     while (queue->children[index].step != 0) {
         printBoard(queue->children[index].grid);
         index = queue->children[index].parent;
@@ -69,7 +69,8 @@ void solvePuzzle(queue_t* queue, char* start) {
     printBoard(queue->children[0].grid);
 }
 
-int getChildren(queue_t* queue, size_t parent) {
+int getChildren(queue_t* queue) {
+    size_t parent = queue->start;
     size_t x = queue->children[parent].x;
     size_t y = queue->children[parent].y;
 
@@ -93,6 +94,7 @@ int getChildren(queue_t* queue, size_t parent) {
             return 1;
         }
     }
+    queue->start++;
     return 0;
 }
 
@@ -124,7 +126,7 @@ int swapTile(swap_t dir, queue_t* queue, size_t parent) {
 /* TODO restructure as binary tree? */
 int checkUnique(queue_t* queue, int grid[SIZE][SIZE]) {
     size_t i;
-    for (i = 0; i <= queue->index; i++) {
+    for (i = 0; i <= queue->end; i++) {
         if (compareBoards(queue->children[i].grid, grid)) {
             return 0;
         }
@@ -142,9 +144,9 @@ int checkTarget(int grid[SIZE][SIZE]) {
 }
 
 void enqueue(queue_t* queue, grid_t* grid) {
-    size_t index = ++queue->index;
+    size_t end = ++queue->end;
 
-    memcpy(&queue->children[index], grid, sizeof(grid_t));
+    memcpy(&queue->children[end], grid, sizeof(grid_t));
 }
 
 int compareBoards(int grid1[SIZE][SIZE], int grid2[SIZE][SIZE]) {
@@ -160,11 +162,12 @@ void swap(int* n1, int* n2) {
 
 /* ------ UTILITY FUNCTIONS ------ */
 void initQueue(queue_t* queue, char* s) {
-    size_t index = queue->index = 0;
-    loadBoard(queue->children[index].grid, s);
+    size_t end = queue->end = 0;
+    queue->start = 0;
+    loadBoard(queue->children[end].grid, s);
 
-    markFreeCell(&queue->children[index]);
-    queue->children[index].step = 0;
+    markFreeCell(&queue->children[end]);
+    queue->children[end].step = 0;
 }
 
 /* TODO requires error checking on input string */
@@ -268,17 +271,17 @@ void test(void) {
 
     /* Check that queue initialisation works properly */
     initQueue(&test_queue, "1234 5678");
-    assert(test_queue.index == 0);
-    assert(test_queue.children[test_queue.index].grid[0][0] == 1);
-    assert(test_queue.children[test_queue.index].grid[2][2] == 8);
-    assert(test_queue.children[test_queue.index].x == 1);
-    assert(test_queue.children[test_queue.index].y == 1);
+    assert(test_queue.end == 0);
+    assert(test_queue.children[test_queue.end].grid[0][0] == 1);
+    assert(test_queue.children[test_queue.end].grid[2][2] == 8);
+    assert(test_queue.children[test_queue.end].x == 1);
+    assert(test_queue.children[test_queue.end].y == 1);
 
     printBoard(test_queue.children[0].grid);
 
     /* Check that whole set of children are generated properly */
     initQueue(&test_queue, "1234 5678");
-    getChildren(&test_queue, 0);
+    getChildren(&test_queue);
 
     /* TODO more explicit testing here. On visual inspection it work */
     printBoard(test_queue.children[0].grid);
@@ -289,8 +292,8 @@ void test(void) {
 
     /* Testing of grid duplication avoidance */
     /* TODO more explicit testing required */
-    getChildren(&test_queue, 0);
-    for (i = 0; i <= test_queue.index; i++) {
+    getChildren(&test_queue);
+    for (i = 0; i <= test_queue.end; i++) {
         printf("Board: %li\n", i);
         assert(compareBoards(test_queue.children[0].grid, test_queue.children[i + 1].grid) == 0);
         printBoard(test_queue.children[i].grid);
@@ -316,5 +319,5 @@ void test(void) {
     printBoard(test_board.grid);
 
     printf("Solve START\n");
-    solvePuzzle(&test_queue, "123456 78");
+    solvePuzzle(&test_queue, " 12345678");
 }
