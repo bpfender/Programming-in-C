@@ -12,16 +12,12 @@ typedef enum swap_t { UP,
                       LEFT,
                       RIGHT } swap_t;
 
-typedef struct grid_t {
+typedef struct node_t {
     int grid[SIZE][SIZE];
     size_t x;
     size_t y;
-    size_t parent;
     size_t step;
-} grid_t;
-
-typedef struct node_t {
-    grid_t child;
+    struct node_t* parent;
     struct node_t* next;
 } node_t;
 
@@ -38,7 +34,7 @@ int getChildren(queue_t* queue);
 int swapTile(swap_t dir, queue_t* queue);
 int checkUnique(queue_t* queue, int grid[SIZE][SIZE]);
 int checkTarget(int grid[SIZE][SIZE]);
-void enqueue(queue_t* queue, grid_t* grid);
+void enqueue(queue_t* queue, node_t* grid);
 
 int compareBoards(int grid1[SIZE][SIZE], int grid2[SIZE][SIZE]);
 void swap(int* n1, int* n2);
@@ -46,8 +42,10 @@ void swap(int* n1, int* n2);
 /* INITIALISATION & UTILITY FUNCTIONS */
 void initQueue(queue_t* queue, char* s);
 void loadBoard(int grid[SIZE][SIZE], char* s);
-void markFreeCell(grid_t* grid);
+void markXY(node_t* grid);
 void printBoard(int grid[SIZE][SIZE]);
+
+void unloadQueue(node_t* node);
 
 void test(void);
 
@@ -57,25 +55,25 @@ int main(void) {
 }
 
 void solvePuzzle(queue_t* queue, char* s) {
-    node_t* prev;
+    node_t* node;
     initQueue(queue, s);
 
     while (!getChildren(queue)) {
     }
 
-    printf("Steps: %li\n", queue->end->child.step);
+    printf("Steps: %li\n", queue->end->step);
 
-    prev = queue->end;
-    while (prev->child.parent != NULL) {
-        printBoard(prev->child.grid);
-        prev = prev->child.parent;
+    node = queue->end;
+    while (node != NULL) {
+        printBoard(node->grid);
+        node = node->parent;
     }
-    printBoard(queue->start->child.grid);
 }
 
 int getChildren(queue_t* queue) {
-    size_t x = queue->curr->child.x;
-    size_t y = queue->curr->child.y;
+    node_t* parent = queue->curr;
+    size_t x = parent->x;
+    size_t y = parent->y;
 
     if (x < SIZE - 1) {
         if (swapTile(RIGHT, queue)) {
@@ -97,27 +95,29 @@ int getChildren(queue_t* queue) {
             return 1;
         }
     }
-    queue->curr++;
+    queue->curr = parent->next;
     return 0;
 }
 
+/* QUESTION Can i do memory allocation earlier to save having to build node_t every time */
 int swapTile(swap_t dir, queue_t* queue) {
-    grid_t tmp;
-    size_t parent = queue->curr;
+    node_t tmp;
+    node_t* parent = queue->curr;
 
-    size_t x1 = queue->curr->child.x;
-    size_t y1 = queue->curr->child.y;
+    size_t x1 = parent->x;
+    size_t y1 = parent->y;
     /* QUESTION is this naughty? can i rely on conditional evalutation */
     size_t x2 = x1 + (dir == RIGHT) - (dir == LEFT);
     size_t y2 = y1 + (dir == DOWN) - (dir == UP);
 
-    memcpy(tmp.grid, queue->curr->child.grid, SIZE * SIZE * sizeof(int));
+    memcpy(tmp.grid, parent->grid, SIZE * SIZE * sizeof(int));
     swap(&tmp.grid[y1][x1], &tmp.grid[y2][x2]);
 
     tmp.x = x2;
     tmp.y = y2;
+    tmp.step = parent->step + 1;
     tmp.parent = parent;
-    tmp.step = queue->curr->child.step + 1;
+    tmp.next = NULL;
 
     if (checkUnique(queue, tmp.grid)) {
         enqueue(queue, &tmp);
@@ -129,13 +129,14 @@ int swapTile(swap_t dir, queue_t* queue) {
 /* TODO is this the best way to check for repetition */
 /* TODO restructure as binary tree? */
 int checkUnique(queue_t* queue, int grid[SIZE][SIZE]) {
-    node_t* curr = queue->start;
+    node_t* node = queue->start;
 
-    while (curr->next != NULL) {
-        if (compareBoards(curr->child.grid, grid)) {
+    /* FIXME should this be do while? */
+    while (node != NULL) {
+        if (compareBoards(node->grid, grid)) {
             return 0;
         }
-        curr = curr->next;
+        node = node->next;
     }
     return 1;
 }
@@ -149,18 +150,17 @@ int checkTarget(int grid[SIZE][SIZE]) {
     return compareBoards(target, grid);
 }
 
-void enqueue(queue_t* queue, grid_t* grid) {
-    grid_t* ptr = (grid_t*)malloc(sizeof(grid_t));
+void enqueue(queue_t* queue, node_t* node) {
+    node_t* ptr = (node_t*)malloc(sizeof(node_t));
     if (ptr == NULL) {
         /*TODO, free array */
         fprintf(stderr, "Memory allocation failed\n");
     }
 
+    memcpy(ptr, node, sizeof(node_t));
+
     queue->end->next = ptr;
     queue->end = ptr;
-    queue->end->next = NULL;
-
-    memcpy(&queue->end->child, grid, sizeof(grid_t));
 }
 
 int compareBoards(int grid1[SIZE][SIZE], int grid2[SIZE][SIZE]) {
@@ -182,13 +182,13 @@ void initQueue(queue_t* queue, char* s) {
         exit(EXIT_FAILURE);
     }
 
-    queue->curr = queue->end = queue->end = ptr;
+    queue->start = queue->curr = queue->end = ptr;
 
-    loadBoard(queue->start->child.grid, s);
+    loadBoard(queue->start->grid, s);
+    markXY(queue->start);
 
-    markFreeCell(&queue->start->child);
-    queue->start->child.step = 0;
-    queue->start->child.parent = NULL;
+    queue->start->step = 0;
+    queue->start->parent = NULL;
     queue->start->next = NULL;
 }
 
@@ -210,14 +210,14 @@ void loadBoard(int grid[SIZE][SIZE], char* s) {
     }
 }
 
-void markFreeCell(grid_t* grid) {
+void markXY(node_t* node) {
     size_t i, j;
 
     for (i = 0; i < SIZE; i++) {
         for (j = 0; j < SIZE; j++) {
-            if (grid->grid[i][j] == 0) {
-                grid->x = j;
-                grid->y = i;
+            if (node->grid[i][j] == 0) {
+                node->x = j;
+                node->y = i;
                 return;
             }
         }
@@ -254,11 +254,18 @@ int checkInput(char* s) {
     return 1;
 }
 
+void unloadQueue(node_t* node) {
+    if (node->next != NULL) {
+        unloadQueue(node->next);
+    }
+    free(node);
+}
+
 void test(void) {
     size_t i, j;
 
     int test_grid[SIZE][SIZE];
-    grid_t test_board;
+    node_t test_board;
     static queue_t test_queue;
 
     /* Testing that grid gets loaded up properly with string */
@@ -285,7 +292,7 @@ void test(void) {
     loadBoard(test_grid, " 23415678");
     memcpy(test_board.grid, test_grid, SIZE * SIZE * sizeof(int));
 
-    markFreeCell(&test_board);
+    markXY(&test_board);
     assert(test_board.x == 0);
     assert(test_board.y == 0);
 
@@ -294,12 +301,13 @@ void test(void) {
     /* Check that queue initialisation works properly */
     initQueue(&test_queue, "1234 5678");
 
-    assert(test_queue.end->child.grid[0][0] == 1);
-    assert(test_queue.end->child.grid[2][2] == 8);
-    assert(test_queue.end->child.x == 1);
-    assert(test_queue.end->child.y == 1);
+    assert(test_queue.end->grid[0][0] == 1);
+    assert(test_queue.end->grid[2][2] == 8);
+    assert(test_queue.end->x == 1);
+    assert(test_queue.end->y == 1);
 
-    printBoard(test_queue.start->child.grid);
+    printBoard(test_queue.start->grid);
+    unloadQueue(test_queue.start);
 
     /* Check that whole set of children are generated properly */
     initQueue(&test_queue, "1234 5678");
@@ -315,6 +323,8 @@ void test(void) {
     loadBoard(test_grid, "12345678 ");
     assert(checkTarget(test_grid) == 1);
 
+    unloadQueue(test_queue.start);
+
     /* Testing of checkUnique */
     /* TODO requires more extensive testing */
     initQueue(&test_queue, "12345678 ");
@@ -324,12 +334,17 @@ void test(void) {
     loadBoard(test_grid, "123 45678");
     assert(checkUnique(&test_queue, test_grid) == 1);
 
+    unloadQueue(test_queue.start);
+
     /* Testing of createChild() */
     initQueue(&test_queue, "1234 5678");
     swapTile(DOWN, &test_queue);
-    assert(test_queue.start->next->child.x == 1 && test_queue.start->next->child.y == 2);
+    assert(test_queue.start->next->x == 1 && test_queue.start->next->y == 2);
     printBoard(test_board.grid);
 
+    unloadQueue(test_queue.start);
+
     printf("Solve START\n");
-    solvePuzzle(&test_queue, "12 345678");
+    solvePuzzle(&test_queue, "123 45678");
+    unloadQueue(test_queue.start);
 }
