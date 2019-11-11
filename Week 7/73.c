@@ -5,8 +5,8 @@
 #include <string.h>
 #include "../Week 5/neillsdl2.h"
 
-#define RECTSIZE 20
-#define MILLISECONDDELAY 20
+#define RECTSIZE WHEIGHT / 3
+#define MILLISECONDDELAY 2000
 
 #define SDL_8BITCOLOUR 256
 
@@ -101,8 +101,9 @@ void printSDLBoard(int grid[SIZE][SIZE], SDL_Simplewin* sw, SDL_Rect* rect) {
             rect->x = j * RECTSIZE;
             rect->y = i * RECTSIZE;
             SDL_RenderFillRect(sw->renderer, rect);
+            Neill_SDL_UpdateScreen(sw);
         }
-        Neill_SDL_UpdateScreen(sw);
+
         Neill_SDL_Events(sw);
     }
 }
