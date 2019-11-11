@@ -20,6 +20,8 @@ typedef struct node_t {
     struct node_t* next;
 } node_t;
 
+/* QUESTION How accurate doe queue implementation need to be, effectively moving
+   items onto closed list by shifting index up */
 typedef struct queue_t {
     node_t* start;
     node_t* curr;
@@ -29,7 +31,7 @@ typedef struct queue_t {
 void solvePuzzle(queue_t* queue, char* s);
 
 /* BUILDING CHILDREN */
-int getChildren(queue_t* queue);
+int expandNode(queue_t* queue);
 int swapTile(swap_t dir, queue_t* queue);
 int checkUnique(queue_t* queue, int grid[SIZE][SIZE]);
 int checkTarget(int grid[SIZE][SIZE]);
@@ -57,7 +59,7 @@ void solvePuzzle(queue_t* queue, char* s) {
     node_t* node;
     initQueue(queue, s);
 
-    while (!getChildren(queue)) {
+    while (!expandNode(queue)) {
     }
 
     printf("Steps: %li\n", queue->end->step);
@@ -69,7 +71,7 @@ void solvePuzzle(queue_t* queue, char* s) {
     }
 }
 
-int getChildren(queue_t* queue) {
+int expandNode(queue_t* queue) {
     node_t* parent = queue->curr;
     size_t x = parent->x;
     size_t y = parent->y;
@@ -156,6 +158,7 @@ void enqueue(queue_t* queue, node_t* node) {
         fprintf(stderr, "Memory allocation failed\n");
     }
 
+    /* QUESTION is memcpy() required here? */
     memcpy(ptr, node, sizeof(node_t));
 
     queue->end->next = ptr;
@@ -310,13 +313,13 @@ void test(void) {
 
     /* Check that whole set of children are generated properly */
     initQueue(&test_queue, "1234 5678");
-    getChildren(&test_queue);
+    expandNode(&test_queue);
 
     /* TODO more explicit testing here. On visual inspection it work */
 
     /* Testing of grid duplication avoidance */
     /* TODO more explicit testing required */
-    getChildren(&test_queue);
+    expandNode(&test_queue);
 
     /* Testing of checkTarget() */
     loadBoard(test_grid, "12345678 ");

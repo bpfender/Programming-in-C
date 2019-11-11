@@ -29,7 +29,7 @@ typedef struct queue_t {
 void solvePuzzle(queue_t* queue, char* s);
 
 /* BUILDING CHILDREN */
-int getChildren(queue_t* queue);
+int expandNode(queue_t* queue);
 int swapTile(swap_t dir, queue_t* queue);
 int checkUnique(queue_t* queue, int grid[SIZE][SIZE]);
 int checkTarget(int grid[SIZE][SIZE]);
@@ -55,7 +55,7 @@ void solvePuzzle(queue_t* queue, char* s) {
     size_t index;
     initQueue(queue, s);
 
-    while (!getChildren(queue)) {
+    while (!expandNode(queue)) {
     }
 
     printf("Iterations: %li\n", queue->curr);
@@ -69,7 +69,7 @@ void solvePuzzle(queue_t* queue, char* s) {
     printBoard(queue->children[0].grid);
 }
 
-int getChildren(queue_t* queue) {
+int expandNode(queue_t* queue) {
     size_t parent = queue->curr;
     size_t x = queue->children[parent].x;
     size_t y = queue->children[parent].y;
@@ -282,7 +282,7 @@ void test(void) {
 
     /* Check that whole set of children are generated properly */
     initQueue(&test_queue, "1234 5678");
-    getChildren(&test_queue);
+    expandNode(&test_queue);
 
     /* TODO more explicit testing here. On visual inspection it work */
     printBoard(test_queue.children[0].grid);
@@ -293,7 +293,7 @@ void test(void) {
 
     /* Testing of grid duplication avoidance */
     /* TODO more explicit testing required */
-    getChildren(&test_queue);
+    expandNode(&test_queue);
     for (i = 0; i <= test_queue.end; i++) {
         printf("Board: %li\n", i);
         assert(compareBoards(test_queue.children[0].grid, test_queue.children[i + 1].grid) == 0);
