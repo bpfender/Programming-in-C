@@ -5,7 +5,6 @@
 #include <string.h>
 
 #define SIZE 3
-#define QUEUE 362880
 
 typedef enum swap_t { UP,
                       DOWN,

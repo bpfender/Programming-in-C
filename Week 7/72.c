@@ -320,5 +320,5 @@ void test(void) {
     printBoard(test_board.grid);
 
     printf("Solve START\n");
-    solvePuzzle(&test_queue, "12 345678");
+    solvePuzzle(&test_queue, "123 45678");
 }
