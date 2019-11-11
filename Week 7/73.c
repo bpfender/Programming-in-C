@@ -71,17 +71,19 @@ int main(void) {
     rectangle.h = RECTSIZE;
     rectangle.w = RECTSIZE;
 
-    solvePuzzle(&queue, "123456 78");
+    solvePuzzle(&queue, "1234 5678");
     loadSolution(&queue, &solution);
 
     Neill_SDL_Init(&sw);
-    do {
-        for (i = 0; i < solution.steps; i++) {
-            SDL_Delay(MILLISECONDDELAY);
-            printSDLBoard(solution.grid[i]->grid, &sw, &rectangle);
-        }
+    for (i = 0; i < solution.steps; i++) {
+        SDL_Delay(MILLISECONDDELAY);
+        printSDLBoard(solution.grid[i]->grid, &sw, &rectangle);
+    }
+    Neill_SDL_Events(&sw);
+
+    while (!sw.finished) {
         Neill_SDL_Events(&sw);
-    } while (!sw.finished);
+    }
 
     SDL_Quit();
     atexit(SDL_Quit);
@@ -96,8 +98,8 @@ void printSDLBoard(int grid[SIZE][SIZE], SDL_Simplewin* sw, SDL_Rect* rect) {
     for (i = 0; i < SIZE; i++) {
         for (j = 0; j < SIZE; j++) {
             setColour(sw, grid[i][j]);
-            rect->x = i * RECTSIZE;
-            rect->y = j * RECTSIZE;
+            rect->x = j * RECTSIZE;
+            rect->y = i * RECTSIZE;
             SDL_RenderFillRect(sw->renderer, rect);
         }
         Neill_SDL_UpdateScreen(sw);
