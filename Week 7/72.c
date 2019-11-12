@@ -1,6 +1,5 @@
 #include <assert.h>
 #include <ctype.h>
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,17 +7,20 @@
 /*FIXME types */
 
 #define SIZE 3
+/* FIXME queue length? */
 #define QUEUE 362880
 
-typedef enum bool_t { false = 0,
-                      true = 1 } bool_t;
+typedef enum bool { false = 0,
+                    true = 1 } bool;
 
-/* Encodes direction that the free space is shifted */
+/* Encodes direction that tiles on the board are shifted */
 typedef enum swap_t { UP,
                       DOWN,
                       LEFT,
                       RIGHT } swap_t;
 
+/* Stores 8tile grid, location of free tile, the parent node and the number of
+   steps from the starting grid */
 typedef struct grid_t {
     int grid[SIZE][SIZE];
     size_t x;
@@ -27,52 +29,50 @@ typedef struct grid_t {
     size_t step;
 } grid_t;
 
-/* TODO Rewrite queue as solver type */
-typedef struct solver_t {
-} solver_t;
+/* Stores array of grid_t elements, with index of the current node and 
+   last node added to the array */
+typedef struct queue_t {
+    grid_t node[QUEUE];
+    size_t curr;
+    size_t end;
+} queue_t;
 
+/* Stores dynamically allocated list of solution steps, and variable for number
+   of steps */
 typedef struct sol_t {
     grid_t** grid;
     int steps;
 } sol_t;
 
-typedef struct queue_t {
-    grid_t children[QUEUE];
-    size_t curr;
-    size_t end;
-} queue_t;
+/* ------ SOLVER FUNCTIONS ------ */
+void solve8Tile(queue_t* queue, char* s);
+bool expandNode(queue_t* queue);
+bool shiftTile(swap_t dir, queue_t* queue);
 
-void solvePuzzle(queue_t* queue, char* s);
+bool checkTarget(int grid[SIZE][SIZE]);
+bool checkUnique(queue_t* queue, int grid[SIZE][SIZE]);
+bool compareBoards(int grid1[SIZE][SIZE], int grid2[SIZE][SIZE]);
 
-/* BUILDING CHILDREN */
-bool_t expandNode(queue_t* queue);
-bool_t shiftTile(swap_t dir, queue_t* queue);
-bool_t checkUnique(queue_t* queue, int grid[SIZE][SIZE]);
-bool_t checkTarget(int grid[SIZE][SIZE]);
+/* ------ QUEUE FUNCTIONS ------ */
 void enqueue(queue_t* queue, grid_t* grid);
-
-long generateKey(int grid[SIZE][SIZE]);
-
-bool_t compareBoards(int grid1[SIZE][SIZE], int grid2[SIZE][SIZE]);
-void swap(int* n1, int* n2);
-
-/* INITIALISATION & UTILITY FUNCTIONS */
 void initQueue(queue_t* queue, char* s);
-bool_t isSolvable(char* s);
 void loadBoard(int grid[SIZE][SIZE], char* s);
 void findFreeTile(grid_t* grid);
-void printBoard(int grid[SIZE][SIZE]);
+
+/* ------ UTILITY & INPUT FUNCTIONS ------ */
 void printSolution(queue_t* queue);
-bool_t checkInputString(char* s);
+void printBoard(int grid[SIZE][SIZE]);
+bool checkInputString(char* s);
+bool isSolvable(char* s);
+void swap(int* n1, int* n2);
+void test(void);
 
 /* REQUIRE LOAD SOLUTION */
 
-void test(void);
-
 int main(int argc, char* argv[]) {
     static queue_t queue;
-    /*test();*/
-
+    test();
+    return 0;
     /* if (argc != 2) {
         fprintf(stderr,
                 "ERROR: Incorrect usage, try e.g. %s \"12345 678\"\n", argv[0]);
@@ -89,7 +89,7 @@ int main(int argc, char* argv[]) {
     }
 
     printf("Solving puzzle... please wait...\n");
-    solvePuzzle(&queue, argv[1]);
+    solve8Tile(&queue, argv[1]);
 
     printf("\nPuzzle Solved in XXXXXX steps:\n");
     printSolution(&queue);
@@ -100,18 +100,18 @@ int main(int argc, char* argv[]) {
 void printSolution(queue_t* queue) {
     size_t i;
     size_t list_index = queue->end;
-    size_t len = queue->children[queue->end].step;
+    size_t len = queue->node[queue->end].step;
 
     grid_t* list = (grid_t*)malloc((len + 1) * sizeof(grid_t));
 
     i = len;
-    while (queue->children[list_index].step != 0) {
-        printf("%li\n", queue->children[list_index].step);
-        list[i] = queue->children[list_index];
-        list_index = queue->children[list_index].parent;
+    while (queue->node[list_index].step != 0) {
+        printf("%li\n", queue->node[list_index].step);
+        list[i] = queue->node[list_index];
+        list_index = queue->node[list_index].parent;
         i--;
     }
-    list[0] = queue->children[0];
+    list[0] = queue->node[0];
 
     for (i = 0; i <= len; i++) {
         printBoard(list[i].grid);
@@ -120,18 +120,24 @@ void printSolution(queue_t* queue) {
     free(list);
 }
 
-void solvePuzzle(queue_t* queue, char* s) {
-    size_t index;
+/* ------- SOLVER FUNCTIONS ------ */
+/* Solver initailises the queue with the starting grid and then expand nodes
+ * onto the queue until a solution is found. Assumes a valid string.
+ */
+void solve8Tile(queue_t* queue, char* s) {
     initQueue(queue, s);
-
     while (!expandNode(queue)) {
     }
 }
 
-bool_t expandNode(queue_t* queue) {
+/* Calls function shiftTile to expand possible moves of current node. Will 
+ * return true if the solution is found
+ */
+bool expandNode(queue_t* queue) {
     size_t parent = queue->curr;
-    size_t x = queue->children[parent].x;
-    size_t y = queue->children[parent].y;
+    /* QUESTION is duplication of x call bad? c.f. shiftTile*/
+    size_t x = queue->node[parent].x;
+    size_t y = queue->node[parent].y;
 
     if (x < SIZE - 1) {
         if (shiftTile(LEFT, queue)) {
@@ -164,11 +170,11 @@ bool_t expandNode(queue_t* queue) {
  * refers to direction of tile being moved into the free space. Function assumes
  * that a valid shiftdirection is given.
  */
-bool_t shiftTile(swap_t dir, queue_t* queue) {
+bool shiftTile(swap_t dir, queue_t* queue) {
     /* QUESTION does it make sense to declare this as static given that it is 
        called again and again */
     grid_t tmp;
-    grid_t* parent = &queue->children[queue->curr];
+    grid_t* parent = &queue->node[queue->curr];
 
     /* Conditional evaluation will determine swap coordinates. "dir" will only
      * ever be one of these values, and as such the shift can only go, UP,
@@ -198,37 +204,8 @@ bool_t shiftTile(swap_t dir, queue_t* queue) {
     return false;
 }
 
-/* Iterates through complete list of explored nodes to check for duplicates
- */
-bool_t checkUnique(queue_t* queue, int grid[SIZE][SIZE]) {
-    size_t i;
-    for (i = 0; i <= queue->end; i++) {
-        if (compareBoards(queue->children[i].grid, grid)) {
-            return false;
-        }
-    }
-    return true;
-}
-
-/* Add grid_t to the end of the queue and increment end of queue index
- */
-void enqueue(queue_t* queue, grid_t* grid) {
-    /* Incrementing end keeps track of where to add future nodes */
-    size_t end = ++queue->end;
-    memcpy(&queue->children[end], grid, sizeof(grid_t));
-}
-
-/* Compares whether two 8-tile boards are the same. Have used memcmp() for
- * improved speed. Did compare against storing a value key for each grid and 
- * using that as the comparator, but the speed seemed basically the same. 
- */
-bool_t compareBoards(int grid1[SIZE][SIZE], int grid2[SIZE][SIZE]) {
-    /* QUESTION enum and return value? */
-    return !memcmp(grid1, grid2, SIZE * SIZE * sizeof(int));
-}
-
 /* QUESTION do i need a seperate function for this? */
-bool_t checkTarget(int grid[SIZE][SIZE]) {
+bool checkTarget(int grid[SIZE][SIZE]) {
     /* QUESTION in termsof notation better to have a static? */
     static int target[SIZE][SIZE] = {{1, 2, 3},
                                      {4, 5, 6},
@@ -237,14 +214,35 @@ bool_t checkTarget(int grid[SIZE][SIZE]) {
     return compareBoards(target, grid);
 }
 
-/* Swap two values */
-void swap(int* n1, int* n2) {
-    int tmp = *n1;
-    *n1 = *n2;
-    *n2 = tmp;
+/* Iterates through complete list of explored nodes to check for duplicates
+ */
+bool checkUnique(queue_t* queue, int grid[SIZE][SIZE]) {
+    size_t i;
+    for (i = 0; i <= queue->end; i++) {
+        if (compareBoards(queue->node[i].grid, grid)) {
+            return false;
+        }
+    }
+    return true;
 }
 
-/* ------ UTILITY FUNCTIONS ------ */
+/* Compares whether two 8-tile boards are the same. Have used memcmp() for
+ * improved speed. Did compare against storing a value key for each grid and 
+ * using that as the comparator, but the speed seemed basically the same. 
+ */
+bool compareBoards(int grid1[SIZE][SIZE], int grid2[SIZE][SIZE]) {
+    /* QUESTION enum and return value? */
+    return !memcmp(grid1, grid2, SIZE * SIZE * sizeof(int));
+}
+
+/* ------ QUEUE FUNCTIONS ------ */
+/* Add grid_t to the end of the queue and increment end of queue index
+ */
+void enqueue(queue_t* queue, grid_t* grid) {
+    /* Incrementing end keeps track of where to add future nodes */
+    size_t end = ++queue->end;
+    memcpy(&queue->node[end], grid, sizeof(grid_t));
+}
 
 /* Initiliase a queue by Loading the starting board and setting indeces to zero.
  * Expects a pointer to a queue, and valid string input checked by 
@@ -253,31 +251,10 @@ void swap(int* n1, int* n2) {
 void initQueue(queue_t* queue, char* s) {
     size_t start = queue->end = queue->curr = 0;
 
-    loadBoard(queue->children[start].grid, s);
-    findFreeTile(&queue->children[start]);
-    queue->children[start].step = 0;
-    queue->children[start].parent = 0;
-}
-
-/* Reference: https://www.geeksforgeeks.org/check-instance-8-puzzle-solvable/ 
- * Checks whether the input string is acutally solvable before attempting to 
- * find a solution
- */
-/* FIXME readability */
-bool_t isSolvable(char* s) {
-    size_t i;
-    int inversions = 0;
-    int grid[SIZE][SIZE];
-
-    loadBoard(grid, s);
-
-    for (i = 0; i < SIZE * SIZE - 1; i++) {
-        if (*(s + i) && *(s + 1 + i) && *(s + i) > *(s + i + 1)) {
-            inversions++;
-        }
-    }
-
-    return inversions % 2 == 0;
+    loadBoard(queue->node[start].grid, s);
+    findFreeTile(&queue->node[start]);
+    queue->node[start].step = 0;
+    queue->node[start].parent = 0;
 }
 
 /* Loads string representation of the board into an array. Expects valid input
@@ -300,10 +277,43 @@ void loadBoard(int grid[SIZE][SIZE], char* s) {
     }
 }
 
+/* Finds coordinates of free tile and stores them in grid_t* struct. Only used
+ * for initilisation as free tiles for expanded nodes can be inferred directly
+ * from the swap direction.
+ */
+void findFreeTile(grid_t* grid) {
+    size_t i, j;
+
+    for (i = 0; i < SIZE; i++) {
+        for (j = 0; j < SIZE; j++) {
+            if (grid->grid[i][j] == 0) {
+                grid->x = j;
+                grid->y = i;
+                return;
+            }
+        }
+    }
+}
+
+/* ------ UTILITY & INPUT FUNCTIONS ------ */
+
+/* Print a single 8-tile board
+ */
+void printBoard(int grid[SIZE][SIZE]) {
+    size_t i, j;
+    for (i = 0; i < SIZE; i++) {
+        for (j = 0; j < SIZE; j++) {
+            printf("%d", grid[i][j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+}
+
 /* FIXME can this be made more concise */
 /* Checks that a valid string has been inputted 
  */
-bool_t checkInputString(char* s) {
+bool checkInputString(char* s) {
     size_t len, i;
     int count[SIZE * SIZE] = {0};
 
@@ -339,35 +349,32 @@ bool_t checkInputString(char* s) {
     return true;
 }
 
-/* Finds coordinates of free tile and stores them in grid_t* struct. Only used
- * for initilisation as free tiles for expanded nodes can be inferred directly
- * from the swap direction.
+/* Reference: https://www.geeksforgeeks.org/check-instance-8-puzzle-solvable/ 
+ * Checks whether the input string is acutally solvable before attempting to 
+ * find a solution
  */
-void findFreeTile(grid_t* grid) {
-    size_t i, j;
+/* FIXME readability */
+bool isSolvable(char* s) {
+    size_t i;
+    int inversions = 0;
+    int grid[SIZE][SIZE];
 
-    for (i = 0; i < SIZE; i++) {
-        for (j = 0; j < SIZE; j++) {
-            if (grid->grid[i][j] == 0) {
-                grid->x = j;
-                grid->y = i;
-                return;
-            }
+    loadBoard(grid, s);
+
+    for (i = 0; i < SIZE * SIZE - 1; i++) {
+        if (*(s + i) && *(s + 1 + i) && *(s + i) > *(s + i + 1)) {
+            inversions++;
         }
     }
+
+    return inversions % 2 == 0;
 }
 
-/* Print a single 8-tile board
- */
-void printBoard(int grid[SIZE][SIZE]) {
-    size_t i, j;
-    for (i = 0; i < SIZE; i++) {
-        for (j = 0; j < SIZE; j++) {
-            printf("%d", grid[i][j]);
-        }
-        printf("\n");
-    }
-    printf("\n");
+/* Swap two values */
+void swap(int* n1, int* n2) {
+    int tmp = *n1;
+    *n1 = *n2;
+    *n2 = tmp;
 }
 
 void test(void) {
@@ -410,31 +417,31 @@ void test(void) {
     /* Check that queue initialisation works properly */
     initQueue(&test_queue, "1234 5678");
     assert(test_queue.end == 0);
-    assert(test_queue.children[test_queue.end].grid[0][0] == 1);
-    assert(test_queue.children[test_queue.end].grid[2][2] == 8);
-    assert(test_queue.children[test_queue.end].x == 1);
-    assert(test_queue.children[test_queue.end].y == 1);
+    assert(test_queue.node[test_queue.end].grid[0][0] == 1);
+    assert(test_queue.node[test_queue.end].grid[2][2] == 8);
+    assert(test_queue.node[test_queue.end].x == 1);
+    assert(test_queue.node[test_queue.end].y == 1);
 
-    printBoard(test_queue.children[0].grid);
+    printBoard(test_queue.node[0].grid);
 
-    /* Check that whole set of children are generated properly */
+    /* Check that whole set of node are generated properly */
     initQueue(&test_queue, "1234 5678");
     expandNode(&test_queue);
 
     /* TODO more explicit testing here. On visual inspection it work */
-    printBoard(test_queue.children[0].grid);
-    printBoard(test_queue.children[1].grid);
-    printBoard(test_queue.children[2].grid);
-    printBoard(test_queue.children[3].grid);
-    printBoard(test_queue.children[4].grid);
+    printBoard(test_queue.node[0].grid);
+    printBoard(test_queue.node[1].grid);
+    printBoard(test_queue.node[2].grid);
+    printBoard(test_queue.node[3].grid);
+    printBoard(test_queue.node[4].grid);
 
     /* Testing of grid duplication avoidance */
     /* TODO more explicit testing required */
     expandNode(&test_queue);
     for (i = 0; i <= test_queue.end; i++) {
         printf("Board: %li\n", i);
-        assert(compareBoards(test_queue.children[0].grid, test_queue.children[i + 1].grid) == 0);
-        printBoard(test_queue.children[i].grid);
+        assert(compareBoards(test_queue.node[0].grid, test_queue.node[i + 1].grid) == 0);
+        printBoard(test_queue.node[i].grid);
     }
 
     /* Testing of checkTarget() */
@@ -453,11 +460,11 @@ void test(void) {
     /* Testing of createChild() */
     initQueue(&test_queue, "1234 5678");
     shiftTile(DOWN, &test_queue);
-    assert(test_queue.children[1].x == 1 && test_queue.children[1].y == 2);
+    assert(test_queue.node[1].x == 1 && test_queue.node[1].y == 0);
     printBoard(test_board.grid);
 
     printf("Solve START\n");
-    solvePuzzle(&test_queue, "12 345678");
+    solve8Tile(&test_queue, "12 345678");
     printSolution(&test_queue);
     /*
 
