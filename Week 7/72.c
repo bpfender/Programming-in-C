@@ -20,6 +20,10 @@ typedef struct grid_t {
     size_t step;
 } grid_t;
 
+/* TODO Rewrite queue as solver type */
+typedef struct solver_t {
+} solver_t;
+
 typedef struct queue_t {
     grid_t children[QUEUE];
     size_t curr;
@@ -73,6 +77,23 @@ void printSolution(queue_t* queue) {
     }
 
     free(list);
+}
+
+/* https://www.geeksforgeeks.org/check-instance-8-puzzle-solvable/ */
+int isSolvable(char* s) {
+    size_t i;
+    int inversions = 0;
+    int grid[SIZE][SIZE];
+
+    loadBoard(grid, s);
+
+    for (i = 0; i < SIZE * SIZE - 1; i++) {
+        if (*(s + i) && *(s + 1 + i) && *(s + i) > *(s + i + 1)) {
+            inversions++;
+        }
+    }
+
+    return inversions % 2;
 }
 
 void solvePuzzle(queue_t* queue, char* s) {
@@ -243,15 +264,32 @@ void printBoard(int grid[SIZE][SIZE]) {
 /* TODO still needs to be tested */
 int checkInput(char* s) {
     size_t i;
+    size_t len;
+    int grid[SIZE * SIZE] = {0};
 
-    if (strlen(s) != SIZE * SIZE) {
-        fprintf(stderr, "String is longer than expected..\n");
+    if ((len = strlen(s)) != SIZE * SIZE) {
+        if (len < SIZE * SIZE) {
+            fprintf(stderr, "String is shorter than expected..\n");
+        } else {
+            fprintf(stderr, "String is longer than expected..\n");
+        }
         return 0;
     }
 
     for (i = 0; i < SIZE * SIZE; i++) {
         if (!(isdigit(s[i]) || s[i] == ' ')) {
-            fprintf(stderr, "Invalid character in input...\n");
+            fprintf(stderr, "Invalid character \"%c\" in input...\n", s[i]);
+            return 0;
+        }
+        if (s[i] == ' ') {
+            grid[0]++;
+        } else {
+            grid[s[i] - '0']++;
+        }
+    }
+
+    for (i = 0; i < SIZE * SIZE; i++) {
+        if (grid[i] > 1) {
             return 0;
         }
     }

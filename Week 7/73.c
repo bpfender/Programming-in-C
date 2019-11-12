@@ -41,7 +41,7 @@ void solvePuzzle(queue_t* queue, char* s);
 void loadSolution(queue_t* queue, sol_t* solution);
 void printSolution(sol_t* solution);
 void printSDLBoard(int grid[SIZE][SIZE], SDL_Simplewin* sw, SDL_Rect* rect, fntrow fntdata[FNTCHARS][FNTHEIGHT]);
-void setColour(SDL_Simplewin* sw, int value);
+void setFillColour(SDL_Simplewin* sw, int value);
 
 /* BUILDING CHILDREN */
 int expandNode(queue_t* queue);
@@ -79,7 +79,7 @@ int main(void) {
     Neill_SDL_ReadFont(fontdata, "./mode7.fnt");
     for (i = 0; i < solution.steps; i++) {
         SDL_Delay(MILLISECONDDELAY);
-        printSDLBoard(solution.grid[i]->grid, &sw, &rectangle);
+        printSDLBoard(solution.grid[i]->grid, &sw, &rectangle, fontdata);
     }
     Neill_SDL_Events(&sw);
 
@@ -99,11 +99,15 @@ void printSDLBoard(int grid[SIZE][SIZE], SDL_Simplewin* sw, SDL_Rect* rect, fntr
     int i, j;
     for (i = 0; i < SIZE; i++) {
         for (j = 0; j < SIZE; j++) {
-            setColour(sw, grid[i][j]);
+            setFillColour(sw, grid[i][j]);
             rect->x = j * RECTSIZE;
             rect->y = i * RECTSIZE;
             SDL_RenderFillRect(sw->renderer, rect);
-            Neill_SDL_DrawChar(sw, fontdata, grid[i][j], j * RECTSIZE, i * RECTSIZE);
+
+            Neill_SDL_SetDrawColour(sw, 0, 0, 0);
+            SDL_RenderDrawRect(sw->renderer, rect);
+
+            Neill_SDL_DrawChar(sw, fontdata, grid[i][j], j * RECTSIZE + RECTSIZE / 2, i * RECTSIZE + RECTSIZE / 2);
             Neill_SDL_UpdateScreen(sw);
         }
 
@@ -111,7 +115,7 @@ void printSDLBoard(int grid[SIZE][SIZE], SDL_Simplewin* sw, SDL_Rect* rect, fntr
     }
 }
 
-void setColour(SDL_Simplewin* sw, int value) {
+void setFillColour(SDL_Simplewin* sw, int value) {
     Uint8 r, g, b;
 
     switch (value) {
@@ -120,48 +124,11 @@ void setColour(SDL_Simplewin* sw, int value) {
             g = 255;
             b = 255;
             break;
-        case 1:
-            r = 240;
-            g = 50;
-            b = 230;
-            break;
-        case 2:
-            r = 145;
-            g = 30;
-            b = 180;
-            break;
-        case 3:
-            r = 0;
-            g = 130;
-            b = 200;
-            break;
-        case 4:
-            r = 70;
-            g = 240;
-            b = 240;
-            break;
-        case 5:
-            r = 60;
-            g = 180;
-            b = 75;
-            break;
-        case 6:
-            r = 210;
-            g = 245;
-            b = 60;
-            break;
-        case 7:
-            r = 255;
-            g = 225;
-            b = 25;
-            break;
-        case 8:
-            r = 245;
-            g = 225;
-            b = 25;
-            break;
         default:
-            return;
+            r = 50;
+            g = 50;
+            b = 50;
+            break;
     }
     Neill_SDL_SetDrawColour(sw, r, g, b);
 }
