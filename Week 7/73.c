@@ -6,7 +6,7 @@
 #include "neillsdl2.h"
 
 #define RECTSIZE WHEIGHT / 3
-#define MILLISECONDDELAY 500
+#define MILLISECONDDELAY 250
 #define SLIDEDELAY 1
 
 #define SDL_8BITCOLOUR 256
@@ -108,7 +108,7 @@ void transitionSDLTile(int tile, int x, int y, SDL_Simplewin* sw, SDL_Rect* rect
     rect->y = y;
     SDL_RenderFillRect(sw->renderer, rect);
 
-    Neill_SDL_SetDrawColour(sw, 0, 0, 0);
+    Neill_SDL_SetDrawColour(sw, 255, 255, 255);
     SDL_RenderDrawRect(sw->renderer, rect);
     if (tile) {
         Neill_SDL_DrawChar(sw, fontdata, tile + '0', x + RECTSIZE / 2 - FNTHEIGHT / 2, y + RECTSIZE / 2 - FNTWIDTH / 2);
@@ -190,7 +190,7 @@ void printSDLTile(int tile, int x, int y, SDL_Simplewin* sw, SDL_Rect* rect, fnt
     rect->y = y * RECTSIZE;
     SDL_RenderFillRect(sw->renderer, rect);
 
-    Neill_SDL_SetDrawColour(sw, 0, 0, 0);
+    Neill_SDL_SetDrawColour(sw, 255, 255, 255);
     SDL_RenderDrawRect(sw->renderer, rect);
     if (tile) {
         Neill_SDL_DrawChar(sw, fontdata, tile + '0', x * RECTSIZE + RECTSIZE / 2 - FNTHEIGHT / 2, y * RECTSIZE + RECTSIZE / 2 - FNTWIDTH / 2);
@@ -205,30 +205,8 @@ void setFillColour(SDL_Simplewin* sw, int value) {
         case 0:
             gray = 255;
             break;
-        case 8:
-            gray = 200;
-            break;
-        case 7:
-            gray = 175;
-            break;
-        case 6:
+        default:
             gray = 150;
-            break;
-        case 5:
-            gray = 125;
-            break;
-        case 4:
-            gray = 100;
-            break;
-        case 3:
-            gray = 75;
-            break;
-        case 2:
-            gray = 50;
-            break;
-        case 1:
-            gray = 25;
-            break;
     }
     Neill_SDL_SetDrawColour(sw, gray, gray, gray);
 }

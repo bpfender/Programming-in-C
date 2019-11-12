@@ -386,4 +386,6 @@ void test(void) {
     printf("Solve START\n");
     solvePuzzle(&test_queue, "1234 5678");
     printSolution(&test_queue);
+
+    assert(isSolvable("7125 9836") == 0);
 }

@@ -113,10 +113,10 @@ void Neill_SDL_DrawChar(SDL_Simplewin *sw,
     for (y = 0; y < FNTHEIGHT; y++) {
         for (x = 0; x < FNTWIDTH; x++) {
             if (fontdata[chr - FNT1STCHAR][y] >> (FNTWIDTH - 1 - x) & 1) {
-                Neill_SDL_SetDrawColour(sw, 255, 255, 255);
+                Neill_SDL_SetDrawColour(sw, 0, 0, 0);
                 SDL_RenderDrawPoint(sw->renderer, x + ox, y + oy);
             } else {
-                Neill_SDL_SetDrawColour(sw, 0, 0, 0);
+                Neill_SDL_SetDrawColour(sw, 150, 150, 150);
                 SDL_RenderDrawPoint(sw->renderer, x + ox, y + oy);
             }
         }
