@@ -69,12 +69,32 @@ bool_t checkInputString(char* s);
 
 void test(void);
 
-int main(void) {
+int main(int argc, char* argv[]) {
+    static queue_t queue;
     /*test();*/
-    static queue_t test_queue;
-    solvePuzzle(&test_queue, "12 345678");
-    printSolution(&test_queue);
-    return 0;
+
+    /* if (argc != 2) {
+        fprintf(stderr,
+                "ERROR: Incorrect usage, try e.g. %s \"12345 678\"\n", argv[0]);
+        return 1;
+    }
+
+    if (!checkInputString(argv[1])) {
+        return 1;
+    }
+
+    if (!isSolvable(argv[1])) {
+        printf("This 8-tile board cannot be solved...\n");
+        return 0;
+    }
+
+    printf("Solving puzzle... please wait...\n");
+    solvePuzzle(&queue, argv[1]);
+
+    printf("\nPuzzle Solved in XXXXXX steps:\n");
+    printSolution(&queue);
+
+    return 0;*/
 }
 
 void printSolution(queue_t* queue) {
@@ -106,18 +126,6 @@ void solvePuzzle(queue_t* queue, char* s) {
 
     while (!expandNode(queue)) {
     }
-
-    /* FIXME how to check if not solvable*/
-
-    printf("Iterations: %li\n", queue->curr);
-    printf("Steps: %li\n", queue->children[queue->end].step);
-
-    index = queue->end;
-    while (queue->children[index].step != 0) {
-        printBoard(queue->children[index].grid);
-        index = queue->children[index].parent;
-    }
-    printBoard(queue->children[0].grid);
 }
 
 bool_t expandNode(queue_t* queue) {
@@ -160,26 +168,26 @@ bool_t shiftTile(swap_t dir, queue_t* queue) {
     /* QUESTION does it make sense to declare this as static given that it is 
        called again and again */
     grid_t tmp;
-    size_t parent = queue->curr;
-
-    size_t x1 = queue->children[parent].x;
-    size_t y1 = queue->children[parent].y;
+    grid_t* parent = &queue->children[queue->curr];
 
     /* Conditional evaluation will determine swap coordinates. "dir" will only
-     * ever be one of these values, and as such the coordinate can only go, UP,
+     * ever be one of these values, and as such the shift can only go, UP,
      * DOWN, LEFT or RIGHT
      */
+    size_t x1 = parent->x;
+    size_t y1 = parent->y;
     size_t x2 = x1 + (dir == LEFT) - (dir == RIGHT);
     size_t y2 = y1 + (dir == UP) - (dir == DOWN);
 
-    /* Create next child node in tmp struct */
-    memcpy(tmp.grid, queue->children[parent].grid, SIZE * SIZE * sizeof(int));
+    /* Create child node in tmp struct */
+    memcpy(tmp.grid, parent->grid, SIZE * SIZE * sizeof(int));
     swap(&tmp.grid[y1][x1], &tmp.grid[y2][x2]);
     tmp.x = x2;
     tmp.y = y2;
-    tmp.parent = parent;
-    tmp.step = queue->children[parent].step + 1;
+    tmp.parent = queue->curr;
+    tmp.step = parent->step + 1;
 
+    /* FIXME can this be more concise? */
     if (checkTarget(tmp.grid)) {
         enqueue(queue, &tmp);
         return true;
@@ -255,6 +263,7 @@ void initQueue(queue_t* queue, char* s) {
  * Checks whether the input string is acutally solvable before attempting to 
  * find a solution
  */
+/* FIXME readability */
 bool_t isSolvable(char* s) {
     size_t i;
     int inversions = 0;
@@ -451,7 +460,7 @@ void test(void) {
     solvePuzzle(&test_queue, "12 345678");
     printSolution(&test_queue);
     /*
-    assert(isSolvable("7125 9836") == 0);
+
     assert(checkInputString("12345 678") == 1);
     assert(checkInputString("thrr 1234") == 0);
     assert(checkInputString("123") == 0);
