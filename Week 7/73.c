@@ -40,7 +40,7 @@ typedef struct sol_t {
 void solvePuzzle(queue_t* queue, char* s);
 void loadSolution(queue_t* queue, sol_t* solution);
 void printSolution(sol_t* solution);
-void printSDLBoard(int grid[SIZE][SIZE], SDL_Simplewin* sw, SDL_Rect* rect);
+void printSDLBoard(int grid[SIZE][SIZE], SDL_Simplewin* sw, SDL_Rect* rect, fntrow fntdata[FNTCHARS][FNTHEIGHT]);
 void setColour(SDL_Simplewin* sw, int value);
 
 /* BUILDING CHILDREN */
@@ -66,6 +66,7 @@ int main(void) {
     static queue_t queue;
     sol_t solution;
 
+    fntrow fontdata[FNTCHARS][FNTHEIGHT];
     SDL_Simplewin sw;
     SDL_Rect rectangle;
     rectangle.h = RECTSIZE;
@@ -75,6 +76,7 @@ int main(void) {
     loadSolution(&queue, &solution);
 
     Neill_SDL_Init(&sw);
+    Neill_SDL_ReadFont(fontdata, "./mode7.fnt");
     for (i = 0; i < solution.steps; i++) {
         SDL_Delay(MILLISECONDDELAY);
         printSDLBoard(solution.grid[i]->grid, &sw, &rectangle);
@@ -93,7 +95,7 @@ int main(void) {
 }
 
 /* ------- SDL FUNCTIONS -------- */
-void printSDLBoard(int grid[SIZE][SIZE], SDL_Simplewin* sw, SDL_Rect* rect) {
+void printSDLBoard(int grid[SIZE][SIZE], SDL_Simplewin* sw, SDL_Rect* rect, fntrow fontdata[FNTCHARS][FNTHEIGHT]) {
     int i, j;
     for (i = 0; i < SIZE; i++) {
         for (j = 0; j < SIZE; j++) {
@@ -101,6 +103,7 @@ void printSDLBoard(int grid[SIZE][SIZE], SDL_Simplewin* sw, SDL_Rect* rect) {
             rect->x = j * RECTSIZE;
             rect->y = i * RECTSIZE;
             SDL_RenderFillRect(sw->renderer, rect);
+            Neill_SDL_DrawChar(sw, fontdata, grid[i][j], j * RECTSIZE, i * RECTSIZE);
             Neill_SDL_UpdateScreen(sw);
         }
 
@@ -179,7 +182,7 @@ void loadSolution(queue_t* queue, sol_t* solution) {
     solution->grid = (grid_t**)malloc(len * sizeof(grid_t*));
     solution->steps = len;
 
-    i = len - 1;
+    i = len;
     while (queue->children[list_index].step != 0) {
         solution->grid[i] = &queue->children[list_index];
 

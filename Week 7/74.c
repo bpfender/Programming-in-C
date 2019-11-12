@@ -347,6 +347,6 @@ void test(void) {
     unloadQueue(test_queue.start);
 
     printf("Solve START\n");
-    solvePuzzle(&test_queue, "123 45678");
+    solvePuzzle(&test_queue, "1234 5678");
     unloadQueue(test_queue.start);
 }

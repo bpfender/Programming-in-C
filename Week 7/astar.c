@@ -26,11 +26,10 @@ typedef struct list_t {
     struct list_t* next;
 } list_t;
 
-typedef struct bin_tree_t {
-    unsigned long key;
+typedef struct tree_t {
     node_t* node;
-    struct bin_tree_t* children[2];
-} bin_tree_t;
+    struct tree_t* children[SIZE * SIZE];
+} tree_t;
 
 int fPriority(int grid[SIZE][SIZE], size_t step);
 int manhattanDistance(int grid[SIZE][SIZE]);
@@ -170,13 +169,28 @@ void isEmpty();
 void initList();
 void insertList();
 
-/* ------ SEARCH TREE and CLOSED LIST ------ */
-unsigned long keyValue(int grid[SIZE][SIZE]) {
+/* ------ SEARCH TREE and VISITED ------ */
+tree_t* initSearchTree() {
+    return createTreeNode(NULL);
 }
 
-void initBinTree();
-void insertBinTree();
-void searchBinTree();
+tree_t* createTreeNode(node_t* node) {
+    size_t i;
+    tree_t* ptr = (tree_t*)malloc(sizeof(tree_t));
+    if (ptr == NULL) {
+        fprintf(stderr, "ERROR\n");
+        exit(EXIT_FAILURE);
+    }
+
+    for (i = 0; i < SIZE * SIZE; i++) {
+        ptr->children[i] = NULL;
+    }
+    ptr->node = NULL;
+    return ptr;
+}
+
+void insertSearchTree();
+void searchTree();
 
 /* ------- PRIORIITY FUNCTION CALCULATION ------- */
 /* FIXME size_t vs int */

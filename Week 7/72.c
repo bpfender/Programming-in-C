@@ -27,6 +27,7 @@ typedef struct queue_t {
 } queue_t;
 
 void solvePuzzle(queue_t* queue, char* s);
+void printSolution(queue_t* queue);
 
 /* BUILDING CHILDREN */
 int expandNode(queue_t* queue);
@@ -51,12 +52,37 @@ int main(void) {
     return 0;
 }
 
+void printSolution(queue_t* queue) {
+    size_t i;
+    size_t list_index = queue->end;
+    size_t len = queue->children[queue->end].step;
+
+    grid_t* list = (grid_t*)malloc(len * sizeof(grid_t));
+
+    i = len;
+    while (queue->children[list_index].step != 0) {
+        printf("%li\n", queue->children[list_index].step);
+        list[i] = queue->children[list_index];
+        list_index = queue->children[list_index].parent;
+        i--;
+    }
+    list[0] = queue->children[0];
+
+    for (i = 0; i < len; i++) {
+        printBoard(list[i].grid);
+    }
+
+    free(list);
+}
+
 void solvePuzzle(queue_t* queue, char* s) {
     size_t index;
     initQueue(queue, s);
 
     while (!expandNode(queue)) {
     }
+
+    /* FIXME how to check if not solvable*/
 
     printf("Iterations: %li\n", queue->curr);
     printf("Steps: %li\n", queue->children[queue->end].step);
@@ -320,5 +346,6 @@ void test(void) {
     printBoard(test_board.grid);
 
     printf("Solve START\n");
-    solvePuzzle(&test_queue, "123 45678");
+    solvePuzzle(&test_queue, "1234 5678");
+    printSolution(&test_queue);
 }
