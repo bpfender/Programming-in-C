@@ -1,11 +1,15 @@
 #include <assert.h>
 #include <ctype.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define SIZE 3
 #define QUEUE 362880
+
+typedef enum bool_t { false = 0,
+                      true = 1 } bool_t;
 
 typedef enum swap_t { UP,
                       DOWN,
@@ -18,16 +22,23 @@ typedef struct grid_t {
     size_t y;
     size_t parent;
     size_t step;
+    long key;
 } grid_t;
 
 /* TODO Rewrite queue as solver type */
 typedef struct solver_t {
 } solver_t;
 
+typedef struct sol_t {
+    grid_t** grid;
+    int steps;
+} sol_t;
+
 typedef struct queue_t {
     grid_t children[QUEUE];
     size_t curr;
     size_t end;
+    char hash[QUEUE];
 } queue_t;
 
 void solvePuzzle(queue_t* queue, char* s);
@@ -61,7 +72,7 @@ void printSolution(queue_t* queue) {
     size_t list_index = queue->end;
     size_t len = queue->children[queue->end].step;
 
-    grid_t* list = (grid_t*)malloc(len * sizeof(grid_t));
+    grid_t* list = (grid_t*)malloc((len + 1) * sizeof(grid_t));
 
     i = len;
     while (queue->children[list_index].step != 0) {
@@ -79,7 +90,10 @@ void printSolution(queue_t* queue) {
     free(list);
 }
 
-/* https://www.geeksforgeeks.org/check-instance-8-puzzle-solvable/ */
+/* Reference: https://www.geeksforgeeks.org/check-instance-8-puzzle-solvable/ 
+ * Checks whether the input string is acutally solvable before attempting to 
+ * find a solution
+ */
 int isSolvable(char* s) {
     size_t i;
     int inversions = 0;
@@ -141,8 +155,23 @@ int expandNode(queue_t* queue) {
             return 1;
         }
     }
+    /* Incrementing current index is effectively dequeuing the current node,
+       without having to move it somewhere else for later duplicate checking */
     queue->curr++;
     return 0;
+}
+
+/* This key generation completely fails for larger grid sizes */
+long generateKey(int grid[SIZE][SIZE]) {
+    size_t i, j;
+    long key = 0;
+
+    for (i = 0; i < SIZE; i++) {
+        for (j = 0; j < SIZE; j++) {
+            key += grid[i][j] * (long)pow(10, (double)(SIZE * i + j));
+        }
+    }
+    return key;
 }
 
 int swapTile(swap_t dir, queue_t* queue) {
@@ -151,7 +180,11 @@ int swapTile(swap_t dir, queue_t* queue) {
 
     size_t x1 = queue->children[parent].x;
     size_t y1 = queue->children[parent].y;
-    /* QUESTION is this naughty? can i rely on conditional evalutation */
+
+    /* Conditional evaluation will determine swap coordinates. "dir" will only
+     * ever be one of these values, and as such the coordinate can only go, UP,
+     * DOWN, LEFT or RIGHT
+     */
     size_t x2 = x1 + (dir == RIGHT) - (dir == LEFT);
     size_t y2 = y1 + (dir == DOWN) - (dir == UP);
 
@@ -162,6 +195,7 @@ int swapTile(swap_t dir, queue_t* queue) {
     tmp.y = y2;
     tmp.parent = parent;
     tmp.step = queue->children[parent].step + 1;
+    tmp.key = generateKey(tmp.grid);
 
     if (checkUnique(queue, tmp.grid)) {
         enqueue(queue, &tmp);
@@ -384,8 +418,13 @@ void test(void) {
     printBoard(test_board.grid);
 
     printf("Solve START\n");
-    solvePuzzle(&test_queue, "1234 5678");
+    solvePuzzle(&test_queue, "12 345678");
     printSolution(&test_queue);
-
+    /*
     assert(isSolvable("7125 9836") == 0);
+    assert(checkInput("12345 678") == 1);
+    assert(checkInput("thrr 1234") == 0);
+    assert(checkInput("123") == 0);
+    assert(checkInput("112233  4") == 0);
+    assert(checkInput("1234567890 ") == 0);*/
 }
