@@ -75,13 +75,13 @@ int main(int argc, char* argv[]) {
     static queue_t queue;
     sol_t solution;
 
-    test();
-    /* if (argc != 2) {
+    /*test();*/
+
+    if (argc != 2) {
         fprintf(stderr,
                 "ERROR: Incorrect usage, try e.g. %s \"12345 678\"\n", argv[0]);
         return 1;
     }
-
     if (!checkInputString(argv[1])) {
         return 1;
     }
@@ -91,13 +91,13 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    printf("Solving puzzle... please wait...\n");
+    printf("Solving puzzle. Please wait...\n");
     solve8Tile(&queue, argv[1]);
 
-    printf("\nPuzzle Solved in XXXXXX steps:\n");
-    loadSolution(&queue, &solution)
+    loadSolution(&queue, &solution);
+    printf("\nPuzzle Solved in %i steps:\n\n", solution.steps);
     printSolution(&solution);
-    */
+
     return 0;
 }
 
@@ -294,7 +294,10 @@ void loadSolution(queue_t* queue, sol_t* solution) {
 void printSolution(sol_t* solution) {
     unsigned int i;
 
-    for (i = 0; i <= solution->steps; i++) {
+    printf("Starting board:\n");
+    printBoard(solution->node[0]->grid);
+    for (i = 1; i <= solution->steps; i++) {
+        printf("Step %i:\n", i);
         printBoard(solution->node[i]->grid);
     }
 }
@@ -357,14 +360,14 @@ bool checkInputString(char* s) {
  */
 /* FIXME readability */
 bool isSolvable(char* s) {
-    size_t i;
+    int i;
     int inversions = 0;
     int grid[SIZE][SIZE];
 
     loadBoard(grid, s);
 
     for (i = 0; i < SIZE * SIZE - 1; i++) {
-        if (*(s + i) && *(s + 1 + i) && *(s + i) > *(s + i + 1)) {
+        if (*(grid + i + 1) && *(grid + i) && *(grid + i + 1) > *(grid + i)) {
             inversions++;
         }
     }
