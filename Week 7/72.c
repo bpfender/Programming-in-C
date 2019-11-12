@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+/*FIXME types */
+
 #define SIZE 3
 #define QUEUE 362880
 
@@ -21,7 +23,7 @@ typedef struct grid_t {
     int grid[SIZE][SIZE];
     size_t x;
     size_t y;
-    long parent;
+    size_t parent;
     size_t step;
 } grid_t;
 
@@ -43,10 +45,10 @@ typedef struct queue_t {
 void solvePuzzle(queue_t* queue, char* s);
 
 /* BUILDING CHILDREN */
-int expandNode(queue_t* queue);
-int swapTile(swap_t dir, queue_t* queue);
+bool_t expandNode(queue_t* queue);
+bool_t shiftTile(swap_t dir, queue_t* queue);
 bool_t checkUnique(queue_t* queue, int grid[SIZE][SIZE]);
-int checkTarget(int grid[SIZE][SIZE]);
+bool_t checkTarget(int grid[SIZE][SIZE]);
 void enqueue(queue_t* queue, grid_t* grid);
 
 long generateKey(int grid[SIZE][SIZE]);
@@ -77,7 +79,7 @@ int main(void) {
 
 void printSolution(queue_t* queue) {
     size_t i;
-    long list_index = queue->end;
+    size_t list_index = queue->end;
     size_t len = queue->children[queue->end].step;
 
     grid_t* list = (grid_t*)malloc((len + 1) * sizeof(grid_t));
@@ -91,7 +93,7 @@ void printSolution(queue_t* queue) {
     }
     list[0] = queue->children[0];
 
-    for (i = 0; i < len; i++) {
+    for (i = 0; i <= len; i++) {
         printBoard(list[i].grid);
     }
 
@@ -111,45 +113,52 @@ void solvePuzzle(queue_t* queue, char* s) {
     printf("Steps: %li\n", queue->children[queue->end].step);
 
     index = queue->end;
-    while (queue->children[index].step != -1) {
+    while (queue->children[index].step != 0) {
         printBoard(queue->children[index].grid);
         index = queue->children[index].parent;
     }
     printBoard(queue->children[0].grid);
 }
 
-int expandNode(queue_t* queue) {
+bool_t expandNode(queue_t* queue) {
     size_t parent = queue->curr;
     size_t x = queue->children[parent].x;
     size_t y = queue->children[parent].y;
 
     if (x < SIZE - 1) {
-        if (swapTile(RIGHT, queue)) {
-            return 1;
+        if (shiftTile(LEFT, queue)) {
+            return true;
         }
     }
     if (x > 0) {
-        if (swapTile(LEFT, queue)) {
-            return 1;
+        if (shiftTile(RIGHT, queue)) {
+            return true;
         }
     }
     if (y < SIZE - 1) {
-        if (swapTile(DOWN, queue)) {
-            return 1;
+        if (shiftTile(UP, queue)) {
+            return true;
         }
     }
     if (y > 0) {
-        if (swapTile(UP, queue)) {
-            return 1;
+        if (shiftTile(DOWN, queue)) {
+            return true;
         }
     }
+
     /* Incrementing current index is effectively dequeuing the current node,
        without having to move it somewhere else for later duplicate checking */
     queue->curr++;
-    return 0;
+    return false;
 }
 
-int swapTile(swap_t dir, queue_t* queue) {
+/* Generates next board state based on direction of shift. Shift direction 
+ * refers to direction of tile being moved into the free space. Function assumes
+ * that a valid shiftdirection is given.
+ */
+bool_t shiftTile(swap_t dir, queue_t* queue) {
+    /* QUESTION does it make sense to declare this as static given that it is 
+       called again and again */
     grid_t tmp;
     size_t parent = queue->curr;
 
@@ -160,22 +169,25 @@ int swapTile(swap_t dir, queue_t* queue) {
      * ever be one of these values, and as such the coordinate can only go, UP,
      * DOWN, LEFT or RIGHT
      */
-    size_t x2 = x1 + (dir == RIGHT) - (dir == LEFT);
-    size_t y2 = y1 + (dir == DOWN) - (dir == UP);
+    size_t x2 = x1 + (dir == LEFT) - (dir == RIGHT);
+    size_t y2 = y1 + (dir == UP) - (dir == DOWN);
 
+    /* Create next child node in tmp struct */
     memcpy(tmp.grid, queue->children[parent].grid, SIZE * SIZE * sizeof(int));
     swap(&tmp.grid[y1][x1], &tmp.grid[y2][x2]);
-
     tmp.x = x2;
     tmp.y = y2;
     tmp.parent = parent;
     tmp.step = queue->children[parent].step + 1;
 
-    if (checkUnique(queue, tmp.grid)) {
+    if (checkTarget(tmp.grid)) {
+        enqueue(queue, &tmp);
+        return true;
+    } else if (checkUnique(queue, tmp.grid)) {
         enqueue(queue, &tmp);
     }
 
-    return checkTarget(tmp.grid);
+    return false;
 }
 
 /* Iterates through complete list of explored nodes to check for duplicates
@@ -193,6 +205,7 @@ bool_t checkUnique(queue_t* queue, int grid[SIZE][SIZE]) {
 /* Add grid_t to the end of the queue and increment end of queue index
  */
 void enqueue(queue_t* queue, grid_t* grid) {
+    /* Incrementing end keeps track of where to add future nodes */
     size_t end = ++queue->end;
     memcpy(&queue->children[end], grid, sizeof(grid_t));
 }
@@ -206,8 +219,8 @@ bool_t compareBoards(int grid1[SIZE][SIZE], int grid2[SIZE][SIZE]) {
     return !memcmp(grid1, grid2, SIZE * SIZE * sizeof(int));
 }
 
-/* QUESTIO do i need a seperate function for this? */
-int checkTarget(int grid[SIZE][SIZE]) {
+/* QUESTION do i need a seperate function for this? */
+bool_t checkTarget(int grid[SIZE][SIZE]) {
     /* QUESTION in termsof notation better to have a static? */
     static int target[SIZE][SIZE] = {{1, 2, 3},
                                      {4, 5, 6},
@@ -235,7 +248,7 @@ void initQueue(queue_t* queue, char* s) {
     loadBoard(queue->children[start].grid, s);
     findFreeTile(&queue->children[start]);
     queue->children[start].step = 0;
-    queue->children[start].parent = -1;
+    queue->children[start].parent = 0;
 }
 
 /* Reference: https://www.geeksforgeeks.org/check-instance-8-puzzle-solvable/ 
@@ -430,7 +443,7 @@ void test(void) {
 
     /* Testing of createChild() */
     initQueue(&test_queue, "1234 5678");
-    swapTile(DOWN, &test_queue);
+    shiftTile(DOWN, &test_queue);
     assert(test_queue.children[1].x == 1 && test_queue.children[1].y == 2);
     printBoard(test_board.grid);
 
