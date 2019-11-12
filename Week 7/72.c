@@ -9,6 +9,8 @@
 #define SIZE 3
 /* FIXME queue length? */
 #define QUEUE 362880
+/* http://w01fe.com/blog/2009/01/the-hardest-eight-puzzle-instances-take-31-moves-to-solve/ */
+#define MAX_STEPS 31
 
 typedef enum bool { false = 0,
                     true = 1 } bool;
@@ -23,25 +25,26 @@ typedef enum swap_t { UP,
    steps from the starting grid */
 typedef struct grid_t {
     int grid[SIZE][SIZE];
-    size_t x;
-    size_t y;
-    size_t parent;
-    size_t step;
+    int x;
+    int y;
+    long parent;
+    unsigned int step;
 } grid_t;
 
 /* Stores array of grid_t elements, with index of the current node and 
-   last node added to the array */
+   last node added to the array. "long" types used to ensure that index
+   can go high enough for many iterations */
 typedef struct queue_t {
     grid_t node[QUEUE];
-    size_t curr;
-    size_t end;
+    long curr;
+    long end;
 } queue_t;
 
 /* Stores dynamically allocated list of solution steps, and variable for number
    of steps */
 typedef struct sol_t {
-    grid_t** grid;
-    int steps;
+    grid_t* node[MAX_STEPS];
+    unsigned int steps;
 } sol_t;
 
 /* ------ SOLVER FUNCTIONS ------ */
@@ -60,19 +63,19 @@ void loadBoard(int grid[SIZE][SIZE], char* s);
 void findFreeTile(grid_t* grid);
 
 /* ------ UTILITY & INPUT FUNCTIONS ------ */
-void printSolution(queue_t* queue);
+void loadSolution(queue_t* queue, sol_t* solution);
+void printSolution(sol_t* solution);
 void printBoard(int grid[SIZE][SIZE]);
 bool checkInputString(char* s);
 bool isSolvable(char* s);
 void swap(int* n1, int* n2);
 void test(void);
 
-/* REQUIRE LOAD SOLUTION */
-
 int main(int argc, char* argv[]) {
     static queue_t queue;
+    sol_t solution;
+
     test();
-    return 0;
     /* if (argc != 2) {
         fprintf(stderr,
                 "ERROR: Incorrect usage, try e.g. %s \"12345 678\"\n", argv[0]);
@@ -92,32 +95,10 @@ int main(int argc, char* argv[]) {
     solve8Tile(&queue, argv[1]);
 
     printf("\nPuzzle Solved in XXXXXX steps:\n");
-    printSolution(&queue);
-
-    return 0;*/
-}
-
-void printSolution(queue_t* queue) {
-    size_t i;
-    size_t list_index = queue->end;
-    size_t len = queue->node[queue->end].step;
-
-    grid_t* list = (grid_t*)malloc((len + 1) * sizeof(grid_t));
-
-    i = len;
-    while (queue->node[list_index].step != 0) {
-        printf("%li\n", queue->node[list_index].step);
-        list[i] = queue->node[list_index];
-        list_index = queue->node[list_index].parent;
-        i--;
-    }
-    list[0] = queue->node[0];
-
-    for (i = 0; i <= len; i++) {
-        printBoard(list[i].grid);
-    }
-
-    free(list);
+    loadSolution(&queue, &solution)
+    printSolution(&solution);
+    */
+    return 0;
 }
 
 /* ------- SOLVER FUNCTIONS ------ */
@@ -134,10 +115,10 @@ void solve8Tile(queue_t* queue, char* s) {
  * return true if the solution is found
  */
 bool expandNode(queue_t* queue) {
-    size_t parent = queue->curr;
+    long parent = queue->curr;
     /* QUESTION is duplication of x call bad? c.f. shiftTile*/
-    size_t x = queue->node[parent].x;
-    size_t y = queue->node[parent].y;
+    int x = queue->node[parent].x;
+    int y = queue->node[parent].y;
 
     if (x < SIZE - 1) {
         if (shiftTile(LEFT, queue)) {
@@ -180,10 +161,10 @@ bool shiftTile(swap_t dir, queue_t* queue) {
      * ever be one of these values, and as such the shift can only go, UP,
      * DOWN, LEFT or RIGHT
      */
-    size_t x1 = parent->x;
-    size_t y1 = parent->y;
-    size_t x2 = x1 + (dir == LEFT) - (dir == RIGHT);
-    size_t y2 = y1 + (dir == UP) - (dir == DOWN);
+    int x1 = parent->x;
+    int y1 = parent->y;
+    int x2 = x1 + (dir == LEFT) - (dir == RIGHT);
+    int y2 = y1 + (dir == UP) - (dir == DOWN);
 
     /* Create child node in tmp struct */
     memcpy(tmp.grid, parent->grid, SIZE * SIZE * sizeof(int));
@@ -217,7 +198,7 @@ bool checkTarget(int grid[SIZE][SIZE]) {
 /* Iterates through complete list of explored nodes to check for duplicates
  */
 bool checkUnique(queue_t* queue, int grid[SIZE][SIZE]) {
-    size_t i;
+    long i;
     for (i = 0; i <= queue->end; i++) {
         if (compareBoards(queue->node[i].grid, grid)) {
             return false;
@@ -240,7 +221,7 @@ bool compareBoards(int grid1[SIZE][SIZE], int grid2[SIZE][SIZE]) {
  */
 void enqueue(queue_t* queue, grid_t* grid) {
     /* Incrementing end keeps track of where to add future nodes */
-    size_t end = ++queue->end;
+    long end = ++queue->end;
     memcpy(&queue->node[end], grid, sizeof(grid_t));
 }
 
@@ -249,12 +230,13 @@ void enqueue(queue_t* queue, grid_t* grid) {
  * checkInputString()
  */
 void initQueue(queue_t* queue, char* s) {
-    size_t start = queue->end = queue->curr = 0;
+    long start = queue->end = queue->curr = 0;
 
     loadBoard(queue->node[start].grid, s);
     findFreeTile(&queue->node[start]);
     queue->node[start].step = 0;
-    queue->node[start].parent = 0;
+    /* Set start to -1 for identification later */
+    queue->node[start].parent = -1;
 }
 
 /* Loads string representation of the board into an array. Expects valid input
@@ -282,7 +264,7 @@ void loadBoard(int grid[SIZE][SIZE], char* s) {
  * from the swap direction.
  */
 void findFreeTile(grid_t* grid) {
-    size_t i, j;
+    int i, j;
 
     for (i = 0; i < SIZE; i++) {
         for (j = 0; j < SIZE; j++) {
@@ -296,6 +278,26 @@ void findFreeTile(grid_t* grid) {
 }
 
 /* ------ UTILITY & INPUT FUNCTIONS ------ */
+/* Loads solution by going through parent nodes back to start grid
+ */
+void loadSolution(queue_t* queue, sol_t* solution) {
+    int i;
+    long parent = queue->end;
+    solution->steps = queue->node[queue->end].step;
+    /* FIXME step and parent -1 one can probably be removed */
+    for (i = (int)solution->steps; i >= 0; i--) {
+        solution->node[i] = &queue->node[parent];
+        parent = queue->node[parent].parent;
+    }
+}
+
+void printSolution(sol_t* solution) {
+    unsigned int i;
+
+    for (i = 0; i <= solution->steps; i++) {
+        printBoard(solution->node[i]->grid);
+    }
+}
 
 /* Print a single 8-tile board
  */
@@ -378,11 +380,12 @@ void swap(int* n1, int* n2) {
 }
 
 void test(void) {
-    size_t i, j;
+    long i, j;
 
     int test_grid[SIZE][SIZE];
     grid_t test_board;
     static queue_t test_queue;
+    sol_t test_solution;
 
     /* Testing that grid gets loaded up properly with string */
     loadBoard(test_grid, " 12345678");
@@ -465,7 +468,8 @@ void test(void) {
 
     printf("Solve START\n");
     solve8Tile(&test_queue, "12 345678");
-    printSolution(&test_queue);
+    loadSolution(&test_queue, &test_solution);
+    printSolution(&test_solution);
     /*
 
     assert(checkInputString("12345 678") == 1);
