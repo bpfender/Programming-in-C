@@ -73,7 +73,6 @@ int main(int argc, char* argv[]) {
     sol_t solution;
 
     /*test()*/;
-    solve8Tile(&queue, "123456 78");
 
     if (argc != 2) {
         fprintf(stderr,
@@ -102,7 +101,8 @@ int main(int argc, char* argv[]) {
 
 /* ------ SOLVER FUNCTIONS ------ */
 /* Solver initailises the queue with the starting grid and then expand nodes
- * onto the queue until a solution is found. Assumes a valid string.
+ * onto the queue until a solution is found. Assumes a valid string. Uses
+ * breadth first search
  */
 void solve8Tile(queue_t* queue, char* s) {
     initQueue(queue, s);
@@ -118,7 +118,6 @@ int expandNode(queue_t* queue) {
 
     int x = parent->x;
     int y = parent->y;
-    printBoard(parent->grid);
     if (x < SIZE - 1) {
         if (shiftTile(LEFT, queue)) {
             return 1;
