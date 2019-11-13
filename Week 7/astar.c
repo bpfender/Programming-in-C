@@ -1,17 +1,27 @@
 #include <assert.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define QUEUE_SIZE 500
 #define BUFF_FACTOR 4
 #define SIZE 3
+/* http://w01fe.com/blog/2009/01/the-hardest-eight-puzzle-instances-take-31-moves-to-solve/ */
+#define MAX_STEPS 32
 
 typedef enum bool { false = 0,
                     true = 1 } bool;
 
+/* Encodes direction that tiles on the board are shifted */
+typedef enum swap_t { UP,
+                      DOWN,
+                      LEFT,
+                      RIGHT } swap_t;
+
 typedef struct node_t {
     int grid[SIZE][SIZE];
-    int f, g, h;
+    int f, step;
     int x, y;
     struct node_t* parent;
 } node_t;
@@ -29,13 +39,32 @@ typedef struct tree_t {
     struct tree_t* children[SIZE * SIZE];
 } tree_t;
 
+/* Stores list of solution steps, and variable for number
+   of steps */
+typedef struct sol_t {
+    node_t* node[MAX_STEPS];
+    int steps;
+} sol_t;
+
+/* ------ SOLVER FUNCTIONS ------ */
+void solve8Tile(queue_t* p_queue, tree_t* tree, char* s);
+bool expandNode(queue_t* p_queue, tree_t* tree);
+bool shiftTile(swap_t dir, queue_t* p_queue, tree_t* tree, node_t* parent);
+
+bool checkTarget(int grid[SIZE][SIZE]);
+bool compareBoards(int grid1[SIZE][SIZE], int grid2[SIZE][SIZE]);
+
+/* ------ LOADING FUNCTIONS ------ */
+node_t* initNode(char* s);
+void loadBoard(int grid[SIZE][SIZE], char* s);
+void findFreeTile(node_t* node);
+
 /* ------ PRIORITY QUEUE FUNCTIONS ------ */
 void initPQueue(queue_t* p_queue, node_t* node);
 void insertPQueue(queue_t* p_queue, node_t* node);
 node_t* getMin(queue_t* p_queue);
 void delMin(queue_t* p_queue);
 bool isEmpty(queue_t* p_queue);
-void unloadPQueue(queue_t* p_queue);
 
 void expandPQueue(queue_t* p_queue);
 void percolateUp(queue_t* p_queue);
@@ -45,17 +74,25 @@ void swapNode(node_t* n1, node_t* n2);
 void unloadPQueue(queue_t* p_queue);
 
 /* ------ SEARCH TREE AND VISITED FUNCTIONS ------ */
-tree_t* initSearchTree();
+void initTree(tree_t*, node_t*);
+void insertTree(tree_t* tree, node_t* node);
+bool searchInTree(tree_t* tree, int grid[SIZE][SIZE]);
+
 tree_t* createTreeNode(void);
-void insertSearchTree(tree_t* tree, node_t* node);
-bool searchTree();
-void unloadSearchTree(tree_t* tree);
+void unloadTree(tree_t* tree);
 
 /* ------ PRIORITY FUNCTION CALCULATIONS ------ */
-int fPriority(int grid[SIZE][SIZE], size_t step);
+int fPriority(int grid[SIZE][SIZE], int g);
 int manhattanDistance(int grid[SIZE][SIZE]);
 int hammingDistance(int grid[SIZE][SIZE]);
 
+/* ------ UTILITY & INPUT FUNCTIONS ------ */
+void loadSolution(queue_t* p_queue, sol_t* solution);
+void printSolution(sol_t* solution);
+void printBoard(int grid[SIZE][SIZE]);
+bool checkInputString(char* s);
+bool isSolvable(char* s);
+void swap(int* n1, int* n2);
 void test(void);
 
 int main(void) {
@@ -63,10 +100,118 @@ int main(void) {
     return 0;
 }
 
-void swapNode(node_t* n1, node_t* n2) {
-    node_t tmp = *n1;
-    *n1 = *n2;
-    *n2 = tmp;
+node_t* initNode(char* s) {
+    node_t* node = (node_t*)malloc(sizeof(node_t));
+
+    loadBoard(node->grid, s);
+    findFreeTile(node);
+    node->step = 0;
+    node->parent = NULL;
+    /* FIXME not really required */
+    node->f = fPriority(node->grid, node->step);
+    return node;
+}
+
+/* ------ SOLVER FUNCTIONS ------ */
+/* Solver initailises the queue with the starting grid and then expand nodes
+ * onto the queue until a solution is found. Assumes a valid string. Uses
+ * breadth first search
+ */
+void solve8Tile(queue_t* p_queue, tree_t* tree, char* s) {
+    node_t* node = initNode(s);
+    initPQueue(p_queue, node);
+    initTree(tree, node);
+    while (!expandNode(p_queue, tree)) {
+        /* TODO could add isEMpyt function */
+    }
+}
+
+/* Calls function shiftTile to expand possible moves of current node. Will 
+ * return true if the solution is found
+ */
+bool expandNode(queue_t* p_queue, tree_t* tree) {
+    node_t* parent = getMin(p_queue);
+
+    int x = parent->x;
+    int y = parent->y;
+    if (x < SIZE - 1) {
+        if (shiftTile(LEFT, p_queue, tree, parent)) {
+            return true;
+        }
+    }
+    if (x > 0) {
+        if (shiftTile(RIGHT, p_queue, tree, parent)) {
+            return true;
+        }
+    }
+    if (y < SIZE - 1) {
+        if (shiftTile(UP, p_queue, tree, parent)) {
+            return true;
+        }
+    }
+    if (y > 0) {
+        if (shiftTile(DOWN, p_queue, tree, parent)) {
+            return true;
+        }
+    }
+    /* Moving to next list element is effectively dequeuing the current node,
+       without having to move it somewhere else for later duplicate checking */
+    delMin(p_queue);
+    return false;
+}
+
+/* Generates next board state based on direction of shift. Shift direction 
+ * refers to direction of tile being moved into the free space. Function assumes
+ * that a valid shiftdirection is given. Copies board into queue, but queue
+ * current index is only incremented if it's a valid board. This avoid copying
+ * to a tmp and then copying to the queue
+ */
+bool shiftTile(swap_t dir, queue_t* p_queue, tree_t* tree, node_t* parent) {
+    int x1, y1, x2, y2;
+    static node_t* tmp = NULL;
+
+    /* tmp will only be malloced if the previous one has been added to the
+       queue */
+    if (tmp == NULL) {
+        tmp = (node_t*)malloc(sizeof(node_t));
+        if (tmp == NULL) {
+            fprintf(stderr, "Memory allocation error\n");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    /* Conditional evaluation will determine swap coordinates. "dir" will only
+     * ever be one of these values, and as such the shift can only go, UP,
+     * DOWN, LEFT or RIGHT
+     */
+    x1 = parent->x;
+    y1 = parent->y;
+    x2 = x1 + (dir == LEFT) - (dir == RIGHT);
+    y2 = y1 + (dir == UP) - (dir == DOWN);
+
+    memcpy(tmp->grid, parent->grid, SIZE * SIZE * sizeof(int));
+    swap(&tmp->grid[y1][x1], &tmp->grid[y2][x2]);
+
+    tmp->x = x2;
+    tmp->y = y2;
+    tmp->step = parent->step + 1;
+    tmp->parent = parent;
+    tmp->f = fPriority(tmp->grid, tmp->step);
+
+    /* FIXME tmp is not being malloced */
+
+    if (checkTarget(tmp->grid)) {
+        insertTree(tree, tmp);
+        insertPQueue(p_queue, tmp);
+        return true;
+    } else if (!searchInTree(tree, tmp->grid)) {
+        insertTree(tree, tmp);
+        insertPQueue(p_queue, tmp);
+        /* reset tmp so it is malloced again on next loop */
+        tmp = NULL;
+    }
+
+    return false;
 }
 
 /* ------- PRIORITY QUEUE FUNCTIONS ------- */
@@ -81,17 +226,13 @@ void initPQueue(queue_t* p_queue, node_t* node) {
         exit(EXIT_FAILURE);
     }
 
-    /* Set sentinel node value and add starting grid*/
+    /* Set sentinel node value and initialise first node*/
     p_queue->node[0] = NULL;
     p_queue->node[1] = node;
 
     p_queue->size = QUEUE_SIZE;
     p_queue->elem = 1;
     p_queue->back = 1;
-}
-
-void unloadPQueue(queue_t* p_queue) {
-    free(p_queue->node);
 }
 
 void insertPQueue(queue_t* p_queue, node_t* node) {
@@ -106,6 +247,40 @@ void insertPQueue(queue_t* p_queue, node_t* node) {
     percolateUp(p_queue);
 }
 
+node_t* getMin(queue_t* p_queue) {
+    return p_queue->node[1];
+}
+
+void delMin(queue_t* p_queue) {
+    p_queue->node[1] = p_queue->node[p_queue->back];
+    percolateDown(p_queue);
+
+    p_queue->elem--;
+    p_queue->back--;
+}
+
+bool isEmpty(queue_t* p_queue) {
+    if (p_queue->elem == 0) {
+        return true;
+    }
+    return false;
+}
+
+void unloadPQueue(queue_t* p_queue) {
+    free(p_queue->node);
+}
+
+void expandPQueue(queue_t* p_queue) {
+    p_queue->size = p_queue->size * BUFF_FACTOR + 1;
+
+    p_queue->node = realloc(p_queue->node, p_queue->size * sizeof(node_t*));
+    if (p_queue->node == NULL) {
+        fprintf(stderr, "Memory allocation error\n");
+        /* QUESTION should i free previously allced memory?*/
+        exit(EXIT_FAILURE);
+    }
+}
+
 void percolateUp(queue_t* p_queue) {
     node_t *child, *parent;
     size_t i = p_queue->back;
@@ -118,14 +293,6 @@ void percolateUp(queue_t* p_queue) {
         }
         i /= 2;
     }
-}
-
-void delMin(queue_t* p_queue) {
-    p_queue->elem--;
-    p_queue->back--;
-
-    p_queue->node[1] = p_queue->node[p_queue->back];
-    percolateDown(p_queue);
 }
 
 void percolateDown(queue_t* p_queue) {
@@ -164,51 +331,19 @@ size_t minChildIndex(queue_t* p_queue, size_t i) {
     }
 }
 
-void expandPQueue(queue_t* p_queue) {
-    p_queue->size = p_queue->size * BUFF_FACTOR + 1;
-
-    p_queue->node = realloc(p_queue->node, p_queue->size * sizeof(node_t*));
-    if (p_queue->node == NULL) {
-        fprintf(stderr, "Memory allocation error\n");
-        exit(EXIT_FAILURE);
-    }
+void swapNode(node_t* n1, node_t* n2) {
+    node_t tmp = *n1;
+    *n1 = *n2;
+    *n2 = tmp;
 }
 
-node_t* getMin(queue_t* p_queue) {
-    return p_queue->node[1];
+/* ------ SEARCH TREE FOR VISITED LIST ------ */
+void initTree(tree_t* tree, node_t* node) {
+    insertTree(tree, node);
 }
 
-bool isEmpty(queue_t* p_queue) {
-    if (p_queue->elem == 0) {
-        return true;
-    }
-    return false;
-}
-
-/* ------ SEARCH TREE and VISITED ------ */
-tree_t* initSearchTree() {
-    return createTreeNode();
-}
-
-tree_t* createTreeNode(void) {
-    size_t i;
-    tree_t* ptr = (tree_t*)malloc(sizeof(tree_t));
-    if (ptr == NULL) {
-        fprintf(stderr, "ERROR\n");
-        exit(EXIT_FAILURE);
-    }
-
-    for (i = 0; i < SIZE * SIZE; i++) {
-        ptr->children[i] = NULL;
-    }
-    /* Doesn't set ptr to queue node until very end externally */
-    ptr->node = NULL;
-    return ptr;
-}
-
-void insertSearchTree(tree_t* tree, node_t* node) {
-    int i, j;
-    int leaf;
+void insertTree(tree_t* tree, node_t* node) {
+    int i, j, leaf;
     tree_t* tmp;
     tree_t* tree_node = tree;
 
@@ -228,9 +363,9 @@ void insertSearchTree(tree_t* tree, node_t* node) {
     tree_node->node = node;
 }
 
-bool searchTree(tree_t* tree, int grid[SIZE][SIZE]) {
-    int i, j;
-    int leaf;
+/* FIXME combine search and insert? */
+bool searchInTree(tree_t* tree, int grid[SIZE][SIZE]) {
+    int i, j, leaf;
     tree_t* tree_node = tree;
 
     for (i = 0; i < SIZE; i++) {
@@ -245,40 +380,53 @@ bool searchTree(tree_t* tree, int grid[SIZE][SIZE]) {
     return true;
 }
 
+tree_t* createTreeNode(void) {
+    int i;
+    tree_t* ptr = (tree_t*)malloc(sizeof(tree_t));
+    if (ptr == NULL) {
+        /* QUESTION should i free previously allced memory?*/
+        fprintf(stderr, "Memory allocation error\n");
+        exit(EXIT_FAILURE);
+    }
+
+    for (i = 0; i < SIZE * SIZE; i++) {
+        ptr->children[i] = NULL;
+    }
+
+    /* Doesn't set ptr to queue node until very end externally */
+    ptr->node = NULL;
+    return ptr;
+}
+
 /*FIXME not totally sure on this */
-void unloadSearchTree(tree_t* tree) {
+void unloadTree(tree_t* tree) {
     int i;
     for (i = 0; i < SIZE * SIZE; i++) {
         if (tree->children[i]) {
-            unloadSearchTree(tree->children[i]);
-        }
-        if (tree->children[i]->node) {
-            free(tree->children[i]->node);
+            unloadTree(tree->children[i]);
+        } else {
+            free(tree->node);
         }
     }
     free(tree);
 }
 
 /* ------- PRIORIITY FUNCTION CALCULATION ------- */
-/* FIXME size_t vs int */
-int fPriority(int grid[SIZE][SIZE], size_t step) {
-    return manhattanDistance(grid) + (int)step;
+int fPriority(int grid[SIZE][SIZE], int step) {
+    return manhattanDistance(grid) + step;
 }
 
 int manhattanDistance(int grid[SIZE][SIZE]) {
     int i, j;
     int manhattan = 0;
     int num;
-    printf("MANHATTAN\n");
     for (i = 0; i < SIZE; i++) {
         for (j = 0; j < SIZE; j++) {
             num = grid[i][j] - 1;
             /* FIXME definition doesn't ignore 0 */
             manhattan += abs(num / 3 - i) + abs(num % 3 - j);
-            printf("%d\n", manhattan);
         }
     }
-
     return manhattan;
 }
 
@@ -288,12 +436,118 @@ int hammingDistance(int grid[SIZE][SIZE]) {
 
     for (i = 0; i < SIZE; i++) {
         for (j = 0; j < SIZE; j++) {
-            /* FIXME different definition of hamming distance elsewhere */
-            hamming += (grid[i][j] != (int)(3 * i + j + 1) % (SIZE * SIZE));
-            printf("%d\n", hamming);
+            /* FIXME definition doesn't ignore 0 */
+            hamming += (grid[i][j] != (3 * i + j + 1) % (SIZE * SIZE));
         }
     }
     return hamming;
+}
+
+/* ------ UTILITY & INPUT FUNCTIONS ------ */
+/* Loads solution by going through parent nodes back to start grid
+ */
+void loadSolution(queue_t* p_queue, sol_t* solution) {
+    int i;
+    node_t* node = p_queue->node[1];
+
+    /* FIXME do I need the step counter? */
+    i = solution->steps = node->step;
+
+    while (node != NULL) {
+        solution->node[i] = node;
+        node = node->parent;
+        i--;
+    }
+}
+
+void printSolution(sol_t* solution) {
+    int i;
+
+    printf("Starting board:\n");
+    printBoard(solution->node[0]->grid);
+    for (i = 1; i <= solution->steps; i++) {
+        printf("Step %i:\n", i);
+        printBoard(solution->node[i]->grid);
+    }
+}
+
+/* Print a single 8-tile board
+ */
+void printBoard(int grid[SIZE][SIZE]) {
+    int i, j;
+    for (i = 0; i < SIZE; i++) {
+        for (j = 0; j < SIZE; j++) {
+            printf("%d", grid[i][j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+}
+
+/* FIXME can this be made more concise */
+/* Checks that a valid string has been inputted 
+ */
+bool checkInputString(char* s) {
+    size_t len, i;
+    int count[SIZE * SIZE] = {0};
+
+    /* Check string length */
+    if ((len = strlen(s)) != SIZE * SIZE) {
+        if (len < SIZE * SIZE) {
+            fprintf(stderr, "String is shorter than expected..\n");
+        } else {
+            fprintf(stderr, "String is longer than expected..\n");
+        }
+        return false;
+    }
+
+    /* Check for invalid chars and check valid ones are unique */
+    for (i = 0; i < SIZE * SIZE; i++) {
+        if (s[i] == ' ') {
+            count[0]++;
+        } else if ('1' <= s[i] && s[i] <= '8') {
+            count[s[i] - '0']++;
+        } else {
+            fprintf(stderr, "Invalid character \"%c\" in input...\n", s[i]);
+            return false;
+        }
+    }
+
+    for (i = 0; i < SIZE * SIZE; i++) {
+        if (count[i] > 1) {
+            fprintf(stderr, "Each tile must have a unique value...\n");
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/* Reference: https://www.geeksforgeeks.org/check-instance-8-puzzle-solvable/ 
+ * Checks whether the input string is acutally solvable before attempting to 
+ * find a solution
+ */
+/* FIXME readability */
+bool isSolvable(char* s) {
+    int i;
+    int inversions = 0;
+    int grid[SIZE][SIZE];
+
+    loadBoard(grid, s);
+
+    for (i = 0; i < SIZE * SIZE - 1; i++) {
+        if (*(grid + i + 1) && *(grid + i) && *(grid + i + 1) > *(grid + i)) {
+            inversions++;
+        }
+    }
+
+    return inversions % 2 == 0;
+}
+
+void swap(int* n1, int* n2) {
+    int tmp = *n1;
+    *n1 = *n2;
+    *n2 = tmp;
 }
 
 void test(void) {
