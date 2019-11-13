@@ -6,7 +6,7 @@
 #include "neillsdl2.h"
 
 #define TILE_SIZE WHEIGHT / 3
-#define STEP_DELAY 250
+#define DELAY 250
 #define SLIDE_DELAY TILE_SIZE / 300
 #define CHAR_X_OFFSET TILE_SIZE / 2 - FNTHEIGHT / 2
 #define CHAR_Y_OFFSET TILE_SIZE / 2 - FNTWIDTH / 2
@@ -61,6 +61,7 @@ void initObjects(SDL_Simplewin* sw, SDL_Rect* tile, SDL_Rect* border, fntrow fon
 void drawBorder(col_t colour, SDL_Simplewin* sw, SDL_Rect* border);
 void setFillColour(SDL_Simplewin* sw, col_t colour);
 void animateSolution(sol_t* solution);
+void SDLExit(void);
 
 /* BUILDING CHILDREN */
 int expandNode(queue_t* queue);
@@ -106,13 +107,21 @@ void animateSolution(sol_t* solution) {
     drawGrid(solution->grid[0]->grid, &sw, &tile, fontdata);
     drawBorder(RED, &sw, &border);
     Neill_SDL_UpdateScreen(&sw);
-    SDL_Delay(500);
+    for (i = 0; i <= DELAY; i++) {
+        SDL_Delay(1);
+        Neill_SDL_Events(&sw);
+        if (sw.finished) {
+            SDLExit();
+            return;
+        }
+    }
 
     /* Slide tiles through solution steps */
     for (i = 0; i < solution->steps; i++) {
-        SDL_Delay(STEP_DELAY);
+        SDL_Delay(DELAY);
         slideTile(solution, i, &sw, &tile, &border, fontdata);
         if (sw.finished) {
+            SDLExit();
             return;
         }
     }
@@ -124,7 +133,10 @@ void animateSolution(sol_t* solution) {
     while (!sw.finished) {
         Neill_SDL_Events(&sw);
     }
+    SDLExit();
+}
 
+void SDLExit(void) {
     SDL_Quit();
     atexit(SDL_Quit);
 }
@@ -256,21 +268,6 @@ void drawGrid(int grid[SIZE][SIZE], SDL_Simplewin* sw, SDL_Rect* tile, fntrow fo
             x = j * TILE_SIZE;
             y = i * TILE_SIZE;
             drawTile(grid[i][j], x, y, sw, tile, fontdata);
-            /*setFillColour(sw, grid[i][j]);
-            rect->x = j * TILE_SIZE;
-            rect->y = i * TILE_SIZE;
-            SDL_RenderFillRect(sw->renderer, rect);
-
-            Neill_SDL_SetDrawColour(sw, 0, 0, 0);
-            SDL_RenderDrawRect(sw->renderer, rect);
-            if (grid[i][j] != 0) {
-                Neill_SDL_DrawChar(sw, fontdata, grid[i][j] + '0', j * TILE_SIZE + TILE_SIZE / 2 - FNTHEIGHT / 2, i * TILE_SIZE + TILE_SIZE / 2 - FNTWIDTH / 2);
-            }
-            Neill_SDL_UpdateScreen(sw);*/
-            Neill_SDL_Events(sw);
-            if (sw->finished) {
-                return;
-            }
         }
     }
 }
@@ -305,7 +302,7 @@ void loadSolution(queue_t* queue, sol_t* solution) {
     size_t list_index = queue->end;
     size_t len = queue->children[queue->end].step;
 
-    /*FIXME ccheck allocation */
+    /*FIXME check allocation */
     solution->grid = (grid_t**)malloc(len * sizeof(grid_t*));
     solution->steps = len;
 
