@@ -72,7 +72,8 @@ int main(int argc, char* argv[]) {
     queue_t queue;
     sol_t solution;
 
-    test();
+    /*test()*/;
+    solve8Tile(&queue, "123456 78");
 
     if (argc != 2) {
         fprintf(stderr,
@@ -114,9 +115,10 @@ void solve8Tile(queue_t* queue, char* s) {
  */
 int expandNode(queue_t* queue) {
     node_t* parent = queue->curr;
+
     int x = parent->x;
     int y = parent->y;
-
+    printBoard(parent->grid);
     if (x < SIZE - 1) {
         if (shiftTile(LEFT, queue)) {
             return 1;
@@ -166,7 +168,8 @@ bool shiftTile(swap_t dir, queue_t* queue) {
     /* FIXME functionise */
     /* Adds node to end of list which serves as temporary node. If it already 
        exists doesn't have to be malloced again. The end pointer in queue is not 
-       updated until an element is "officially" added to the queue */
+       updated until an element is "officially" added to the queue (Dan said this
+       was nicer than using a tmp node) */
     if (end->next == NULL) {
         child = (node_t*)malloc(sizeof(node_t));
         if (child == NULL) {
@@ -214,8 +217,9 @@ bool checkTarget(int grid[SIZE][SIZE]) {
 bool checkUnique(queue_t* queue, int grid[SIZE][SIZE]) {
     node_t* node = queue->start;
 
-    /* FIXME should this be do while? */
-    while (node != NULL) {
+    /* Check up to current end node (not including tmp node added to end of list)
+     */
+    while (node != queue->end) {
         if (compareBoards(node->grid, grid)) {
             return false;
         }
