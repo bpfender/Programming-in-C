@@ -4,10 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-/*FIXME types */
-
 #define SIZE 3
-/* FIXME queue length? */
+/* 9 Factorial. This could probably be half the size due to invalid boards */
 #define QUEUE 362880
 /* http://w01fe.com/blog/2009/01/the-hardest-eight-puzzle-instances-take-31-moves-to-solve/ */
 #define MAX_STEPS 31
@@ -57,7 +55,7 @@ bool checkUnique(queue_t* queue, int grid[SIZE][SIZE]);
 bool compareBoards(int grid1[SIZE][SIZE], int grid2[SIZE][SIZE]);
 
 /* ------ QUEUE FUNCTIONS ------ */
-void enqueue(queue_t* queue, grid_t* grid);
+void enqueue(queue_t* queue);
 void initQueue(queue_t* queue, char* s);
 void loadBoard(int grid[SIZE][SIZE], char* s);
 void findFreeTile(grid_t* grid);
@@ -149,13 +147,11 @@ bool expandNode(queue_t* queue) {
 
 /* Generates next board state based on direction of shift. Shift direction 
  * refers to direction of tile being moved into the free space. Function assumes
- * that a valid shiftdirection is given.
+ * that a valid shiftdirection is given. Copies board into queue, but queue
+ * current index is only incremented if it's a valid board. This avoid copying
+ * to a tmp and then copying to the queue
  */
 bool shiftTile(swap_t dir, queue_t* queue) {
-    /* QUESTION does it make sense to declare this as static given that it is 
-       called again and again */
-    /*FIXME just put in queue */
-    grid_t tmp;
     grid_t* parent = &queue->node[queue->curr];
     grid_t* child = &queue->node[queue->end + 1];
 
@@ -168,14 +164,6 @@ bool shiftTile(swap_t dir, queue_t* queue) {
     int x2 = x1 + (dir == LEFT) - (dir == RIGHT);
     int y2 = y1 + (dir == UP) - (dir == DOWN);
 
-    /* Create child node in tmp struct */
-    /*memcpy(tmp.grid, parent->grid, SIZE * SIZE * sizeof(int));
-    swap(&tmp.grid[y1][x1], &tmp.grid[y2][x2]);
-    tmp.x = x2;
-    tmp.y = y2;
-    tmp.parent = queue->curr;
-    tmp.step = parent->step + 1;*/
-
     memcpy(child->grid, parent->grid, SIZE * SIZE * sizeof(int));
     swap(&child->grid[y1][x1], &child->grid[y2][x2]);
     child->x = x2;
@@ -184,26 +172,19 @@ bool shiftTile(swap_t dir, queue_t* queue) {
     child->step = parent->step + 1;
 
     if (checkTarget(child->grid)) {
-        enqueue(queue, child);
+        enqueue(queue);
         return true;
     } else if (checkUnique(queue, child->grid)) {
-        enqueue(queue, child);
-    }
-
-    /* FIXME can this be more concise? */
-    if (checkTarget(tmp.grid)) {
-        enqueue(queue, &tmp);
-        return true;
-    } else if (checkUnique(queue, tmp.grid)) {
-        enqueue(queue, &tmp);
+        enqueue(queue);
     }
 
     return false;
 }
 
-/* QUESTION do i need a seperate function for this? */
+/* This just call the compare boards function, but function adds to readability
+ * above
+ */
 bool checkTarget(int grid[SIZE][SIZE]) {
-    /* QUESTION in termsof notation better to have a static? */
     static int target[SIZE][SIZE] = {{1, 2, 3},
                                      {4, 5, 6},
                                      {7, 8, 0}};
@@ -235,10 +216,9 @@ bool compareBoards(int grid1[SIZE][SIZE], int grid2[SIZE][SIZE]) {
 /* ------ QUEUE FUNCTIONS ------ */
 /* Add grid_t to the end of the queue and increment end of queue index
  */
-void enqueue(queue_t* queue, grid_t* grid) {
+void enqueue(queue_t* queue) {
     /* Incrementing end keeps track of where to add future nodes */
-    long end = ++queue->end;
-    /*memcpy(&queue->node[end], grid, sizeof(grid_t));*/
+    queue->end++;
 }
 
 /* Initiliase a queue by Loading the starting board and setting indeces to zero.
