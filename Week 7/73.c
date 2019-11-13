@@ -57,9 +57,10 @@ void drawGrid(int grid[SIZE][SIZE], SDL_Simplewin* sw, SDL_Rect* rect, fntrow fn
 void drawTileIndices(int tile, int x, int y, SDL_Simplewin* sw, SDL_Rect* rect, fntrow fontdata[FNTCHARS][FNTHEIGHT]);
 void slideTile(sol_t* solution, int step, SDL_Simplewin* sw, SDL_Rect* rect, SDL_Rect* border, fntrow fontdata[FNTCHARS][FNTHEIGHT]);
 void drawTile(int tile, int x, int y, SDL_Simplewin* sw, SDL_Rect* rect, fntrow fontdata[FNTCHARS][FNTHEIGHT]);
-void initialiseSDL(SDL_Simplewin* sw, SDL_Rect* tile, SDL_Rect* border, fntrow fontdata[FNTCHARS][FNTHEIGHT]);
+void initObjects(SDL_Simplewin* sw, SDL_Rect* tile, SDL_Rect* border, fntrow fontdata[FNTCHARS][FNTHEIGHT]);
 void drawBorder(col_t colour, SDL_Simplewin* sw, SDL_Rect* border);
 void setFillColour(SDL_Simplewin* sw, col_t colour);
+void animateSolution(sol_t* solution);
 
 /* BUILDING CHILDREN */
 int expandNode(queue_t* queue);
@@ -80,32 +81,43 @@ void printBoard(int grid[SIZE][SIZE]);
 void test(void);
 
 int main(void) {
-    int i;
     static queue_t queue;
     sol_t solution;
 
+    solvePuzzle(&queue, "1234 5678");
+    loadSolution(&queue, &solution);
+    animateSolution(&solution);
+
+    free(solution.grid);
+    return 0;
+}
+
+/* ------- SDL FUNCTIONS ------- */
+void animateSolution(sol_t* solution) {
+    int i;
     SDL_Simplewin sw;
     SDL_Rect tile;
     SDL_Rect border;
     fntrow fontdata[FNTCHARS][FNTHEIGHT];
 
-    tile.h = TILE_SIZE;
-    tile.w = TILE_SIZE;
+    initObjects(&sw, &tile, &border, fontdata);
 
-    solvePuzzle(&queue, "1234 5678");
-    loadSolution(&queue, &solution);
-
-    initialiseSDL(&sw, &tile, &border, fontdata);
-
-    drawGrid(solution.grid[0]->grid, &sw, &tile, fontdata);
+    /* Draw starting grid */
+    drawGrid(solution->grid[0]->grid, &sw, &tile, fontdata);
     drawBorder(RED, &sw, &border);
     Neill_SDL_UpdateScreen(&sw);
-    SDL_Delay(1000);
-    for (i = 0; i < solution.steps; i++) {
+    SDL_Delay(500);
+
+    /* Slide tiles through solution steps */
+    for (i = 0; i < solution->steps; i++) {
         SDL_Delay(STEP_DELAY);
-        slideTile(&solution, i, &sw, &tile, &border, fontdata);
+        slideTile(solution, i, &sw, &tile, &border, fontdata);
+        if (sw.finished) {
+            return;
+        }
     }
 
+    /* Draw final grid with green border*/
     drawBorder(GREEN, &sw, &border);
     Neill_SDL_UpdateScreen(&sw);
 
@@ -115,16 +127,12 @@ int main(void) {
 
     SDL_Quit();
     atexit(SDL_Quit);
-
-    free(solution.grid);
-    return 0;
 }
 
-/* ------- SDL FUNCTIONS ------- */
 /* Initialises all the objects used for drawin 8tile grid (tile rectangle,
  * border rectangle and font)
  */
-void initialiseSDL(SDL_Simplewin* sw, SDL_Rect* tile, SDL_Rect* border, fntrow fontdata[FNTCHARS][FNTHEIGHT]) {
+void initObjects(SDL_Simplewin* sw, SDL_Rect* tile, SDL_Rect* border, fntrow fontdata[FNTCHARS][FNTHEIGHT]) {
     tile->h = TILE_SIZE;
     tile->w = TILE_SIZE;
     border->h = WHEIGHT;
@@ -186,6 +194,10 @@ void slideTile(sol_t* solution, int step, SDL_Simplewin* sw, SDL_Rect* tile, SDL
             drawTile(value, i, y1, sw, tile, fontdata);
             drawBorder(ORANGE, sw, border);
             Neill_SDL_UpdateScreen(sw);
+            Neill_SDL_Events(sw);
+            if (sw->finished) {
+                return;
+            }
             SDL_Delay(SLIDE_DELAY);
         }
     }
@@ -195,6 +207,10 @@ void slideTile(sol_t* solution, int step, SDL_Simplewin* sw, SDL_Rect* tile, SDL
             drawTile(0, x2, y2, sw, tile, fontdata);
             drawTile(value, i, y1, sw, tile, fontdata);
             drawBorder(ORANGE, sw, border);
+            Neill_SDL_Events(sw);
+            if (sw->finished) {
+                return;
+            }
             Neill_SDL_UpdateScreen(sw);
             SDL_Delay(SLIDE_DELAY);
         }
@@ -205,6 +221,10 @@ void slideTile(sol_t* solution, int step, SDL_Simplewin* sw, SDL_Rect* tile, SDL
             drawTile(0, x2, y2, sw, tile, fontdata);
             drawTile(value, x1, i, sw, tile, fontdata);
             drawBorder(ORANGE, sw, border);
+            Neill_SDL_Events(sw);
+            if (sw->finished) {
+                return;
+            }
             Neill_SDL_UpdateScreen(sw);
             SDL_Delay(SLIDE_DELAY);
         }
@@ -215,12 +235,18 @@ void slideTile(sol_t* solution, int step, SDL_Simplewin* sw, SDL_Rect* tile, SDL
             drawTile(0, x2, y2, sw, tile, fontdata);
             drawTile(value, x1, i, sw, tile, fontdata);
             drawBorder(ORANGE, sw, border);
+            Neill_SDL_Events(sw);
+            if (sw->finished) {
+                return;
+            }
             Neill_SDL_UpdateScreen(sw);
             SDL_Delay(SLIDE_DELAY);
         }
     }
 }
-/* ------- SDL FUNCTIONS -------- */
+
+/* Draw complete 8tile grid 
+ */
 void drawGrid(int grid[SIZE][SIZE], SDL_Simplewin* sw, SDL_Rect* tile, fntrow fontdata[FNTCHARS][FNTHEIGHT]) {
     int i, j;
     int x, y;
@@ -249,6 +275,8 @@ void drawGrid(int grid[SIZE][SIZE], SDL_Simplewin* sw, SDL_Rect* tile, fntrow fo
     }
 }
 
+/* Allows easy switching to predetermined colours required
+ */
 void setFillColour(SDL_Simplewin* sw, col_t colour) {
     switch (colour) {
         case WHITE:
@@ -269,13 +297,6 @@ void setFillColour(SDL_Simplewin* sw, col_t colour) {
         case GREEN:
             Neill_SDL_SetDrawColour(sw, 0, 170, 0);
             break;
-    }
-}
-
-void printSolution(sol_t* solution) {
-    int i;
-    for (i = 0; i < solution->steps; i++) {
-        printBoard(solution->grid[i]->grid);
     }
 }
 
