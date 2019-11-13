@@ -38,7 +38,7 @@ typedef struct queue_t {
     long end;
 } queue_t;
 
-/* Stores dynamically allocated list of solution steps, and variable for number
+/* Stores list of solution steps, and variable for number
    of steps */
 typedef struct sol_t {
     grid_t* node[MAX_STEPS];
@@ -181,7 +181,7 @@ bool shiftTile(swap_t dir, queue_t* queue) {
     return false;
 }
 
-/* This just call the compare boards function, but function adds to readability
+/* This just calls the compare boards function, but function adds to readability
  * above
  */
 bool checkTarget(int grid[SIZE][SIZE]) {
@@ -209,7 +209,6 @@ bool checkUnique(queue_t* queue, int grid[SIZE][SIZE]) {
  * using that as the comparator, but the speed seemed basically the same. 
  */
 bool compareBoards(int grid1[SIZE][SIZE], int grid2[SIZE][SIZE]) {
-    /* QUESTION enum and return value? */
     return !memcmp(grid1, grid2, SIZE * SIZE * sizeof(int));
 }
 
@@ -259,14 +258,14 @@ void loadBoard(int grid[SIZE][SIZE], char* s) {
  * for initilisation as free tiles for expanded nodes can be inferred directly
  * from the swap direction.
  */
-void findFreeTile(grid_t* grid) {
+void findFreeTile(grid_t* node) {
     int i, j;
 
     for (i = 0; i < SIZE; i++) {
         for (j = 0; j < SIZE; j++) {
-            if (grid->grid[i][j] == 0) {
-                grid->x = j;
-                grid->y = i;
+            if (node->grid[i][j] == 0) {
+                node->x = j;
+                node->y = i;
                 return;
             }
         }
@@ -279,6 +278,7 @@ void findFreeTile(grid_t* grid) {
 void loadSolution(queue_t* queue, sol_t* solution) {
     int i;
     long parent = queue->end;
+    /* FIXME do i need the step counter? */
     solution->steps = queue->node[queue->end].step;
     /* FIXME step and parent -1 one can probably be removed */
     for (i = (int)solution->steps; i >= 0; i--) {

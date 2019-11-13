@@ -56,7 +56,7 @@ typedef struct queue_t {
     long end;
 } queue_t;
 
-/* Stores dynamically allocated list of solution steps, and variable for number
+/* Stores list of solution steps, and variable for number
    of steps */
 typedef struct sol_t {
     grid_t* node[MAX_STEPS];
@@ -411,7 +411,7 @@ void swap(int* n1, int* n2) {
  * SDL and draws grid
  */
 void animateSolution(sol_t* solution) {
-    int i;
+    unsigned int i;
     SDL_Simplewin sw;
     SDL_Rect tile;
     SDL_Rect border;
