@@ -1,7 +1,7 @@
 CFLAGS = `sdl2-config --cflags` -O2 -Wall -Wextra -pedantic -Wfloat-equal -ansi
-INCS = ../Week\ 5/neillsdl2.h
+INCS = neillsdl2.h
 TARGET = 73
-SOURCES =  $(TARGET).c ../Week\ 5/neillsdl2.c 
+SOURCES =  $(TARGET).c neillsdl2.c 
 LIBS =  `sdl2-config --libs` -lm
 CC = gcc
 
