@@ -6,31 +6,52 @@
 #define BUFF_FACTOR 4
 #define SIZE 3
 
+typedef enum bool { false = 0,
+                    true = 1 } bool;
+
 typedef struct node_t {
     int grid[SIZE][SIZE];
     int f, g, h;
-    size_t x, y;
+    int x, y;
     struct node_t* parent;
 } node_t;
 
 typedef struct queue_t {
-    node_t** list;
+    node_t** node;
     size_t elem;
     size_t front;
     size_t back;
     size_t size;
 } queue_t;
 
-typedef struct list_t {
-    node_t** node;
-    struct list_t* next;
-} list_t;
-
 typedef struct tree_t {
     node_t* node;
     struct tree_t* children[SIZE * SIZE];
 } tree_t;
 
+/* ------ PRIORITY QUEUE FUNCTIONS ------ */
+void initPQueue(queue_t* p_queue, node_t* node);
+void insertPQueue(queue_t* p_queue, node_t* node);
+node_t* getMin(queue_t* p_queue);
+void delMin(queue_t* p_queue);
+bool isEmpty(queue_t* p_queue);
+void unloadPQueue(queue_t* p_queue);
+
+void expandPQueue(queue_t* p_queue);
+void percolateUp(queue_t* p_queue);
+void percolateDown(queue_t* p_queue);
+size_t minChildIndex(queue_t* p_queue, size_t i);
+void swapNode(node_t* n1, node_t* n2);
+void unloadPQueue(queue_t* p_queue);
+
+/* ------ SEARCH TREE AND VISITED FUNCTIONS ------ */
+tree_t* initSearchTree();
+tree_t* createTreeNode(void);
+void insertSearchTree(tree_t* tree, node_t* node);
+bool searchTree();
+void unloadSearchTree(tree_t* tree);
+
+/* ------ PRIORITY FUNCTION CALCULATIONS ------ */
 int fPriority(int grid[SIZE][SIZE], size_t step);
 int manhattanDistance(int grid[SIZE][SIZE]);
 int hammingDistance(int grid[SIZE][SIZE]);
@@ -49,54 +70,49 @@ void swapNode(node_t* n1, node_t* n2) {
 }
 
 /* ------- PRIORITY QUEUE FUNCTIONS ------- */
-void initPQueue(queue_t* p_queue) {
-    p_queue->list = (queue_t**)malloc(QUEUE_SIZE * sizeof(queue_t*));
-    if (p_queue->list == NULL) {
-        fprintf(stderr, "ERROR\n");
+/* Initiliases priority queue to array of size QUEUE_SIZE. Adds starting grid to
+ * queue
+ */
+void initPQueue(queue_t* p_queue, node_t* node) {
+    /* +1 for permanent sentinel value */
+    p_queue->node = (node_t**)malloc((QUEUE_SIZE + 1) * sizeof(node_t*));
+    if (p_queue->node == NULL) {
+        fprintf(stderr, "Memory allocation error\n");
         exit(EXIT_FAILURE);
     }
 
+    /* Set sentinel node value and add starting grid*/
+    p_queue->node[0] = NULL;
+    p_queue->node[1] = node;
+
     p_queue->size = QUEUE_SIZE;
-    p_queue->elem = 0;
-    p_queue->front = 0;
-    p_queue->back = 0;
+    p_queue->elem = 1;
+    p_queue->back = 1;
 }
 
-void insertPQueue(queue_t* queue, node_t* node) {
-    if (queue->elem == queue->size) {
-        expandPQueue(queue);
+void unloadPQueue(queue_t* p_queue) {
+    free(p_queue->node);
+}
+
+void insertPQueue(queue_t* p_queue, node_t* node) {
+    if (p_queue->elem == p_queue->size) {
+        expandPQueue(p_queue);
     }
 
-    queue->list[queue->back % queue->size] = node;
-    queue->elem++;
-    percolateUp(queue);
+    p_queue->elem++;
+    p_queue->back++;
 
-    queue->back = (queue->back + 1) % queue->size;
+    p_queue->node[p_queue->back] = node;
+    percolateUp(p_queue);
 }
 
-void delMin(queue_t* queue) {
-    queue->list[queue->front] = queue->list[queue->back];
-    queue->elem--;
-
-    percolateDown(queue);
-
-    if (queue->back == 0) {
-        queue->back = queue->elem - 1;
-    } else {
-        queue->back--;
-    }
-}
-
-void percolateUp(queue_t* queue) {
-    size_t i = queue->elem;
-    size_t front = queue->front;
-    size_t len = queue->size;
+void percolateUp(queue_t* p_queue) {
     node_t *child, *parent;
+    size_t i = p_queue->back;
 
-    /* FIXME, THIS DOESN't return when done swapping yet */
     while (i / 2 != 0) {
-        child = queue->list[(front + i) % len];
-        parent = queue->list[(front + i / 2) % len];
+        child = p_queue->node[i];
+        parent = p_queue->node[i / 2];
         if (child->f < parent->f) {
             swapNode(child, parent);
         }
@@ -104,77 +120,77 @@ void percolateUp(queue_t* queue) {
     }
 }
 
-void percolateDown(queue_t* queue) {
-    size_t i = 0;
-    size_t front = queue->front;
-    size_t len = queue->elem;
-    node_t *child, *parent;
-    size_t child_index;
+void delMin(queue_t* p_queue) {
+    p_queue->elem--;
+    p_queue->back--;
 
-    /*FIXME what about child nodes at end of list? */
-    while ((i + 1) * 2 <= queue->elem) {
-        child_index = minChildIndex(queue, i);
-        parent = queue->list[(front + i) % len];
-        child = queue->list[(front + child_index) % len];
+    p_queue->node[1] = p_queue->node[p_queue->back];
+    percolateDown(p_queue);
+}
+
+void percolateDown(queue_t* p_queue) {
+    node_t *child, *parent;
+    size_t i = 1;
+
+    while (i * 2 <= p_queue->elem) {
+        parent = p_queue->node[i];
+
+        i = minChildIndex(p_queue, i);
+        child = p_queue->node[i];
 
         if (child->f < parent->f) {
-            swap(child, parent);
+            swapNode(child, parent);
         }
-        i = child_index;
     }
 }
 
-int minChildIndex(queue_t* queue, size_t i) {
-    size_t front = queue->front;
-    size_t len = queue->size;
-    size_t next_index = (i + 1) * 2;
+size_t minChildIndex(queue_t* p_queue, size_t i) {
+    int f1, f2;
+    size_t child_index = i * 2;
 
-    int f1 = queue->list[(front + next_index) % len];
-    int f2 = queue->list[(front + next_index + 1) % len];
+    /* If final node only has one branch, can only return this */
+    if (child_index == p_queue->back) {
+        return child_index;
+    }
 
-    /* FIXME this indexing will likely break */
+    /* Get f-value of each child */
+    f1 = p_queue->node[child_index]->f;
+    f2 = p_queue->node[child_index + 1]->f;
+
     if (f1 < f2) {
-        return next_index;
+        return child_index;
     } else {
-        return next_index + 1;
+        return child_index + 1;
     }
 }
 
-void expandPQueue(queue_t* queue) {
-    size_t i;
+void expandPQueue(queue_t* p_queue) {
+    p_queue->size = p_queue->size * BUFF_FACTOR + 1;
 
-    node_t** tmp = (node_t**)malloc(queue->size * BUFF_FACTOR * sizeof(node_t*));
-    if (tmp == NULL) {
-        fprintf(stderr, "ERROR\n");
+    p_queue->node = realloc(p_queue->node, p_queue->size * sizeof(node_t*));
+    if (p_queue->node == NULL) {
+        fprintf(stderr, "Memory allocation error\n");
         exit(EXIT_FAILURE);
     }
+}
 
-    for (i = 0; i < queue->elem; i++) {
-        tmp[i] = queue->list[(queue->front + i)];
+node_t* getMin(queue_t* p_queue) {
+    return p_queue->node[1];
+}
+
+bool isEmpty(queue_t* p_queue) {
+    if (p_queue->elem == 0) {
+        return true;
     }
-    free(queue->list);
-    queue->list = tmp;
-    queue->size *= BUFF_FACTOR;
-    queue->front = 0;
-    queue->back = queue->elem - 1;
+    return false;
 }
-
-node_t* getMin(queue_t* queue) {
-    return queue->list[queue->front];
-}
-
-void isEmpty();
-
-/* ------- CLOSED LIST ------- */
-void initList();
-void insertList();
 
 /* ------ SEARCH TREE and VISITED ------ */
 tree_t* initSearchTree() {
-    return createTreeNode(NULL);
+    return createTreeNode();
 }
 
-tree_t* createTreeNode(node_t* node) {
+tree_t* createTreeNode(void) {
     size_t i;
     tree_t* ptr = (tree_t*)malloc(sizeof(tree_t));
     if (ptr == NULL) {
@@ -185,12 +201,63 @@ tree_t* createTreeNode(node_t* node) {
     for (i = 0; i < SIZE * SIZE; i++) {
         ptr->children[i] = NULL;
     }
+    /* Doesn't set ptr to queue node until very end externally */
     ptr->node = NULL;
     return ptr;
 }
 
-void insertSearchTree();
-void searchTree();
+void insertSearchTree(tree_t* tree, node_t* node) {
+    int i, j;
+    int leaf;
+    tree_t* tmp;
+    tree_t* tree_node = tree;
+
+    for (i = 0; i < SIZE; i++) {
+        for (j = 0; j < SIZE; j++) {
+            leaf = node->grid[i][j];
+            if (tree_node->children[leaf] == NULL) {
+                tmp = createTreeNode();
+                tree_node->children[leaf] = tmp;
+                tree_node = tmp;
+            } else {
+                tree_node = tree_node->children[leaf];
+            }
+        }
+    }
+    /* Insert pointer to node at end of branches */
+    tree_node->node = node;
+}
+
+bool searchTree(tree_t* tree, int grid[SIZE][SIZE]) {
+    int i, j;
+    int leaf;
+    tree_t* tree_node = tree;
+
+    for (i = 0; i < SIZE; i++) {
+        for (j = 0; j < SIZE; j++) {
+            leaf = grid[i][j];
+            if (tree_node->children[leaf] == NULL) {
+                return false;
+            }
+            tree_node = tree_node->children[leaf];
+        }
+    }
+    return true;
+}
+
+/*FIXME not totally sure on this */
+void unloadSearchTree(tree_t* tree) {
+    int i;
+    for (i = 0; i < SIZE * SIZE; i++) {
+        if (tree->children[i]) {
+            unloadSearchTree(tree->children[i]);
+        }
+        if (tree->children[i]->node) {
+            free(tree->children[i]->node);
+        }
+    }
+    free(tree);
+}
 
 /* ------- PRIORIITY FUNCTION CALCULATION ------- */
 /* FIXME size_t vs int */
