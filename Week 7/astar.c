@@ -47,7 +47,7 @@ typedef struct sol_t {
 } sol_t;
 
 /* ------ SOLVER FUNCTIONS ------ */
-void solve8Tile(queue_t* p_queue, tree_t* tree, char* s);
+void solve8Tile(queue_t* p_queue, tree_t** tree, char* s);
 bool expandNode(queue_t* p_queue, tree_t* tree);
 bool shiftTile(swap_t dir, queue_t* p_queue, tree_t* tree, node_t* parent);
 
@@ -70,11 +70,11 @@ void expandPQueue(queue_t* p_queue);
 void percolateUp(queue_t* p_queue);
 void percolateDown(queue_t* p_queue);
 size_t minChildIndex(queue_t* p_queue, size_t i);
-void swapNode(node_t* n1, node_t* n2);
+void swapNodePtr(node_t** n1, node_t** n2);
 void unloadPQueue(queue_t* p_queue);
 
 /* ------ SEARCH TREE AND VISITED FUNCTIONS ------ */
-void initTree(tree_t*, node_t*);
+tree_t* initTree(node_t* node);
 void insertTree(tree_t* tree, node_t* node);
 bool searchInTree(tree_t* tree, int grid[SIZE][SIZE]);
 
@@ -97,11 +97,11 @@ void test(void);
 
 int main(void) {
     queue_t p_queue;
-    tree_t search_tree;
+    tree_t* search_tree = NULL;
     sol_t solution;
 
     /*test();*/
-    solve8Tile(&p_queue, &search_tree, "123 45678");
+    solve8Tile(&p_queue, &search_tree, "12345 678");
     loadSolution(&p_queue, &solution);
     printSolution(&solution);
 
@@ -116,11 +116,11 @@ int main(void) {
  * onto the queue until a solution is found. Assumes a valid string. Uses
  * breadth first search
  */
-void solve8Tile(queue_t* p_queue, tree_t* tree, char* s) {
+void solve8Tile(queue_t* p_queue, tree_t** tree, char* s) {
     node_t* node = initNode(s);
     initPQueue(p_queue, node);
-    initTree(tree, node);
-    while (!expandNode(p_queue, tree)) {
+    *tree = initTree(node);
+    while (!expandNode(p_queue, *tree)) {
         /* TODO could add isEMpyt function */
     }
 }
@@ -196,8 +196,6 @@ bool shiftTile(swap_t dir, queue_t* p_queue, tree_t* tree, node_t* parent) {
     tmp->step = parent->step + 1;
     tmp->parent = parent;
     tmp->f = fPriority(tmp->grid, tmp->step);
-
-    /* FIXME tmp is not being malloced */
 
     if (checkTarget(tmp->grid)) {
         insertTree(tree, tmp);
@@ -342,7 +340,7 @@ void unloadPQueue(queue_t* p_queue) {
 void expandPQueue(queue_t* p_queue) {
     p_queue->size = p_queue->size * BUFF_FACTOR + 1;
 
-    p_queue->node = realloc(p_queue->node, p_queue->size * sizeof(node_t*));
+    p_queue->node = (node_t**)realloc(p_queue->node, p_queue->size * sizeof(node_t*));
     if (p_queue->node == NULL) {
         fprintf(stderr, "Memory allocation error\n");
         /* QUESTION should i free previously allced memory?*/
@@ -358,7 +356,7 @@ void percolateUp(queue_t* p_queue) {
         child = p_queue->node[i];
         parent = p_queue->node[i / 2];
         if (child->f < parent->f) {
-            swapNode(child, parent);
+            swapNodePtr(&child, &parent);
         }
         i /= 2;
     }
@@ -375,7 +373,7 @@ void percolateDown(queue_t* p_queue) {
         child = p_queue->node[i];
 
         if (child->f < parent->f) {
-            swapNode(child, parent);
+            swapNodePtr(&child, &parent);
         }
     }
 }
@@ -400,36 +398,39 @@ size_t minChildIndex(queue_t* p_queue, size_t i) {
     }
 }
 
-void swapNode(node_t* n1, node_t* n2) {
-    node_t tmp = *n1;
+void swapNodePtr(node_t** n1, node_t** n2) {
+    node_t* tmp = *n1;
     *n1 = *n2;
     *n2 = tmp;
 }
 
 /* ------ SEARCH TREE FOR VISITED LIST ------ */
-void initTree(tree_t* tree, node_t* node) {
+tree_t* initTree(node_t* node) {
+    tree_t* tree = (tree_t*)calloc(1, sizeof(tree_t));
+    if (tree == NULL) {
+        fprintf(stderr, "Memory allocation error\n");
+        exit(EXIT_FAILURE);
+    }
+
     insertTree(tree, node);
+    return tree;
 }
 
 void insertTree(tree_t* tree, node_t* node) {
     int i, j, leaf;
-    tree_t* tmp;
-    tree_t* tree_node = tree;
+    tree_t* branch = tree;
 
     for (i = 0; i < SIZE; i++) {
         for (j = 0; j < SIZE; j++) {
             leaf = node->grid[i][j];
-            if (tree_node->children[leaf] == NULL) {
-                tmp = createTreeNode();
-                tree_node->children[leaf] = tmp;
-                tree_node = tmp;
-            } else {
-                tree_node = tree_node->children[leaf];
+            if (branch->children[leaf] == NULL) {
+                branch->children[leaf] = createTreeNode();
             }
+            branch = branch->children[leaf];
         }
     }
     /* Insert pointer to node at end of branches */
-    tree_node->node = node;
+    branch->node = node;
 }
 
 /* FIXME combine search and insert? */
@@ -451,19 +452,20 @@ bool searchInTree(tree_t* tree, int grid[SIZE][SIZE]) {
 
 tree_t* createTreeNode(void) {
     int i;
-    tree_t* ptr = (tree_t*)malloc(sizeof(tree_t));
+    /* FIXME just calloc */
+    tree_t* ptr = (tree_t*)calloc(1, sizeof(tree_t));
     if (ptr == NULL) {
         /* QUESTION should i free previously allced memory?*/
         fprintf(stderr, "Memory allocation error\n");
         exit(EXIT_FAILURE);
     }
 
-    for (i = 0; i < SIZE * SIZE; i++) {
+    /*   for (i = 0; i < SIZE * SIZE; i++) {
         ptr->children[i] = NULL;
     }
 
     /* Doesn't set ptr to queue node until very end externally */
-    ptr->node = NULL;
+    /* ptr->node = NULL;*/
     return ptr;
 }
 
