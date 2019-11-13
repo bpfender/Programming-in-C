@@ -17,7 +17,7 @@
 /* 9 Factorial. This could probably be half the size due to invalid boards */
 #define QUEUE 362880
 /* http://w01fe.com/blog/2009/01/the-hardest-eight-puzzle-instances-take-31-moves-to-solve/ */
-#define MAX_STEPS 31
+#define MAX_STEPS 32
 
 /* Enum to allow selection of drawing colour */
 typedef enum col_t { WHITE,
