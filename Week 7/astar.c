@@ -4,11 +4,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define QUEUE_SIZE 500
-#define BUFF_FACTOR 4
+#define QUEUE_SIZE 800000
+#define BUFF_FACTOR 2
 #define SIZE 3
 /* http://w01fe.com/blog/2009/01/the-hardest-eight-puzzle-instances-take-31-moves-to-solve/ */
-#define MAX_STEPS 32
+#define MAX_STEPS 35
 
 typedef enum bool { false = 0,
                     true = 1 } bool;
@@ -94,19 +94,21 @@ bool checkInputString(char* s);
 bool isSolvable(char* s);
 void swap(int* n1, int* n2);
 void test(void);
+long counter = 0;
 
 int main(void) {
     queue_t p_queue;
     tree_t* search_tree = NULL;
     sol_t solution;
 
-    /*test();*/
-    solve8Tile(&p_queue, &search_tree, "12345 678");
+    test();
+    solve8Tile(&p_queue, &search_tree, "8672543 1");
     loadSolution(&p_queue, &solution);
     printSolution(&solution);
+    printf("Iterations: %ld\n", counter);
 
-    /*unloadPQueue(&p_queue);
-    unloadTree(&search_tree);*/
+    unloadPQueue(&p_queue);
+    unloadTree(search_tree);
 
     return 0;
 }
@@ -168,7 +170,7 @@ bool expandNode(queue_t* p_queue, tree_t* tree) {
 bool shiftTile(swap_t dir, queue_t* p_queue, tree_t* tree, node_t* parent) {
     int x1, y1, x2, y2;
     static node_t* tmp = NULL;
-
+    counter++;
     /* tmp will only be malloced if the previous one has been added to the
        queue */
     if (tmp == NULL) {
@@ -338,42 +340,44 @@ void unloadPQueue(queue_t* p_queue) {
 }
 
 void expandPQueue(queue_t* p_queue) {
+    node_t** tmp;
     p_queue->size = p_queue->size * BUFF_FACTOR + 1;
 
-    p_queue->node = (node_t**)realloc(p_queue->node, p_queue->size * sizeof(node_t*));
-    if (p_queue->node == NULL) {
+    tmp = (node_t**)realloc(p_queue->node, p_queue->size * sizeof(node_t*));
+    if (tmp == NULL) {
         fprintf(stderr, "Memory allocation error\n");
         /* QUESTION should i free previously allced memory?*/
         exit(EXIT_FAILURE);
     }
+    p_queue->node = tmp;
 }
 
 void percolateUp(queue_t* p_queue) {
-    node_t *child, *parent;
+    node_t **child, **parent;
     size_t i = p_queue->back;
 
-    while (i / 2 != 0) {
-        child = p_queue->node[i];
-        parent = p_queue->node[i / 2];
-        if (child->f < parent->f) {
-            swapNodePtr(&child, &parent);
+    while (i / 2 > 0) {
+        child = &(p_queue->node[i]);
+        parent = &(p_queue->node[i / 2]);
+        if ((*child)->f < (*parent)->f) {
+            swapNodePtr(child, parent);
         }
         i /= 2;
     }
 }
 
 void percolateDown(queue_t* p_queue) {
-    node_t *child, *parent;
+    node_t **child, **parent;
     size_t i = 1;
 
     while (i * 2 <= p_queue->elem) {
-        parent = p_queue->node[i];
+        parent = &p_queue->node[i];
 
         i = minChildIndex(p_queue, i);
-        child = p_queue->node[i];
+        child = &p_queue->node[i];
 
-        if (child->f < parent->f) {
-            swapNodePtr(&child, &parent);
+        if ((*child)->f < (*parent)->f) {
+            swapNodePtr(child, parent);
         }
     }
 }
@@ -451,21 +455,12 @@ bool searchInTree(tree_t* tree, int grid[SIZE][SIZE]) {
 }
 
 tree_t* createTreeNode(void) {
-    int i;
-    /* FIXME just calloc */
     tree_t* ptr = (tree_t*)calloc(1, sizeof(tree_t));
     if (ptr == NULL) {
         /* QUESTION should i free previously allced memory?*/
         fprintf(stderr, "Memory allocation error\n");
         exit(EXIT_FAILURE);
     }
-
-    /*   for (i = 0; i < SIZE * SIZE; i++) {
-        ptr->children[i] = NULL;
-    }
-
-    /* Doesn't set ptr to queue node until very end externally */
-    /* ptr->node = NULL;*/
     return ptr;
 }
 
@@ -493,9 +488,10 @@ int manhattanDistance(int grid[SIZE][SIZE]) {
     int num;
     for (i = 0; i < SIZE; i++) {
         for (j = 0; j < SIZE; j++) {
-            num = grid[i][j] - 1;
-            /* FIXME definition doesn't ignore 0 */
-            manhattan += abs(num / 3 - i) + abs(num % 3 - j);
+            if (grid[i][j]) {
+                num = grid[i][j] - 1;
+                manhattan += abs(num / 3 - i) + abs(num % 3 - j);
+            }
         }
     }
     return manhattan;
@@ -624,14 +620,77 @@ void swap(int* n1, int* n2) {
 void test(void) {
     int i, j;
     int test_grid[SIZE][SIZE] = {{8, 1, 3}, {4, 0, 2}, {7, 6, 5}};
+    node_t *tst_node_1, *tst_node_2, *tst_node_3, *tst_node_4, *tst_node_5;
 
-    for (i = 0; i < SIZE; i++) {
-        for (j = 0; j < SIZE; j++) {
-            printf("%d", test_grid[i][j]);
-        }
-        printf("\n");
+    queue_t p_queue_tst;
+
+    /* Find free tile and load board testing */
+    assert(hammingDistance(test_grid) == 6);
+    assert(manhattanDistance(test_grid) == 10);
+
+    tst_node_1 = initNode("12345 678");
+    assert(tst_node_1->x == 2 && tst_node_1->y == 1);
+    assert(tst_node_1->step == 0);
+    assert(tst_node_1->f == 5);
+    for (i = 0; i < 5; i++) {
+        assert(tst_node_1->grid[i / 3][i % 3] == i + 1);
     }
 
-    assert(hammingDistance(test_grid) == 6);
-    assert(manhattanDistance(test_grid) == 12);
+    /* ------- PRIORITY QUEUE TESTING ------ */
+    tst_node_2 = initNode("123456 78");
+    tst_node_3 = initNode("1 2345678");
+    tst_node_4 = initNode("87654 321");
+    tst_node_5 = initNode("1234567 8");
+
+    /* Mainly here for clarity to understand binary tree*/
+    assert(tst_node_1->f == 5);
+    assert(tst_node_2->f == 2);
+    assert(tst_node_3->f == 11);
+    assert(tst_node_4->f == 19);
+    assert(tst_node_5->f == 1);
+
+    initPQueue(&p_queue_tst, tst_node_1);
+    assert(p_queue_tst.back == 1);
+    assert(p_queue_tst.size == QUEUE_SIZE);
+    assert(memcmp(p_queue_tst.node[1], tst_node_1, sizeof(node_t)) == 0);
+
+    insertPQueue(&p_queue_tst, tst_node_3);
+    assert(memcmp(p_queue_tst.node[1], tst_node_1, sizeof(node_t)) == 0);
+    assert(memcmp(p_queue_tst.node[2], tst_node_3, sizeof(node_t)) == 0);
+
+    insertPQueue(&p_queue_tst, tst_node_2);
+    assert(memcmp(p_queue_tst.node[1], tst_node_2, sizeof(node_t)) == 0);
+    assert(memcmp(p_queue_tst.node[2], tst_node_3, sizeof(node_t)) == 0);
+    assert(memcmp(p_queue_tst.node[3], tst_node_1, sizeof(node_t)) == 0);
+
+    insertPQueue(&p_queue_tst, tst_node_4);
+    insertPQueue(&p_queue_tst, tst_node_5);
+
+    assert(memcmp(p_queue_tst.node[1], tst_node_5, sizeof(node_t)) == 0);
+    assert(memcmp(p_queue_tst.node[2], tst_node_2, sizeof(node_t)) == 0);
+    assert(memcmp(p_queue_tst.node[3], tst_node_1, sizeof(node_t)) == 0);
+    assert(memcmp(p_queue_tst.node[4], tst_node_4, sizeof(node_t)) == 0);
+    assert(memcmp(p_queue_tst.node[5], tst_node_3, sizeof(node_t)) == 0);
+
+    assert(p_queue_tst.elem == 5);
+    assert(memcmp(getMin(&p_queue_tst), tst_node_5, sizeof(node_t)) == 0);
+
+    delMin(&p_queue_tst);
+    assert(p_queue_tst.elem == 4);
+    assert(memcmp(getMin(&p_queue_tst), tst_node_2, sizeof(node_t)) == 0);
+    assert(memcmp(p_queue_tst.node[2], tst_node_3, sizeof(node_t)) == 0);
+
+    delMin(&p_queue_tst);
+    assert(p_queue_tst.elem == 3);
+    assert(memcmp(getMin(&p_queue_tst), tst_node_1, sizeof(node_t)) == 0);
+    assert(memcmp(p_queue_tst.node[1], tst_node_1, sizeof(node_t)) == 0);
+    assert(memcmp(p_queue_tst.node[2], tst_node_3, sizeof(node_t)) == 0);
+    assert(memcmp(p_queue_tst.node[3], tst_node_4, sizeof(node_t)) == 0);
+
+    free(tst_node_1);
+    free(tst_node_2);
+    free(tst_node_3);
+    free(tst_node_4);
+    free(tst_node_5);
+    free(p_queue_tst.node);
 }
