@@ -72,7 +72,7 @@ bool compareBoards(int grid1[SIZE][SIZE], int grid2[SIZE][SIZE]);
 void enqueue(queue_t* queue, node_t* grid);
 void initQueue(queue_t* queue, char* s);
 void loadBoard(int grid[SIZE][SIZE], char* s);
-void findFreeTile(node_t* grid);
+void findFreeTile(node_t* node);
 void unloadQueue(node_t* node);
 
 void swap(int* n1, int* n2);

@@ -101,12 +101,12 @@ int main(void) {
     sol_t solution;
 
     /*test();*/
-    solve8Tile(&p_queue, &search_tree, "1234567 8");
+    solve8Tile(&p_queue, &search_tree, "123 45678");
     loadSolution(&p_queue, &solution);
     printSolution(&solution);
 
-    unloadPQueue(&p_queue);
-    unloadTree(&search_tree);
+    /*unloadPQueue(&p_queue);
+    unloadTree(&search_tree);*/
 
     return 0;
 }
