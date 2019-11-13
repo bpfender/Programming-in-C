@@ -154,8 +154,10 @@ bool expandNode(queue_t* queue) {
 bool shiftTile(swap_t dir, queue_t* queue) {
     /* QUESTION does it make sense to declare this as static given that it is 
        called again and again */
+    /*FIXME just put in queue */
     grid_t tmp;
     grid_t* parent = &queue->node[queue->curr];
+    grid_t* child = &queue->node[queue->end + 1];
 
     /* Conditional evaluation will determine swap coordinates. "dir" will only
      * ever be one of these values, and as such the shift can only go, UP,
@@ -167,12 +169,26 @@ bool shiftTile(swap_t dir, queue_t* queue) {
     int y2 = y1 + (dir == UP) - (dir == DOWN);
 
     /* Create child node in tmp struct */
-    memcpy(tmp.grid, parent->grid, SIZE * SIZE * sizeof(int));
+    /*memcpy(tmp.grid, parent->grid, SIZE * SIZE * sizeof(int));
     swap(&tmp.grid[y1][x1], &tmp.grid[y2][x2]);
     tmp.x = x2;
     tmp.y = y2;
     tmp.parent = queue->curr;
-    tmp.step = parent->step + 1;
+    tmp.step = parent->step + 1;*/
+
+    memcpy(child->grid, parent->grid, SIZE * SIZE * sizeof(int));
+    swap(&child->grid[y1][x1], &child->grid[y2][x2]);
+    child->x = x2;
+    child->y = y2;
+    child->parent = queue->curr;
+    child->step = parent->step + 1;
+
+    if (checkTarget(child->grid)) {
+        enqueue(queue, child);
+        return true;
+    } else if (checkUnique(queue, child->grid)) {
+        enqueue(queue, child);
+    }
 
     /* FIXME can this be more concise? */
     if (checkTarget(tmp.grid)) {
@@ -222,7 +238,7 @@ bool compareBoards(int grid1[SIZE][SIZE], int grid2[SIZE][SIZE]) {
 void enqueue(queue_t* queue, grid_t* grid) {
     /* Incrementing end keeps track of where to add future nodes */
     long end = ++queue->end;
-    memcpy(&queue->node[end], grid, sizeof(grid_t));
+    /*memcpy(&queue->node[end], grid, sizeof(grid_t));*/
 }
 
 /* Initiliase a queue by Loading the starting board and setting indeces to zero.
