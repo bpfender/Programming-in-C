@@ -52,9 +52,7 @@ typedef struct sol_t {
 
 void solvePuzzle(queue_t* queue, char* s);
 void loadSolution(queue_t* queue, sol_t* solution);
-void printSolution(sol_t* solution);
 void drawGrid(int grid[SIZE][SIZE], SDL_Simplewin* sw, SDL_Rect* rect, fntrow fntdata[FNTCHARS][FNTHEIGHT]);
-void drawTileIndices(int tile, int x, int y, SDL_Simplewin* sw, SDL_Rect* rect, fntrow fontdata[FNTCHARS][FNTHEIGHT]);
 void slideTile(sol_t* solution, int step, SDL_Simplewin* sw, SDL_Rect* rect, SDL_Rect* border, fntrow fontdata[FNTCHARS][FNTHEIGHT]);
 void drawTile(int tile, int x, int y, SDL_Simplewin* sw, SDL_Rect* rect, fntrow fontdata[FNTCHARS][FNTHEIGHT]);
 void initObjects(SDL_Simplewin* sw, SDL_Rect* tile, SDL_Rect* border, fntrow fontdata[FNTCHARS][FNTHEIGHT]);
@@ -94,6 +92,9 @@ int main(void) {
 }
 
 /* ------- SDL FUNCTIONS ------- */
+/* Contains complete process for animating the final solution steps. Initialises
+ * SDL and draws grid
+ */
 void animateSolution(sol_t* solution) {
     int i;
     SDL_Simplewin sw;
@@ -130,6 +131,7 @@ void animateSolution(sol_t* solution) {
     drawBorder(GREEN, &sw, &border);
     Neill_SDL_UpdateScreen(&sw);
 
+    /* Wait here until user wants to close window */
     while (!sw.finished) {
         Neill_SDL_Events(&sw);
     }
@@ -272,7 +274,7 @@ void drawGrid(int grid[SIZE][SIZE], SDL_Simplewin* sw, SDL_Rect* tile, fntrow fo
     }
 }
 
-/* Allows easy switching to predetermined colours required
+/* Allows easy switching to predetermined colours for rendering 8 tile
  */
 void setFillColour(SDL_Simplewin* sw, col_t colour) {
     switch (colour) {
