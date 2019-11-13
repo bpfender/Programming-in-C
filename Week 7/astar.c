@@ -96,20 +96,19 @@ void swap(int* n1, int* n2);
 void test(void);
 
 int main(void) {
-    test();
+    queue_t p_queue;
+    tree_t search_tree;
+    sol_t solution;
+
+    /*test();*/
+    solve8Tile(&p_queue, &search_tree, "1234567 8");
+    loadSolution(&p_queue, &solution);
+    printSolution(&solution);
+
+    unloadPQueue(&p_queue);
+    unloadTree(&search_tree);
+
     return 0;
-}
-
-node_t* initNode(char* s) {
-    node_t* node = (node_t*)malloc(sizeof(node_t));
-
-    loadBoard(node->grid, s);
-    findFreeTile(node);
-    node->step = 0;
-    node->parent = NULL;
-    /* FIXME not really required */
-    node->f = fPriority(node->grid, node->step);
-    return node;
 }
 
 /* ------ SOLVER FUNCTIONS ------ */
@@ -212,6 +211,76 @@ bool shiftTile(swap_t dir, queue_t* p_queue, tree_t* tree, node_t* parent) {
     }
 
     return false;
+}
+
+/* This just calls the compare boards function, but function adds to readability
+ * above
+ */
+bool checkTarget(int grid[SIZE][SIZE]) {
+    static int target[SIZE][SIZE] = {{1, 2, 3},
+                                     {4, 5, 6},
+                                     {7, 8, 0}};
+
+    return compareBoards(target, grid);
+}
+
+/* Compares whether two 8-tile boards are the same. Have used memcmp() for
+ * improved speed. Did compare against storing a value key for each grid and 
+ * using that as the comparator, but the speed seemed basically the same. 
+ */
+bool compareBoards(int grid1[SIZE][SIZE], int grid2[SIZE][SIZE]) {
+    return !(memcmp(grid1, grid2, SIZE * SIZE * sizeof(int)));
+}
+
+/* ------- LOADING FUNCTIONS ------ */
+node_t* initNode(char* s) {
+    node_t* node = (node_t*)malloc(sizeof(node_t));
+
+    loadBoard(node->grid, s);
+    findFreeTile(node);
+    node->step = 0;
+    node->parent = NULL;
+    /* FIXME not really required */
+    node->f = fPriority(node->grid, node->step);
+    return node;
+}
+
+/* Loads string representation of the board into an array. Expects valid input
+ * which has been checked with checkInputString()
+ */
+void loadBoard(int grid[SIZE][SIZE], char* s) {
+    int i, j;
+    char val;
+
+    for (i = 0; i < SIZE; i++) {
+        for (j = 0; j < SIZE; j++) {
+            val = s[SIZE * i + j];
+
+            if (val == ' ') {
+                grid[i][j] = 0;
+            } else {
+                grid[i][j] = (int)(val - '0');
+            }
+        }
+    }
+}
+
+/* Finds coordinates of free tile and stores them in grid_t* struct. Only used
+ * for initilisation as free tiles for expanded nodes can be inferred directly
+ * from the swap direction.
+ */
+void findFreeTile(node_t* node) {
+    int i, j;
+
+    for (i = 0; i < SIZE; i++) {
+        for (j = 0; j < SIZE; j++) {
+            if (node->grid[i][j] == 0) {
+                node->x = j;
+                node->y = i;
+                return;
+            }
+        }
+    }
 }
 
 /* ------- PRIORITY QUEUE FUNCTIONS ------- */
@@ -562,5 +631,5 @@ void test(void) {
     }
 
     assert(hammingDistance(test_grid) == 6);
-    assert(manhattanDistance(test_grid) == 10);
+    assert(manhattanDistance(test_grid) == 12);
 }
