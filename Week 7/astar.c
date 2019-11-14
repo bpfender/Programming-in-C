@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define QUEUE_SIZE 800000
+#define QUEUE_SIZE 500
 #define BUFF_FACTOR 2
 #define SIZE 3
 /* http://w01fe.com/blog/2009/01/the-hardest-eight-puzzle-instances-take-31-moves-to-solve/ */
@@ -28,9 +28,7 @@ typedef struct node_t {
 
 typedef struct queue_t {
     node_t** node;
-    size_t elem;
-    size_t front;
-    size_t back;
+    size_t end;
     size_t size;
 } queue_t;
 
@@ -94,18 +92,22 @@ bool checkInputString(char* s);
 bool isSolvable(char* s);
 void swap(int* n1, int* n2);
 void test(void);
+
+/* TODO remove these globals */
 long counter = 0;
+long node_count = 0;
 
 int main(void) {
     queue_t p_queue;
     tree_t* search_tree = NULL;
     sol_t solution;
 
-    test();
+    /* test();*/
     solve8Tile(&p_queue, &search_tree, "8672543 1");
     loadSolution(&p_queue, &solution);
     printSolution(&solution);
     printf("Iterations: %ld\n", counter);
+    printf("Tree nodes: %ld\n", node_count);
 
     unloadPQueue(&p_queue);
     unloadTree(search_tree);
@@ -115,8 +117,8 @@ int main(void) {
 
 /* ------ SOLVER FUNCTIONS ------ */
 /* Solver initailises the queue with the starting grid and then expand nodes
- * onto the queue until a solution is found. Assumes a valid string. Uses
- * breadth first search
+ * onto the queue until a solution is found. Assumes a valid string and needs
+ * first node to load into queue and search tree
  */
 void solve8Tile(queue_t* p_queue, tree_t** tree, char* s) {
     node_t* node = initNode(s);
@@ -132,9 +134,13 @@ void solve8Tile(queue_t* p_queue, tree_t** tree, char* s) {
  */
 bool expandNode(queue_t* p_queue, tree_t* tree) {
     node_t* parent = getMin(p_queue);
-
     int x = parent->x;
     int y = parent->y;
+
+    /* Remove expanded node from priority queue. Reference is still held in 
+       search tree */
+    delMin(p_queue);
+
     if (x < SIZE - 1) {
         if (shiftTile(LEFT, p_queue, tree, parent)) {
             return true;
@@ -155,9 +161,7 @@ bool expandNode(queue_t* p_queue, tree_t* tree) {
             return true;
         }
     }
-    /* Moving to next list element is effectively dequeuing the current node,
-       without having to move it somewhere else for later duplicate checking */
-    delMin(p_queue);
+
     return false;
 }
 
@@ -200,6 +204,9 @@ bool shiftTile(swap_t dir, queue_t* p_queue, tree_t* tree, node_t* parent) {
     tmp->f = fPriority(tmp->grid, tmp->step);
 
     if (checkTarget(tmp->grid)) {
+        /* Set cost function to zero to ensure that this ends up at head of
+           priority queue */
+        tmp->f = 0;
         insertTree(tree, tmp);
         insertPQueue(p_queue, tmp);
         return true;
@@ -284,6 +291,11 @@ void findFreeTile(node_t* node) {
 }
 
 /* ------- PRIORITY QUEUE FUNCTIONS ------- */
+/* Priority queue is implemented as a binary heap with a dynamically sized 
+ * array. Should offer O(1) retrieval of next (priority) node, O(log n) deletion
+ * and insertion.
+ */
+
 /* Initiliases priority queue to array of size QUEUE_SIZE. Adds starting grid to
  * queue
  */
@@ -300,19 +312,17 @@ void initPQueue(queue_t* p_queue, node_t* node) {
     p_queue->node[1] = node;
 
     p_queue->size = QUEUE_SIZE;
-    p_queue->elem = 1;
-    p_queue->back = 1;
+    p_queue->end = 1;
 }
 
 void insertPQueue(queue_t* p_queue, node_t* node) {
-    if (p_queue->elem == p_queue->size) {
+    if (p_queue->end == p_queue->size) {
         expandPQueue(p_queue);
     }
 
-    p_queue->elem++;
-    p_queue->back++;
+    p_queue->end++;
 
-    p_queue->node[p_queue->back] = node;
+    p_queue->node[p_queue->end] = node;
     percolateUp(p_queue);
 }
 
@@ -321,15 +331,14 @@ node_t* getMin(queue_t* p_queue) {
 }
 
 void delMin(queue_t* p_queue) {
-    p_queue->node[1] = p_queue->node[p_queue->back];
+    p_queue->node[1] = p_queue->node[p_queue->end];
     percolateDown(p_queue);
 
-    p_queue->elem--;
-    p_queue->back--;
+    p_queue->end--;
 }
 
 bool isEmpty(queue_t* p_queue) {
-    if (p_queue->elem == 0) {
+    if (p_queue->end == 0) {
         return true;
     }
     return false;
@@ -341,9 +350,9 @@ void unloadPQueue(queue_t* p_queue) {
 
 void expandPQueue(queue_t* p_queue) {
     node_t** tmp;
-    p_queue->size = p_queue->size * BUFF_FACTOR + 1;
+    p_queue->size = p_queue->size * BUFF_FACTOR;
 
-    tmp = (node_t**)realloc(p_queue->node, p_queue->size * sizeof(node_t*));
+    tmp = (node_t**)realloc(p_queue->node, (p_queue->size + 1) * sizeof(node_t*));
     if (tmp == NULL) {
         fprintf(stderr, "Memory allocation error\n");
         /* QUESTION should i free previously allced memory?*/
@@ -354,7 +363,7 @@ void expandPQueue(queue_t* p_queue) {
 
 void percolateUp(queue_t* p_queue) {
     node_t **child, **parent;
-    size_t i = p_queue->back;
+    size_t i = p_queue->end;
 
     while (i / 2 > 0) {
         child = &(p_queue->node[i]);
@@ -370,7 +379,7 @@ void percolateDown(queue_t* p_queue) {
     node_t **child, **parent;
     size_t i = 1;
 
-    while (i * 2 <= p_queue->elem) {
+    while (i * 2 <= p_queue->end) {
         parent = &p_queue->node[i];
 
         i = minChildIndex(p_queue, i);
@@ -387,7 +396,7 @@ size_t minChildIndex(queue_t* p_queue, size_t i) {
     size_t child_index = i * 2;
 
     /* If final node only has one branch, can only return this */
-    if (child_index == p_queue->back) {
+    if (child_index == p_queue->end) {
         return child_index;
     }
 
@@ -410,12 +419,7 @@ void swapNodePtr(node_t** n1, node_t** n2) {
 
 /* ------ SEARCH TREE FOR VISITED LIST ------ */
 tree_t* initTree(node_t* node) {
-    tree_t* tree = (tree_t*)calloc(1, sizeof(tree_t));
-    if (tree == NULL) {
-        fprintf(stderr, "Memory allocation error\n");
-        exit(EXIT_FAILURE);
-    }
-
+    tree_t* tree = createTreeNode();
     insertTree(tree, node);
     return tree;
 }
@@ -461,6 +465,7 @@ tree_t* createTreeNode(void) {
         fprintf(stderr, "Memory allocation error\n");
         exit(EXIT_FAILURE);
     }
+    node_count++;
     return ptr;
 }
 
@@ -470,10 +475,9 @@ void unloadTree(tree_t* tree) {
     for (i = 0; i < SIZE * SIZE; i++) {
         if (tree->children[i]) {
             unloadTree(tree->children[i]);
-        } else {
-            free(tree->node);
         }
     }
+    free(tree->node);
     free(tree);
 }
 
@@ -511,12 +515,11 @@ int hammingDistance(int grid[SIZE][SIZE]) {
 }
 
 /* ------ UTILITY & INPUT FUNCTIONS ------ */
-/* Loads solution by going through parent nodes back to start grid
+/* Loads solution by going through parent nodes end to start grid
  */
 void loadSolution(queue_t* p_queue, sol_t* solution) {
     int i;
     node_t* node = p_queue->node[1];
-
     /* FIXME do I need the step counter? */
     i = solution->steps = node->step;
 
@@ -618,7 +621,7 @@ void swap(int* n1, int* n2) {
 }
 
 void test(void) {
-    int i, j;
+    int i;
     int test_grid[SIZE][SIZE] = {{8, 1, 3}, {4, 0, 2}, {7, 6, 5}};
     node_t *tst_node_1, *tst_node_2, *tst_node_3, *tst_node_4, *tst_node_5;
 
@@ -650,7 +653,7 @@ void test(void) {
     assert(tst_node_5->f == 1);
 
     initPQueue(&p_queue_tst, tst_node_1);
-    assert(p_queue_tst.back == 1);
+    assert(p_queue_tst.end == 1);
     assert(p_queue_tst.size == QUEUE_SIZE);
     assert(memcmp(p_queue_tst.node[1], tst_node_1, sizeof(node_t)) == 0);
 
@@ -672,16 +675,16 @@ void test(void) {
     assert(memcmp(p_queue_tst.node[4], tst_node_4, sizeof(node_t)) == 0);
     assert(memcmp(p_queue_tst.node[5], tst_node_3, sizeof(node_t)) == 0);
 
-    assert(p_queue_tst.elem == 5);
+    assert(p_queue_tst.end == 5);
     assert(memcmp(getMin(&p_queue_tst), tst_node_5, sizeof(node_t)) == 0);
 
     delMin(&p_queue_tst);
-    assert(p_queue_tst.elem == 4);
+    assert(p_queue_tst.end == 4);
     assert(memcmp(getMin(&p_queue_tst), tst_node_2, sizeof(node_t)) == 0);
     assert(memcmp(p_queue_tst.node[2], tst_node_3, sizeof(node_t)) == 0);
 
     delMin(&p_queue_tst);
-    assert(p_queue_tst.elem == 3);
+    assert(p_queue_tst.end == 3);
     assert(memcmp(getMin(&p_queue_tst), tst_node_1, sizeof(node_t)) == 0);
     assert(memcmp(p_queue_tst.node[1], tst_node_1, sizeof(node_t)) == 0);
     assert(memcmp(p_queue_tst.node[2], tst_node_3, sizeof(node_t)) == 0);
