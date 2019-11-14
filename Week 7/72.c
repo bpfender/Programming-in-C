@@ -20,8 +20,7 @@ typedef enum swap_t { UP,
                       LEFT,
                       RIGHT } swap_t;
 
-/* Stores 8tile grid, location of free tile, the parent node and the number of
- *  steps from the starting grid 
+/* Stores 8tile grid, location of free tile and the parent node 
  */
 typedef struct grid_t {
     int grid[SIZE][SIZE];
@@ -116,7 +115,9 @@ int main(int argc, char* argv[]) {
 
 /* ------- SOLVER FUNCTIONS ------ */
 /* Solver initailises the queue with the starting grid and then expand nodes
- * onto the queue until a solution is found. Assumes a valid string.
+ * onto the queue until a solution is found. Assumes a valid string. Uses
+ * breadth first search. When solution is found, last element is loaded onto
+ * queue, where it can then be read when loading the solution.
  */
 void solve8Tile(queue_t* queue, char* s) {
     initQueue(queue, s);
@@ -189,6 +190,7 @@ bool shiftTile(swap_t dir, queue_t* queue) {
     child->y = y2;
     child->parent = queue->curr;
 
+    /* Child is only added to queue if this node has not been visited before */
     if (checkTarget(child->grid)) {
         enqueue(queue);
         return true;
@@ -239,7 +241,7 @@ void enqueue(queue_t* queue) {
 }
 
 /* Initiliase a queue by Loading the starting board and setting indeces to zero.
- * Expects a pointer to a queue, and valid string input checked by 
+ * Expects a pointer to a queue struct, and valid string input checked by 
  * checkInputString()
  */
 void initQueue(queue_t* queue, char* s) {
@@ -317,7 +319,11 @@ grid_t* pop(stack_t* solution) {
 }
 
 /* ------ UTILITY & INPUT/OUTPUT FUNCTIONS ------ */
-/* Loads solution by going through parent nodes back to start grid
+/* Loads solution by going through parent nodes back to start grid. Queue->end
+ * will contain target grid, and chasing parent pointers goes all the way back
+ * to starting grid. Solution needs to be loaded as nodes only have reference to
+ * parents and not children. If this isn't dont, solution could only be read in
+ * reverse
  */
 void loadSolution(queue_t* queue, stack_t* solution) {
     long index = queue->end;
@@ -400,6 +406,8 @@ bool isSolvable(char* s) {
 
     for (i = 0; i < SIZE * SIZE - 1; i++) {
         for (j = i + 1; j < SIZE * SIZE; j++) {
+            /* First && comparison eliminates 0 from inversion count, second
+               size comp counts number of inversions */
             if (grid[i / 3][i % 3] && grid[j / 3][j % 3] &&
                 grid[i / 3][i % 3] > grid[j / 3][j % 3]) {
                 inversions++;
@@ -479,6 +487,7 @@ void test(void) {
     initQueue(&test_queue, "14567 823");
     assert(test_queue.end == 0);
     assert(test_queue.curr == 0);
+    assert(test_queue.node[test_queue.end].parent == -1);
     assert(test_queue.node[test_queue.end].grid[0][0] == 1);
     assert(test_queue.node[test_queue.end].grid[2][2] == 3);
     assert(test_queue.node[test_queue.end].x == 2);
