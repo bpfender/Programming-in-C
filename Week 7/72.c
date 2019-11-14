@@ -4,8 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* FIXME step count and list generation */
-
 #define SIZE 3
 /* 9 Factorial. This could probably be half the size due to invalid boards */
 #define QUEUE 362880
@@ -69,9 +67,8 @@ void findFreeTile(grid_t* grid);
 void initStack(stack_t* solution);
 void push(stack_t* solution, grid_t* grid);
 grid_t* pop(stack_t* solution);
-bool isEmpty(stack_t* solution);
 
-/* ------ UTILITY & INPUT FUNCTIONS ------ */
+/* ------ UTILITY & INPUT/OUTPUT FUNCTIONS ------ */
 void loadSolution(queue_t* queue, stack_t* solution);
 void printSolution(stack_t* solution);
 void printBoard(int grid[SIZE][SIZE]);
@@ -94,6 +91,11 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     if (!checkInputString(argv[1])) {
+        fprintf(stderr,
+                "INVALID. Please ensure string is: \n"
+                "   - 3x3 grid as 9 characters\n"
+                "   - Free tile denoted with space\n"
+                "   - Unique tile values\n");
         return 1;
     }
 
@@ -127,7 +129,8 @@ void solve8Tile(queue_t* queue, char* s) {
  */
 bool expandNode(queue_t* queue) {
     long parent = queue->curr;
-    /* QUESTION is duplication of x call bad? c.f. shiftTile*/
+    /* QUESTION is duplication of x call bad? c.f. shiftTile. Could just pass
+       as function variables */
     int x = queue->node[parent].x;
     int y = queue->node[parent].y;
 
@@ -286,11 +289,17 @@ void findFreeTile(grid_t* node) {
     }
 }
 
-/* ------ QUEUE FUNCTIONS ------ */
+/* ------ STACK FUNCTIONS ------ */
+/* Stack has been implemented on basis of FIFO as list will be read in reverse
+ * from queue once solution is found
+ */
 void initStack(stack_t* solution) {
     solution->top = 0;
 }
 
+/* Pushes pointer to grid_t* onto stack. Stack shouldn't overflow as 8tile has
+ * maximum number of steps.
+ */
 void push(stack_t* solution, grid_t* grid) {
     if (solution->top > MAX_STEPS) {
         fprintf(stderr, "Stack overflow...\n");
@@ -299,6 +308,7 @@ void push(stack_t* solution, grid_t* grid) {
     solution->stack[solution->top++] = grid;
 }
 
+/* Returns next node from stack or NULL if stack is empty */
 grid_t* pop(stack_t* solution) {
     if (solution->top <= 0) {
         return NULL;
@@ -306,11 +316,7 @@ grid_t* pop(stack_t* solution) {
     return solution->stack[--solution->top];
 }
 
-bool isEmpty(stack_t* solution) {
-    return !solution->top;
-}
-
-/* ------ UTILITY & INPUT FUNCTIONS ------ */
+/* ------ UTILITY & INPUT/OUTPUT FUNCTIONS ------ */
 /* Loads solution by going through parent nodes back to start grid
  */
 void loadSolution(queue_t* queue, stack_t* solution) {
@@ -351,60 +357,52 @@ void printBoard(int grid[SIZE][SIZE]) {
     printf("\n");
 }
 
-/* FIXME can this be made more concise */
 /* Checks that a valid string has been inputted 
  */
 bool checkInputString(char* s) {
-    size_t len, i;
+    int i;
     int count[SIZE * SIZE] = {0};
+    bool valid = true;
 
-    /* Check string length */
-    if ((len = strlen(s)) != SIZE * SIZE) {
-        if (len < SIZE * SIZE) {
-            fprintf(stderr, "String is shorter than expected..\n");
-        } else {
-            fprintf(stderr, "String is longer than expected..\n");
-        }
-        return false;
+    if ((strlen(s)) != SIZE * SIZE) {
+        valid = false;
     }
 
     /* Check for invalid chars and check valid ones are unique */
-    for (i = 0; i < SIZE * SIZE; i++) {
+    for (i = 0; i < SIZE * SIZE && valid == true; i++) {
         if (s[i] == ' ') {
             count[0]++;
         } else if ('1' <= s[i] && s[i] <= '8') {
             count[s[i] - '0']++;
         } else {
-            fprintf(stderr, "Invalid character \"%c\" in input...\n", s[i]);
-            return false;
+            valid = false;
         }
     }
-
-    for (i = 0; i < SIZE * SIZE; i++) {
+    for (i = 0; i < SIZE * SIZE && valid == true; i++) {
         if (count[i] > 1) {
-            fprintf(stderr, "Each tile must have a unique value...\n");
-            return false;
+            valid = false;
         }
     }
 
-    return true;
+    return valid;
 }
 
 /* Reference: https://www.geeksforgeeks.org/check-instance-8-puzzle-solvable/ 
  * Checks whether the input string is acutally solvable before attempting to 
  * find a solution
  */
-/* FIXME readability */
 bool isSolvable(char* s) {
-    int i;
+    int i, j;
     int inversions = 0;
     int grid[SIZE][SIZE];
 
     loadBoard(grid, s);
 
     for (i = 0; i < SIZE * SIZE - 1; i++) {
-        if (*(grid + i + 1) && *(grid + i) && *(grid + i + 1) > *(grid + i)) {
-            inversions++;
+        for (j = i + 1; j < SIZE * SIZE; j++) {
+            if (*(grid + j) && *(grid + i) && *(grid + i) > *(grid + j)) {
+                inversions++;
+            }
         }
     }
 
@@ -488,7 +486,7 @@ void test(void) {
 
     /* TESTING shiftTile() based on init from above */
     shiftTile(UP, &test_queue);
-    loadBoard(test_grid, "145673820");
+    loadBoard(test_grid, "14567382 ");
     assert(compareBoards(test_queue.node[1].grid, test_grid) == true);
     assert(test_queue.node[1].parent == 0);
     assert(test_queue.node[1].x == 2);
@@ -497,7 +495,7 @@ void test(void) {
     assert(test_queue.end == 1);
 
     shiftTile(DOWN, &test_queue);
-    loadBoard(test_grid, "140675823");
+    loadBoard(test_grid, "14 675823");
     assert(compareBoards(test_queue.node[2].grid, test_grid) == true);
     assert(test_queue.curr == 0);
     /* The fact that the end index increments, indicates that enqueue() is 
@@ -535,16 +533,16 @@ void test(void) {
     assert(test_queue.curr == 1);
 
     /* Left */
-    loadBoard(test_grid, "123450678");
+    loadBoard(test_grid, "12345 678");
     assert(compareBoards(test_queue.node[1].grid, test_grid) == true);
     /* Right */
-    loadBoard(test_grid, "123045678");
+    loadBoard(test_grid, "123 45678");
     assert(compareBoards(test_queue.node[2].grid, test_grid) == true);
     /* Up */
-    loadBoard(test_grid, "123475608");
+    loadBoard(test_grid, "1234756 8");
     assert(compareBoards(test_queue.node[3].grid, test_grid) == true);
     /* Down */
-    loadBoard(test_grid, "103425678");
+    loadBoard(test_grid, "1 3425678");
     assert(compareBoards(test_queue.node[4].grid, test_grid) == true);
 
     assert(test_queue.node[1].x == 2);
@@ -555,11 +553,55 @@ void test(void) {
     assert(test_queue.curr == 1);
     assert(test_queue.end == 4);
 
-    
-    /*
-    assert(checkInputString("12345 678") == 1);
-    assert(checkInputString("thrr 1234") == 0);
-    assert(checkInputString("123") == 0);
-    assert(checkInputString("112233  4") == 0);
-    assert(checkInputString("1234567890 ") == 0);*/
+    /* TESTING initStack() */
+    initStack(&test_solution);
+    assert(test_solution.top == 0);
+
+    /* TESTING push() by taking elements loaded into queue above */
+    push(&test_solution, &test_queue.node[0]);
+    assert(test_solution.top == 1);
+    push(&test_solution, &test_queue.node[1]);
+    assert(test_solution.top == 2);
+    push(&test_solution, &test_queue.node[2]);
+    assert(test_solution.top == 3);
+    push(&test_solution, &test_queue.node[3]);
+    assert(test_solution.top == 4);
+
+    loadBoard(test_grid, "1234 5678");
+    assert(compareBoards(test_solution.stack[0]->grid, test_grid) == true);
+    loadBoard(test_grid, "12345 678");
+    assert(compareBoards(test_solution.stack[1]->grid, test_grid) == true);
+    loadBoard(test_grid, "123 45678");
+    assert(compareBoards(test_solution.stack[2]->grid, test_grid) == true);
+    loadBoard(test_grid, "1234756 8");
+    assert(compareBoards(test_solution.stack[3]->grid, test_grid) == true);
+
+    /* TESTING pop() should just return grid loaded above */
+    assert(compareBoards(pop(&test_solution)->grid, test_grid) == true);
+
+    /* Pop all elements and check that pop returns Null when list is empty */
+    pop(&test_solution);
+    pop(&test_solution);
+    pop(&test_solution);
+    assert(pop(&test_solution) == NULL);
+
+    /* TESTING loadSolution() */
+    /* Should load element 4 in queue and it's parent only */
+    loadSolution(&test_queue, &test_solution);
+    loadBoard(test_grid, "1 3425678");
+    assert(compareBoards(test_solution.stack[0]->grid, test_grid) == true);
+
+    loadBoard(test_grid, "1234 5678");
+    assert(compareBoards(test_solution.stack[1]->grid, test_grid) == true);
+
+    /* TESTING checkInputString() */
+    assert(checkInputString("12345 678") == true);
+    assert(checkInputString("thrr 1234") == false);
+    assert(checkInputString("123") == false);
+    assert(checkInputString("112233  4") == false);
+    assert(checkInputString("123456789") == false);
+
+    /* TESTING isSolvable() */
+    assert(isSolvable("1234567 8") == true);
+    assert(isSolvable("812 43765") == false);
 }
