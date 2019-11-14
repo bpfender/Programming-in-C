@@ -400,12 +400,12 @@ bool isSolvable(char* s) {
 
     for (i = 0; i < SIZE * SIZE - 1; i++) {
         for (j = i + 1; j < SIZE * SIZE; j++) {
-            if (*(grid + j) && *(grid + i) && *(grid + i) > *(grid + j)) {
+            if (grid[i / 3][i % 3] && grid[j / 3][j % 3] &&
+                grid[i / 3][i % 3] > grid[j / 3][j % 3]) {
                 inversions++;
             }
         }
     }
-
     return inversions % 2 == 0;
 }
 
@@ -603,5 +603,7 @@ void test(void) {
 
     /* TESTING isSolvable() */
     assert(isSolvable("1234567 8") == true);
+    assert(isSolvable("182 43765") == true);
     assert(isSolvable("812 43765") == false);
+    assert(isSolvable("12345687 ") == false);
 }
