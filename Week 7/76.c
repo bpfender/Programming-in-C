@@ -180,7 +180,6 @@ void unloadNodes(hash_t* table) {
     for (i = 0; i < HASH_TABLE; i++) {
         if (table->hashed[i]) {
             unloadList(table->hashed[i]);
-            free(table->hashed[i]);
         }
     }
 }
@@ -852,13 +851,9 @@ void test(void) {
     assert(searchHashTable(&test_table, p_queue_tst.node[2]) == true);
     assert(searchHashTable(&test_table, p_queue_tst.node[3]) == true);
 
-    addHashTable(&test_table, p_queue_tst.node[3]);
-    assert(searchHashTable(&test_table, p_queue_tst.node[3]) == true);
-
-    free(tst_node_1);
+    /* Cleaning things up */
+    unloadNodes(&test_table);
     free(tst_node_2);
-    free(tst_node_3);
-    free(tst_node_4);
     free(tst_node_5);
     free(p_queue_tst.node);
 }
