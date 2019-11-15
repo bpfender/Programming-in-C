@@ -6,7 +6,7 @@
 #include "neillsdl2.h"
 
 /* SDL constants to determine tile size, delays and positions */
-#define BORDER 10
+#define BORDER 5
 #define TILE_SIZE (WHEIGHT - BORDER * 2) / 3
 #define RADIUS TILE_SIZE / 2 - TILE_SIZE / 4
 #define RADIUS_FREE TILE_SIZE / 3
@@ -15,7 +15,8 @@
 #define CHAR_Y_OFFSET TILE_SIZE / 2 - FNTWIDTH / 2
 
 #define START_DELAY 500
-#define SLIDE_DELAY TILE_SIZE / 200
+#define STEP_DELAY 75
+#define SLIDE_DELAY 1
 
 #define SDL_8BITCOLOUR 256
 
@@ -101,7 +102,7 @@ bool checkInputString(char* s);
 bool isSolvable(char* s);
 void swap(int* n1, int* n2);
 
-/* ------- SDL FUNCTIONs ------- */
+/* ------- SDL FUNCTIONS ------- */
 void animateSolution(stack_t* solution);
 
 void nextStep(node_t* curr, node_t* next, SDL_Simplewin* sw, SDL_Rect* rect, fntrow fontdata[FNTCHARS][FNTHEIGHT]);
@@ -602,13 +603,13 @@ void slideTile(swap_t dir, int val, int start_x, int start_y, SDL_Simplewin* sw,
         drawTile(0, start_x, start_y, sw, tile, fontdata);
         drawTile(val, next_x, next_y, sw, tile, fontdata);
         Neill_SDL_UpdateScreen(sw);
-        SDL_Delay(SLIDE_DELAY);
+        responsiveDelay(SLIDE_DELAY / TILE_SIZE, sw);
         Neill_SDL_Events(sw);
         if (sw->finished) {
             return;
         }
     }
-    responsiveDelay(150, sw);
+    responsiveDelay(STEP_DELAY, sw);
 }
 
 /* Calculates updated coordinates of sliding tile

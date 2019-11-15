@@ -1,7 +1,7 @@
 #include <SDL.h>
 #include <math.h>
 
-#define WWIDTH 620
+#define WWIDTH 460
 #define WHEIGHT WWIDTH
 
 /* Font stuff */
