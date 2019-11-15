@@ -59,9 +59,9 @@ typedef struct stack_t {
 } stack_t;
 
 /* ------ SOLVER FUNCTIONS ------ */
-void solve8Tile(queue_t* p_queue, tree_t** tree, char* s);
-bool expandNode(queue_t* p_queue, tree_t* tree);
-bool shiftTile(swap_t dir, queue_t* p_queue, tree_t* tree, node_t* parent);
+void solve8Tile(queue_t* p_queue, hash_t* table, tree_t** tree, char* s);
+bool expandNode(queue_t* p_queue, hash_t* table, tree_t* tree);
+bool shiftTile(swap_t dir, queue_t* p_queue, hash_t* table, tree_t* tree, node_t* parent);
 
 bool checkTarget(int grid[SIZE][SIZE]);
 bool compareBoards(int grid1[SIZE][SIZE], int grid2[SIZE][SIZE]);
@@ -103,6 +103,8 @@ bool searchList(list_t* list, node_t* node);
 void unloadNodes(hash_t* table);
 void unloadList(list_t* list);
 
+/* Would it be possible to hash based on node ptr value instead? Would this be
+   simpler? */
 /* http://www.cse.yorku.ca/~oz/hash.html */
 unsigned long djb2Hash(int grid[SIZE][SIZE]) {
     int i, j;
@@ -130,7 +132,7 @@ void addHashTable(hash_t* table, node_t* node) {
         table->hashed[hash] = addListNode(node);
         return;
     }
-    while (list->next) {
+    while (list->next != NULL) {
         list = list->next;
     }
     list->next = addListNode(node);
@@ -148,7 +150,7 @@ list_t* addListNode(node_t* node) {
 }
 
 bool searchHashTable(hash_t* table, node_t* node) {
-    /* FIXME duplication of hash */
+    /* FIXME duplication of hash calc*/
     unsigned long hash = djb2Hash(node->grid);
     list_t* list = table->hashed[hash];
     if (!list) {
@@ -160,7 +162,7 @@ bool searchHashTable(hash_t* table, node_t* node) {
 bool searchList(list_t* list, node_t* node) {
     list_t* list_node = list;
     while (list_node) {
-        if (list_node->node == node) {
+        if (compareBoards(list->node->grid, node->grid)) {
             return true;
         }
         list_node = list_node->next;
@@ -209,19 +211,22 @@ long node_count = 0;
 int main(void) {
     queue_t p_queue;
     tree_t* search_tree = NULL;
+    hash_t table;
     stack_t solution;
 
-    /* test();*/
-    solve8Tile(&p_queue, &search_tree, "64785 321");
+    test();
 
-    /* FIXME don't load feom pqueue, just return pointer to solution node */
+    solve8Tile(&p_queue, &table, &search_tree, "64785 321");
+    /*solve8Tile(&p_queue, &table, &search_tree, "123 45678");*/
+    printf("Solved\n");
     loadSolution(&p_queue, &solution);
     printSolution(&solution);
     printf("Iterations: %ld\n", counter);
     printf("Tree nodes: %ld\n", node_count);
 
     unloadPQueue(&p_queue);
-    unloadTree(search_tree);
+    unloadNodes(&table);
+    /*unloadTree(search_tree);*/
 
     return 0;
 }
@@ -231,11 +236,13 @@ int main(void) {
  * onto the queue until a solution is found. Assumes a valid string and needs
  * first node to load into queue and search tree
  */
-void solve8Tile(queue_t* p_queue, tree_t** tree, char* s) {
+void solve8Tile(queue_t* p_queue, hash_t* table, tree_t** tree, char* s) {
     node_t* node = initNode(s);
     initPQueue(p_queue, node);
-    *tree = initTree(node);
-    while (!expandNode(p_queue, *tree)) {
+    /**tree = initTree(node);*/
+    initHashTable(table);
+    addHashTable(table, node);
+    while (!expandNode(p_queue, table, *tree)) {
         /* TODO could add isEMpyt function */
     }
 }
@@ -243,7 +250,7 @@ void solve8Tile(queue_t* p_queue, tree_t** tree, char* s) {
 /* Calls function shiftTile to expand possible moves of current node. Will 
  * return true if the solution is found
  */
-bool expandNode(queue_t* p_queue, tree_t* tree) {
+bool expandNode(queue_t* p_queue, hash_t* table, tree_t* tree) {
     node_t* parent = getMin(p_queue);
     int x = parent->x;
     int y = parent->y;
@@ -253,22 +260,22 @@ bool expandNode(queue_t* p_queue, tree_t* tree) {
     delMin(p_queue);
 
     if (x < SIZE - 1) {
-        if (shiftTile(LEFT, p_queue, tree, parent)) {
+        if (shiftTile(LEFT, p_queue, table, tree, parent)) {
             return true;
         }
     }
     if (x > 0) {
-        if (shiftTile(RIGHT, p_queue, tree, parent)) {
+        if (shiftTile(RIGHT, p_queue, table, tree, parent)) {
             return true;
         }
     }
     if (y < SIZE - 1) {
-        if (shiftTile(UP, p_queue, tree, parent)) {
+        if (shiftTile(UP, p_queue, table, tree, parent)) {
             return true;
         }
     }
     if (y > 0) {
-        if (shiftTile(DOWN, p_queue, tree, parent)) {
+        if (shiftTile(DOWN, p_queue, table, tree, parent)) {
             return true;
         }
     }
@@ -282,7 +289,7 @@ bool expandNode(queue_t* p_queue, tree_t* tree) {
  * current index is only incremented if it's a valid board. This avoid copying
  * to a tmp and then copying to the queue
  */
-bool shiftTile(swap_t dir, queue_t* p_queue, tree_t* tree, node_t* parent) {
+bool shiftTile(swap_t dir, queue_t* p_queue, hash_t* table, tree_t* tree, node_t* parent) {
     int x1, y1, x2, y2;
     static node_t* tmp = NULL;
     counter++;
@@ -318,11 +325,14 @@ bool shiftTile(swap_t dir, queue_t* p_queue, tree_t* tree, node_t* parent) {
         /* Set cost function to zero to ensure that this ends up at head of
            priority queue */
         tmp->f = 0;
-        insertTree(tree, tmp);
+        addHashTable(table, tmp);
+        /*insertTree(tree, tmp);*/
         insertPQueue(p_queue, tmp);
         return true;
-    } else if (!searchInTree(tree, tmp->grid)) {
-        insertTree(tree, tmp);
+    } /*else if (!searchInTree(tree, tmp->grid)) {*/
+    else if (!searchHashTable(table, tmp)) {
+        addHashTable(table, tmp);
+        /*insertTree(tree, tmp);*/
         insertPQueue(p_queue, tmp);
         /* reset tmp so it is malloced again on next loop */
         tmp = NULL;
@@ -663,7 +673,6 @@ void printSolution(stack_t* solution) {
     while ((node = pop(solution))) {
         printf("Step %i\n\n", step);
         printBoard(node->grid);
-        printf("%li\n", djb2Hash(node->grid));
         step++;
     }
 }
@@ -751,6 +760,7 @@ void test(void) {
     int i;
     int test_grid[SIZE][SIZE] = {{8, 1, 3}, {4, 0, 2}, {7, 6, 5}};
     node_t *tst_node_1, *tst_node_2, *tst_node_3, *tst_node_4, *tst_node_5;
+    hash_t test_table;
 
     queue_t p_queue_tst;
 
@@ -815,6 +825,26 @@ void test(void) {
     assert(memcmp(p_queue_tst.node[1], tst_node_1, sizeof(node_t)) == 0);
     assert(memcmp(p_queue_tst.node[2], tst_node_3, sizeof(node_t)) == 0);
     assert(memcmp(p_queue_tst.node[3], tst_node_4, sizeof(node_t)) == 0);
+
+    initHashTable(&test_table);
+    assert(searchHashTable(&test_table, p_queue_tst.node[2]) == false);
+
+    addHashTable(&test_table, p_queue_tst.node[1]);
+    assert(searchHashTable(&test_table, p_queue_tst.node[1]) == true);
+    assert(searchHashTable(&test_table, p_queue_tst.node[2]) == false);
+
+    addHashTable(&test_table, p_queue_tst.node[2]);
+    assert(searchHashTable(&test_table, p_queue_tst.node[1]) == true);
+    assert(searchHashTable(&test_table, p_queue_tst.node[2]) == true);
+    assert(searchHashTable(&test_table, p_queue_tst.node[3]) == false);
+
+    addHashTable(&test_table, p_queue_tst.node[3]);
+    assert(searchHashTable(&test_table, p_queue_tst.node[1]) == true);
+    assert(searchHashTable(&test_table, p_queue_tst.node[2]) == true);
+    assert(searchHashTable(&test_table, p_queue_tst.node[3]) == true);
+
+    addHashTable(&test_table, p_queue_tst.node[3]);
+    assert(searchHashTable(&test_table, p_queue_tst.node[3]) == true);
 
     free(tst_node_1);
     free(tst_node_2);
