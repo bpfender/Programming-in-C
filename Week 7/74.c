@@ -523,7 +523,6 @@ void swap(int* n1, int* n2) {
 }
 
 /* ------- SDL FUNCTIONS ------- */
-/* FIXME not using node properly */
 /* Contains complete process for animating the final solution top. Initialises
  * SDL and draws grid
  */
