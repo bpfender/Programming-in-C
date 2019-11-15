@@ -7,8 +7,8 @@
 
 /* SDL constats to determine tile size, delays and positions */
 #define TILE_SIZE WHEIGHT / 3
-#define DELAY 250
-#define SLIDE_DELAY TILE_SIZE / 300
+#define DELAY 1500
+#define SLIDE_DELAY TILE_SIZE / 150
 #define CHAR_X_OFFSET TILE_SIZE / 2 - FNTHEIGHT / 2
 #define CHAR_Y_OFFSET TILE_SIZE / 2 - FNTWIDTH / 2
 #define SDL_8BITCOLOUR 256
@@ -84,6 +84,7 @@ void unloadQueue(node_t* node);
 void initStack(stack_t* solution);
 void push(stack_t* solution, node_t* grid);
 node_t* pop(stack_t* solution);
+node_t* peek(stack_t* solution);
 
 /* ----- UTILITY & INPUT FUNCTIONS ------ */
 void loadSolution(queue_t* queue, stack_t* solution);
@@ -96,19 +97,21 @@ void test(void);
 
 /* ------- SDL FUNCTIONs ------- */
 void animateSolution(stack_t* solution);
-void slideTile(stack_t* solution, int step, SDL_Simplewin* sw, SDL_Rect* rect, SDL_Rect* border, fntrow fontdata[FNTCHARS][FNTHEIGHT]);
+void nextStep(node_t* curr, node_t* next, SDL_Simplewin* sw, SDL_Rect* rect, SDL_Rect* border, fntrow fontdata[FNTCHARS][FNTHEIGHT]);
 void drawGrid(int grid[SIZE][SIZE], SDL_Simplewin* sw, SDL_Rect* rect, fntrow fntdata[FNTCHARS][FNTHEIGHT]);
 void drawTile(int tile, int x, int y, SDL_Simplewin* sw, SDL_Rect* rect, fntrow fontdata[FNTCHARS][FNTHEIGHT]);
 void drawBorder(col_t colour, SDL_Simplewin* sw, SDL_Rect* border);
 void setFillColour(SDL_Simplewin* sw, col_t colour);
 void initObjects(SDL_Simplewin* sw, SDL_Rect* tile, SDL_Rect* border, fntrow fontdata[FNTCHARS][FNTHEIGHT]);
 void SDLExit(void);
+void slideTile(swap_t dir, int val, int start_x, int start_y, SDL_Simplewin* sw, SDL_Rect* tile, fntrow fontdata[FNTCHARS][FNTHEIGHT]);
+void getPosition(swap_t dir, int* x, int* y);
+void responsiveDelay(Uint32 ms, SDL_Simplewin* sw);
 
 int main(int argc, char* argv[]) {
     queue_t queue;
     stack_t solution;
-
-    test();
+    /*test();*/
 
     if (argc != 2) {
         fprintf(stderr,
@@ -134,7 +137,8 @@ int main(int argc, char* argv[]) {
 
     loadSolution(&queue, &solution);
     printf("\nPuzzle Solved in %i steps:\n\n", solution.top - 1);
-    printSolution(&solution);
+
+    animateSolution(&solution);
 
     unloadQueue(queue.start);
     return 0;
@@ -390,6 +394,14 @@ node_t* pop(stack_t* solution) {
     return solution->node[--solution->top];
 }
 
+/* Look at top node without "removing it from stack" */
+node_t* peek(stack_t* solution) {
+    if (solution->top <= 0) {
+        return NULL;
+    }
+    return solution->node[solution->top - 1];
+}
+
 /* ------ UTILITY & INPUT/OUTPUT FUNCTIONS ------ */
 /* Loads solution by going through parent nodes back to start grid. Queue->end
  * will contain target grid, and chasing parent pointers goes all the way back
@@ -501,6 +513,7 @@ void swap(int* n1, int* n2) {
  * SDL and draws grid
  */
 void animateSolution(stack_t* solution) {
+    node_t *curr, *next;
     unsigned int i;
     SDL_Simplewin sw;
     SDL_Rect tile;
@@ -510,22 +523,17 @@ void animateSolution(stack_t* solution) {
     initObjects(&sw, &tile, &border, fontdata);
 
     /* Draw starting grid */
-    drawGrid(solution->node[0]->grid, &sw, &tile, fontdata);
+    curr = peek(solution);
+    printBoard(curr->grid);
+    drawGrid(curr->grid, &sw, &tile, fontdata);
     drawBorder(RED, &sw, &border);
-    Neill_SDL_UpdateScreen(&sw);
-    for (i = 0; i <= DELAY; i++) {
-        SDL_Delay(1);
-        Neill_SDL_Events(&sw);
-        if (sw.finished) {
-            SDLExit();
-            return;
-        }
-    }
+
+    responsiveDelay(DELAY, &sw);
 
     /* Slide tiles through solution top */
-    for (i = 0; i < solution->top; i++) {
-        SDL_Delay(DELAY);
-        slideTile(solution, i, &sw, &tile, &border, fontdata);
+    while ((curr = pop(solution))) {
+        next = peek(solution);
+        nextStep(curr, next, &sw, &tile, &border, fontdata);
         if (sw.finished) {
             SDLExit();
             return;
@@ -533,85 +541,82 @@ void animateSolution(stack_t* solution) {
     }
 
     /* Draw final grid with green border*/
-    drawBorder(GREEN, &sw, &border);
+    /*drawBorder(GREEN, &sw, &border);
     Neill_SDL_UpdateScreen(&sw);
 
     /* Wait here until user wants to close window */
     while (!sw.finished) {
+        Neill_SDL_UpdateScreen(&sw);
         Neill_SDL_Events(&sw);
     }
     SDLExit();
 }
 
+void responsiveDelay(Uint32 ms, SDL_Simplewin* sw) {
+    Uint32 i;
+    for (i = 0; i <= ms; i++) {
+        Neill_SDL_UpdateScreen(sw);
+        Neill_SDL_Events(sw);
+        if (sw->finished) {
+            SDLExit();
+            return;
+        }
+        SDL_Delay(1);
+    }
+}
+
+void getPosition(swap_t dir, int* x, int* y) {
+    *x += ((dir == LEFT) - (dir == RIGHT));
+    *y += ((dir == UP) - (dir == DOWN));
+}
+
+void slideTile(swap_t dir, int val, int start_x, int start_y, SDL_Simplewin* sw, SDL_Rect* tile, fntrow fontdata[FNTCHARS][FNTHEIGHT]) {
+    int i;
+    int next_x = start_x;
+    int next_y = start_y;
+
+    for (i = 0; i < TILE_SIZE; i++) {
+        getPosition(dir, &next_x, &next_y);
+
+        drawTile(0, start_x, start_y, sw, tile, fontdata);
+        drawTile(val, next_x, next_y, sw, tile, fontdata);
+        Neill_SDL_UpdateScreen(sw);
+        SDL_Delay(SLIDE_DELAY);
+        Neill_SDL_Events(sw);
+        if (sw->finished) {
+            return;
+        }
+    }
+    responsiveDelay(150, sw);
+}
+
 /* Slides tile in relevant direction using for loop
  */
-void slideTile(stack_t* solution, int step, SDL_Simplewin* sw, SDL_Rect* tile, SDL_Rect* border, fntrow fontdata[FNTCHARS][FNTHEIGHT]) {
+void nextStep(node_t* curr, node_t* next, SDL_Simplewin* sw, SDL_Rect* tile, SDL_Rect* border, fntrow fontdata[FNTCHARS][FNTHEIGHT]) {
     int i;
 
-    int x1 = solution->node[step]->x;
-    int y1 = solution->node[step]->y;
-    int value = solution->node[step + 1]->grid[y1][x1];
+    /* Get x,y index of free cell in current step and value of moving tile */
+    int x1 = curr->x;
+    int y1 = curr->y;
+    int value = next->grid[y1][x1];
 
-    int x2 = solution->node[step + 1]->x * TILE_SIZE;
-    int y2 = solution->node[step + 1]->y * TILE_SIZE;
+    /* Convert index of current and next free cell to pixel coordinates */
+    int x2 = next->x * TILE_SIZE;
+    int y2 = next->y * TILE_SIZE;
     x1 *= TILE_SIZE;
     y1 *= TILE_SIZE;
 
     if (x2 > x1) {
-        for (i = x2; i >= x1; i--) {
-            drawTile(0, x1, y1, sw, tile, fontdata);
-            drawTile(0, x2, y2, sw, tile, fontdata);
-            drawTile(value, i, y1, sw, tile, fontdata);
-            drawBorder(ORANGE, sw, border);
-            Neill_SDL_UpdateScreen(sw);
-            Neill_SDL_Events(sw);
-            if (sw->finished) {
-                return;
-            }
-            SDL_Delay(SLIDE_DELAY);
-        }
+        slideTile(RIGHT, value, x2, y2, sw, tile, fontdata);
     }
     if (x2 < x1) {
-        for (i = x2; i <= x1; i++) {
-            drawTile(0, x1, y1, sw, tile, fontdata);
-            drawTile(0, x2, y2, sw, tile, fontdata);
-            drawTile(value, i, y1, sw, tile, fontdata);
-            drawBorder(ORANGE, sw, border);
-            Neill_SDL_Events(sw);
-            if (sw->finished) {
-                return;
-            }
-            Neill_SDL_UpdateScreen(sw);
-            SDL_Delay(SLIDE_DELAY);
-        }
+        slideTile(LEFT, value, x2, y2, sw, tile, fontdata);
     }
     if (y2 > y1) {
-        for (i = y2; i >= y1; i--) {
-            drawTile(0, x1, y1, sw, tile, fontdata);
-            drawTile(0, x2, y2, sw, tile, fontdata);
-            drawTile(value, x1, i, sw, tile, fontdata);
-            drawBorder(ORANGE, sw, border);
-            Neill_SDL_Events(sw);
-            if (sw->finished) {
-                return;
-            }
-            Neill_SDL_UpdateScreen(sw);
-            SDL_Delay(SLIDE_DELAY);
-        }
+        slideTile(DOWN, value, x2, y2, sw, tile, fontdata);
     }
     if (y2 < y1) {
-        for (i = y2; i <= y1; i++) {
-            drawTile(0, x1, y1, sw, tile, fontdata);
-            drawTile(0, x2, y2, sw, tile, fontdata);
-            drawTile(value, x1, i, sw, tile, fontdata);
-            drawBorder(ORANGE, sw, border);
-            Neill_SDL_Events(sw);
-            if (sw->finished) {
-                return;
-            }
-            Neill_SDL_UpdateScreen(sw);
-            SDL_Delay(SLIDE_DELAY);
-        }
+        slideTile(UP, value, x2, y2, sw, tile, fontdata);
     }
 }
 
