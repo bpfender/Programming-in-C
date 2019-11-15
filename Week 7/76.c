@@ -3,22 +3,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "neillsdl2.h"
-
-/* SDL constants to determine tile size, delays and positions */
-#define BORDER 5
-#define TILE_SIZE (WHEIGHT - BORDER * 2) / 3
-#define RADIUS TILE_SIZE / 2 - TILE_SIZE / 4
-#define RADIUS_FREE TILE_SIZE / 3
-#define OFFSET BORDER
-#define CHAR_X_OFFSET TILE_SIZE / 2 - FNTHEIGHT / 2
-#define CHAR_Y_OFFSET TILE_SIZE / 2 - FNTWIDTH / 2
-
-#define START_DELAY 500
-#define STEP_DELAY 75
-#define SLIDE_DELAY 1
-
-#define SDL_8BITCOLOUR 256
 
 /* Hash table size doesn't need to be huge for good performance. 500 seems to 
  * be a fairly good compromise */
@@ -36,16 +20,6 @@
 
 /* http://w01fe.com/blog/2009/01/the-hardest-eight-puzzle-instances-take-31-moves-to-solve/ */
 #define MAX_STEPS 32
-
-/* Enum to allow selection of drawing colour */
-typedef enum col_t { WHITE,
-                     GRAY,
-                     DARK_GRAY,
-                     BLACK,
-                     RED,
-                     ORANGE,
-                     GREEN
-} col_t;
 
 typedef enum bool { false = 0,
                     true = 1 } bool;
@@ -154,22 +128,6 @@ bool isSolvable(char* s);
 void swap(int* n1, int* n2);
 void test(void);
 
-/* ------- SDL FUNCTIONS ------- */
-void animateSolution(stack_t* solution);
-
-void nextStep(node_t* curr, node_t* next, SDL_Simplewin* sw, SDL_Rect* rect, fntrow fontdata[FNTCHARS][FNTHEIGHT]);
-void slideTile(swap_t dir, int val, int start_x, int start_y, SDL_Simplewin* sw, SDL_Rect* tile, fntrow fontdata[FNTCHARS][FNTHEIGHT]);
-void getPosition(swap_t dir, int* x, int* y);
-
-void drawGrid(int grid[SIZE][SIZE], SDL_Simplewin* sw, SDL_Rect* rect, fntrow fntdata[FNTCHARS][FNTHEIGHT]);
-void drawTile(int tile, int x, int y, SDL_Simplewin* sw, SDL_Rect* rect, fntrow fontdata[FNTCHARS][FNTHEIGHT]);
-void drawBorder(col_t colour, SDL_Simplewin* sw, SDL_Rect* border);
-void setFillColour(SDL_Simplewin* sw, col_t colour);
-
-void initObjects(SDL_Simplewin* sw, SDL_Rect* tile, fntrow fontdata[FNTCHARS][FNTHEIGHT]);
-void responsiveDelay(Uint32 ms, SDL_Simplewin* sw);
-void SDLExit(void);
-
 int main(int argc, char* argv[]) {
     queue_t p_queue;
     hash_t table;
@@ -203,10 +161,7 @@ int main(int argc, char* argv[]) {
 
     loadSolution(&p_queue, &solution);
     printf("\nPuzzle Solved in %i steps:\n\n", solution.top - 1);
-
-    /* Print solution is old terminal print version. Animate uses SDL */
-    /*printSolution(&solution);*/
-    animateSolution(&solution);
+    printSolution(&solution);
 
     unloadPQueue(&p_queue);
     unloadNodes(&table);
@@ -810,231 +765,6 @@ void swap(int* n1, int* n2) {
     int tmp = *n1;
     *n1 = *n2;
     *n2 = tmp;
-}
-
-/* ------- SDL FUNCTIONS ------- */
-/* Contains complete process for animating the final solution top. Initialises
- * SDL and draws grid
- */
-void animateSolution(stack_t* solution) {
-    node_t *curr, *next;
-    SDL_Simplewin sw;
-    SDL_Rect tile, border;
-    fntrow fontdata[FNTCHARS][FNTHEIGHT];
-
-    initObjects(&sw, &tile, fontdata);
-
-    /* Draw starting grid */
-    curr = pop(solution);
-    drawGrid(curr->grid, &sw, &tile, fontdata);
-    drawBorder(RED, &sw, &border);
-    responsiveDelay(START_DELAY, &sw);
-
-    /* Slide tiles through solution steps */
-    drawBorder(ORANGE, &sw, &border);
-    while ((next = pop(solution))) {
-        nextStep(curr, next, &sw, &tile, fontdata);
-        if (sw.finished) {
-            SDLExit();
-            return;
-        }
-        curr = next;
-    }
-
-    /* Wait here until user wants to close window */
-    drawBorder(GREEN, &sw, &border);
-    while (!sw.finished) {
-        Neill_SDL_UpdateScreen(&sw);
-        Neill_SDL_Events(&sw);
-    }
-    SDLExit();
-}
-
-/* Determines position of free space and which tile will be shifted into it.
- * Then calls slideTile() to slide the tile in the right direction
- */
-void nextStep(node_t* curr, node_t* next, SDL_Simplewin* sw, SDL_Rect* tile, fntrow fontdata[FNTCHARS][FNTHEIGHT]) {
-    /* Get x,y index of free cell in current step and value tile that will be 
-       moved */
-    int free_x = curr->x;
-    int free_y = curr->y;
-    int value = next->grid[free_y][free_x];
-
-    /* Convert index of current and next free cell to pixel coordinates */
-    int tile_x = next->x * TILE_SIZE;
-    int tile_y = next->y * TILE_SIZE;
-    free_x *= TILE_SIZE;
-    free_y *= TILE_SIZE;
-
-    if (tile_x > free_x) {
-        slideTile(LEFT, value, tile_x, tile_y, sw, tile, fontdata);
-    }
-    if (tile_x < free_x) {
-        slideTile(RIGHT, value, tile_x, tile_y, sw, tile, fontdata);
-    }
-    if (tile_y > free_y) {
-        slideTile(UP, value, tile_x, tile_y, sw, tile, fontdata);
-    }
-    if (tile_y < free_y) {
-        slideTile(DOWN, value, tile_x, tile_y, sw, tile, fontdata);
-    }
-}
-
-/* Animates sliding of tile into free space
- */
-void slideTile(swap_t dir, int val, int start_x, int start_y, SDL_Simplewin* sw, SDL_Rect* tile, fntrow fontdata[FNTCHARS][FNTHEIGHT]) {
-    int i;
-    int next_x = start_x;
-    int next_y = start_y;
-
-    for (i = 0; i < TILE_SIZE; i++) {
-        getPosition(dir, &next_x, &next_y);
-        /* Only new free space needs to be drawn. Old free tile gradually gets
-           covered by sliding tile */
-        drawTile(0, start_x, start_y, sw, tile, fontdata);
-        drawTile(val, next_x, next_y, sw, tile, fontdata);
-        Neill_SDL_UpdateScreen(sw);
-        responsiveDelay(SLIDE_DELAY, sw);
-        Neill_SDL_Events(sw);
-        if (sw->finished) {
-            return;
-        }
-    }
-    responsiveDelay(STEP_DELAY, sw);
-}
-
-/* Calculates updated coordinates of sliding tile
- */
-void getPosition(swap_t dir, int* x, int* y) {
-    *x += ((dir == RIGHT) - (dir == LEFT));
-    *y += ((dir == DOWN) - (dir == UP));
-}
-
-/* Draw complete 8tile grid 
- */
-void drawGrid(int grid[SIZE][SIZE], SDL_Simplewin* sw, SDL_Rect* tile, fntrow fontdata[FNTCHARS][FNTHEIGHT]) {
-    int i, j;
-    int x, y;
-
-    for (i = 0; i < SIZE; i++) {
-        for (j = 0; j < SIZE; j++) {
-            x = j * TILE_SIZE;
-            y = i * TILE_SIZE;
-            drawTile(grid[i][j], x, y, sw, tile, fontdata);
-        }
-    }
-}
-
-/* Draws a single tile. Expects value of tile and x,y coordinates in px as
- * input
- */
-void drawTile(int val, int x, int y, SDL_Simplewin* sw, SDL_Rect* tile, fntrow fontdata[FNTCHARS][FNTHEIGHT]) {
-    int cx = x + OFFSET + TILE_SIZE / 2;
-    int cy = y + OFFSET + TILE_SIZE / 2;
-
-    /* Set coordinates of tile */
-    tile->x = x + OFFSET;
-    tile->y = y + OFFSET;
-
-    /* Draw tiles in gray with number and free space in darker gray */
-    if (val) {
-        setFillColour(sw, GRAY);
-        SDL_RenderFillRect(sw->renderer, tile);
-        setFillColour(sw, WHITE);
-        Neill_SDL_RenderFillCircle(sw->renderer, cx, cy, RADIUS);
-        Neill_SDL_DrawChar(sw, fontdata, val + '0', x + CHAR_X_OFFSET + OFFSET, y + CHAR_Y_OFFSET + OFFSET);
-    } else {
-        setFillColour(sw, BLACK);
-        SDL_RenderFillRect(sw->renderer, tile);
-        setFillColour(sw, DARK_GRAY);
-        Neill_SDL_RenderFillCircle(sw->renderer, cx, cy, RADIUS_FREE);
-    }
-
-    /* Draw border between tiles */
-    setFillColour(sw, DARK_GRAY);
-    SDL_RenderDrawRect(sw->renderer, tile);
-}
-
-/* Draw outside border around 8tile grid. Will be set to RED for start, ORANGE
- * while solving and GREEN for solution
- */
-void drawBorder(col_t colour, SDL_Simplewin* sw, SDL_Rect* border) {
-    setFillColour(sw, colour);
-    border->w = WHEIGHT;
-    border->h = BORDER;
-    border->x = 0;
-    border->y = 0;
-    SDL_RenderFillRect(sw->renderer, border);
-    border->y = WHEIGHT - BORDER;
-    SDL_RenderFillRect(sw->renderer, border);
-
-    border->w = BORDER;
-    border->h = WWIDTH;
-    border->x = 0;
-    border->y = 0;
-    SDL_RenderFillRect(sw->renderer, border);
-    border->x = WWIDTH - BORDER;
-    SDL_RenderFillRect(sw->renderer, border);
-}
-
-/* Allows easy switching to predetermined colours for rendering 8 tile
- */
-void setFillColour(SDL_Simplewin* sw, col_t colour) {
-    switch (colour) {
-        case WHITE:
-            Neill_SDL_SetDrawColour(sw, 255, 255, 255);
-            break;
-        case GRAY:
-            Neill_SDL_SetDrawColour(sw, 100, 100, 100);
-            break;
-        case DARK_GRAY:
-            Neill_SDL_SetDrawColour(sw, 40, 40, 40);
-            break;
-        case BLACK:
-            Neill_SDL_SetDrawColour(sw, 25, 25, 25);
-            break;
-        case RED:
-            Neill_SDL_SetDrawColour(sw, 190, 0, 0);
-            break;
-        case ORANGE:
-            Neill_SDL_SetDrawColour(sw, 200, 125, 0);
-            break;
-        case GREEN:
-            Neill_SDL_SetDrawColour(sw, 0, 170, 0);
-            break;
-    }
-}
-
-/* Initialises all the objects used for drawin 8tile grid (tile rectangle,
- * border rectangle and font)
- */
-void initObjects(SDL_Simplewin* sw, SDL_Rect* tile, fntrow fontdata[FNTCHARS][FNTHEIGHT]) {
-    tile->h = TILE_SIZE;
-    tile->w = TILE_SIZE;
-    Neill_SDL_ReadFont(fontdata, "./mode7.fnt");
-    Neill_SDL_Init(sw);
-}
-
-/* Allows delays during which it's possible to exit the window 
- */
-void responsiveDelay(Uint32 ms, SDL_Simplewin* sw) {
-    Uint32 i;
-    for (i = 0; i <= ms; i++) {
-        Neill_SDL_UpdateScreen(sw);
-        Neill_SDL_Events(sw);
-        if (sw->finished) {
-            SDLExit();
-            return;
-        }
-        SDL_Delay(1);
-    }
-}
-
-/* Handles exiting SDL in single function
- */
-void SDLExit(void) {
-    SDL_Quit();
-    atexit(SDL_Quit);
 }
 
 /* Testing functions don't repeat testing from preivous exercises. Have only 
