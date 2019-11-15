@@ -4,6 +4,20 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* djb2 constants */
+#define HASH_TABLE 50000
+#define HASH 5381
+#define MAGIC 33
+
+typedef struct list_t {
+    node_t* node;
+    struct list_t* next;
+} list_t;
+
+typedef struct hash_t {
+    list_t* table[HASH_TABLE];
+} hash_t;
+
 #define QUEUE_SIZE 500
 #define BUFF_FACTOR 2
 #define SIZE 3
@@ -75,6 +89,19 @@ void unloadPQueue(queue_t* p_queue);
 tree_t* initTree(node_t* node);
 void insertTree(tree_t* tree, node_t* node);
 bool searchInTree(tree_t* tree, int grid[SIZE][SIZE]);
+
+/* ------ HASHING FUNCTION ------ */
+/* http://www.cse.yorku.ca/~oz/hash.html */
+unsigned long djb2Hash(int grid[SIZE][SIZE]) {
+    int i, j;
+    unsigned long hash = HASH;
+    for (i = 0; i < SIZE; i++) {
+        for (j = 0; j < SIZE; j++) {
+            hash += hash * MAGIC ^ (unsigned long)grid[i][j];
+        }
+    }
+    return hash;
+}
 
 tree_t* createTreeNode(void);
 void unloadTree(tree_t* tree);
@@ -558,6 +585,7 @@ void printSolution(stack_t* solution) {
     while ((node = pop(solution))) {
         printf("Step %i\n\n", step);
         printBoard(node->grid);
+        printf("%li\n", djb2Hash(node->grid));
         step++;
     }
 }
