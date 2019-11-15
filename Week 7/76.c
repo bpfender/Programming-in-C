@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* djb2 constants */
-#define HASH_TABLE 50000
+/* djb2 Hash constants */
+#define HASH_TABLE 1000
 #define HASH 5381
 #define MAGIC 33
 
@@ -103,6 +103,11 @@ bool searchList(list_t* list, node_t* node);
 void unloadNodes(hash_t* table);
 void unloadList(list_t* list);
 
+/* ------ HASHING FUNCTIONS ------ */
+/* Hashing the grids does result in significant speed increases, even with a 
+ * small hash table. Repeatedly iterating through a LL of up to 30000 
+ * expanded nodes for worst case (i.e. linear search) takes significantly longer
+ */
 /* Would it be possible to hash based on node ptr value instead? Would this be
    simpler? */
 /* http://www.cse.yorku.ca/~oz/hash.html */
@@ -162,7 +167,7 @@ bool searchHashTable(hash_t* table, node_t* node) {
 bool searchList(list_t* list, node_t* node) {
     list_t* list_node = list;
     while (list_node) {
-        if (compareBoards(list->node->grid, node->grid)) {
+        if (compareBoards(list_node->node->grid, node->grid)) {
             return true;
         }
         list_node = list_node->next;
@@ -175,6 +180,7 @@ void unloadNodes(hash_t* table) {
     for (i = 0; i < HASH_TABLE; i++) {
         if (table->hashed[i]) {
             unloadList(table->hashed[i]);
+            free(table->hashed[i]);
         }
     }
 }
@@ -826,6 +832,9 @@ void test(void) {
     assert(memcmp(p_queue_tst.node[2], tst_node_3, sizeof(node_t)) == 0);
     assert(memcmp(p_queue_tst.node[3], tst_node_4, sizeof(node_t)) == 0);
 
+    /* TESTING checked with HASH_TABLE set to 1 to ensure linked list is
+     * working properly
+     */
     initHashTable(&test_table);
     assert(searchHashTable(&test_table, p_queue_tst.node[2]) == false);
 
