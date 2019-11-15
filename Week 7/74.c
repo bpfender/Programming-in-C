@@ -151,6 +151,8 @@ int main(int argc, char* argv[]) {
     loadSolution(&queue, &solution);
     printf("\nPuzzle Solved in %i steps:\n\n", solution.top - 1);
 
+    /* Print solution is old terminal print version. Animate uses SDL */
+    /*printSolution(&solution);*/
     animateSolution(&solution);
 
     unloadQueue(queue.start);

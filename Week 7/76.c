@@ -20,8 +20,12 @@
 
 #define SDL_8BITCOLOUR 256
 
-/* djb2 Hash constants */
-#define HASH_TABLE 1000
+/* Hash table size doesn't need to be huge for good performance. 500 seems to 
+ * be a fairly good compromise */
+#define HASH_TABLE 500
+/* djb2 Hash constants, defined based on reference below
+ * http://www.cse.yorku.ca/~oz/hash.html
+ */
 #define HASH 5381
 #define MAGIC 33
 
@@ -175,8 +179,7 @@ int main(int argc, char* argv[]) {
 
     if (argc != 2) {
         fprintf(stderr,
-                "ERROR: Incorrect usage, try the hardest problem"
-                "e.g. %s \"64785 321\"\n",
+                "ERROR: Incorrect usage, try e.g. %s \"64785 321\"\n",
                 argv[0]);
         return 1;
     }
@@ -185,7 +188,8 @@ int main(int argc, char* argv[]) {
                 "INVALID. Please ensure string is: \n"
                 "   - 3x3 grid as 9 characters\n"
                 "   - Free tile denoted with space\n"
-                "   - Unique tile values\n");
+                "   - Unique tile values\n"
+                "Why not try the hardest problem \"64785 321\"\n");
         return 1;
     }
 
@@ -199,6 +203,8 @@ int main(int argc, char* argv[]) {
 
     loadSolution(&p_queue, &solution);
     printf("\nPuzzle Solved in %i steps:\n\n", solution.top - 1);
+
+    /* Print solution is old terminal print version. Animate uses SDL */
     /*printSolution(&solution);*/
     animateSolution(&solution);
 
@@ -888,7 +894,7 @@ void slideTile(swap_t dir, int val, int start_x, int start_y, SDL_Simplewin* sw,
         drawTile(0, start_x, start_y, sw, tile, fontdata);
         drawTile(val, next_x, next_y, sw, tile, fontdata);
         Neill_SDL_UpdateScreen(sw);
-        responsiveDelay(SLIDE_DELAY / TILE_SIZE, sw);
+        responsiveDelay(SLIDE_DELAY, sw);
         Neill_SDL_Events(sw);
         if (sw->finished) {
             return;
