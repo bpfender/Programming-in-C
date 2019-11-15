@@ -9,20 +9,13 @@
 #define HASH 5381
 #define MAGIC 33
 
-typedef struct list_t {
-    struct node_t* node;
-    struct list_t* next;
-} list_t;
-
-typedef struct hash_t {
-    list_t* hashed[HASH_TABLE];
-} hash_t;
-
+/* Priority queue definitions */
 #define QUEUE_SIZE 500
 #define BUFF_FACTOR 2
 #define SIZE 3
+
 /* http://w01fe.com/blog/2009/01/the-hardest-eight-puzzle-instances-take-31-moves-to-solve/ */
-#define MAX_STEPS 35
+#define MAX_STEPS 32
 
 typedef enum bool { false = 0,
                     true = 1 } bool;
@@ -33,23 +26,40 @@ typedef enum swap_t { UP,
                       LEFT,
                       RIGHT } swap_t;
 
+/* Stores 8tile grid, location of free tile, the parent node and priority 
+ * value
+ */
 typedef struct node_t {
     int grid[SIZE][SIZE];
     int f, step;
     int x, y;
     struct node_t* parent;
+    unsigned long hash;
 } node_t;
 
+/* Queue struct to be used for array implementation of binary heap priority
+ * queue
+ * https://bradfieldcs.com/algos/trees/priority-queues-with-binary-heaps/
+ */
 typedef struct queue_t {
     node_t** node;
     size_t end;
     size_t size;
 } queue_t;
 
-typedef struct tree_t {
-    node_t* node;
-    struct tree_t* children[SIZE * SIZE];
-} tree_t;
+/* Linked list to be inserted in hash table to store pointers to visited nodes
+ */
+typedef struct list_t {
+    struct node_t* node;
+    struct list_t* next;
+} list_t;
+
+/* Struct containing size of HASH_TABLE array with pointers to linked list
+ * for hashed grid value
+ */
+typedef struct hash_t {
+    list_t* hashed[HASH_TABLE];
+} hash_t;
 
 /* Stores list of solution steps, and variable for number
    of steps */
@@ -59,9 +69,9 @@ typedef struct stack_t {
 } stack_t;
 
 /* ------ SOLVER FUNCTIONS ------ */
-void solve8Tile(queue_t* p_queue, hash_t* table, tree_t** tree, char* s);
-bool expandNode(queue_t* p_queue, hash_t* table, tree_t* tree);
-bool shiftTile(swap_t dir, queue_t* p_queue, hash_t* table, tree_t* tree, node_t* parent);
+void solve8Tile(queue_t* p_queue, hash_t* table, char* s);
+bool expandNode(queue_t* p_queue, hash_t* table);
+bool shiftTile(swap_t dir, queue_t* p_queue, hash_t* table, node_t* parent);
 
 bool checkTarget(int grid[SIZE][SIZE]);
 bool compareBoards(int grid1[SIZE][SIZE], int grid2[SIZE][SIZE]);
@@ -85,111 +95,16 @@ size_t minChildIndex(queue_t* p_queue, size_t i);
 void swapNodePtr(node_t** n1, node_t** n2);
 void unloadPQueue(queue_t* p_queue);
 
-/* ------ SEARCH TREE AND VISITED FUNCTIONS ------ */
-tree_t* initTree(node_t* node);
-void insertTree(tree_t* tree, node_t* node);
-bool searchInTree(tree_t* tree, int grid[SIZE][SIZE]);
-
-tree_t* createTreeNode(void);
-void unloadTree(tree_t* tree);
-
-/* ------ HASHING FUNCTION ------ */
+/* ------ HASHING FUNCTIONS ------ */
 unsigned long djb2Hash(int grid[SIZE][SIZE]);
 void initHashTable(hash_t* table);
 void addHashTable(hash_t* table, node_t* node);
-list_t* addListNode(node_t* node);
 bool searchHashTable(hash_t* table, node_t* node);
+
+list_t* addListNode(node_t* node);
 bool searchList(list_t* list, node_t* node);
 void unloadNodes(hash_t* table);
 void unloadList(list_t* list);
-
-/* ------ HASHING FUNCTIONS ------ */
-/* Hashing the grids does result in significant speed increases, even with a 
- * small hash table. Repeatedly iterating through a LL of up to 30000 
- * expanded nodes for worst case (i.e. linear search) takes significantly longer
- */
-/* Would it be possible to hash based on node ptr value instead? Would this be
-   simpler? */
-/* http://www.cse.yorku.ca/~oz/hash.html */
-unsigned long djb2Hash(int grid[SIZE][SIZE]) {
-    int i, j;
-    unsigned long hash = HASH;
-    for (i = 0; i < SIZE; i++) {
-        for (j = 0; j < SIZE; j++) {
-            hash += hash * MAGIC ^ (unsigned long)grid[i][j];
-        }
-    }
-    return hash % HASH_TABLE;
-}
-
-void initHashTable(hash_t* table) {
-    unsigned int i;
-    for (i = 0; i < HASH_TABLE; i++) {
-        table->hashed[i] = NULL;
-    }
-}
-
-void addHashTable(hash_t* table, node_t* node) {
-    unsigned long hash = djb2Hash(node->grid);
-    list_t* list = table->hashed[hash];
-
-    if (!list) {
-        table->hashed[hash] = addListNode(node);
-        return;
-    }
-    while (list->next != NULL) {
-        list = list->next;
-    }
-    list->next = addListNode(node);
-}
-
-list_t* addListNode(node_t* node) {
-    list_t* tmp = (list_t*)malloc(sizeof(list_t));
-    if (tmp == NULL) {
-        fprintf(stderr, "Memory allocation error\n");
-        exit(EXIT_FAILURE);
-    }
-    tmp->node = node;
-    tmp->next = NULL;
-    return tmp;
-}
-
-bool searchHashTable(hash_t* table, node_t* node) {
-    /* FIXME duplication of hash calc*/
-    unsigned long hash = djb2Hash(node->grid);
-    list_t* list = table->hashed[hash];
-    if (!list) {
-        return false;
-    }
-    return searchList(list, node);
-}
-
-bool searchList(list_t* list, node_t* node) {
-    list_t* list_node = list;
-    while (list_node) {
-        if (compareBoards(list_node->node->grid, node->grid)) {
-            return true;
-        }
-        list_node = list_node->next;
-    }
-    return false;
-}
-
-void unloadNodes(hash_t* table) {
-    unsigned long i;
-    for (i = 0; i < HASH_TABLE; i++) {
-        if (table->hashed[i]) {
-            unloadList(table->hashed[i]);
-        }
-    }
-}
-void unloadList(list_t* list) {
-    if (list->next) {
-        unloadList(list->next);
-    }
-    free(list->node);
-    free(list);
-}
 
 /* ------ PRIORITY FUNCTION CALCULATIONS ------ */
 int fPriority(int grid[SIZE][SIZE], int g);
@@ -209,78 +124,96 @@ bool isSolvable(char* s);
 void swap(int* n1, int* n2);
 void test(void);
 
-/* TODO remove these globals */
-long counter = 0;
-long node_count = 0;
-
-int main(void) {
+int main(int argc, char* argv[]) {
     queue_t p_queue;
-    tree_t* search_tree = NULL;
     hash_t table;
     stack_t solution;
 
-    test();
+    /*test();*/
 
-    solve8Tile(&p_queue, &table, &search_tree, "64785 321");
-    /*solve8Tile(&p_queue, &table, &search_tree, "123 45678");*/
-    printf("Solved\n");
+    if (argc != 2) {
+        fprintf(stderr,
+                "ERROR: Incorrect usage, try the hardest problem"
+                "e.g. %s \"64785 321\"\n",
+                argv[0]);
+        return 1;
+    }
+    if (!checkInputString(argv[1])) {
+        fprintf(stderr,
+                "INVALID. Please ensure string is: \n"
+                "   - 3x3 grid as 9 characters\n"
+                "   - Free tile denoted with space\n"
+                "   - Unique tile values\n");
+        return 1;
+    }
+
+    if (!isSolvable(argv[1])) {
+        printf("This 8-tile board cannot be solved...\n");
+        return 0;
+    }
+
+    printf("Solving puzzle. Please wait...\n");
+    solve8Tile(&p_queue, &table, argv[1]);
+
     loadSolution(&p_queue, &solution);
+    printf("\nPuzzle Solved in %i steps:\n\n", solution.top - 1);
     printSolution(&solution);
-    printf("Iterations: %ld\n", counter);
-    printf("Tree nodes: %ld\n", node_count);
 
     unloadPQueue(&p_queue);
     unloadNodes(&table);
-    /*unloadTree(search_tree);*/
 
     return 0;
 }
 
 /* ------ SOLVER FUNCTIONS ------ */
 /* Solver initailises the queue with the starting grid and then expand nodes
- * onto the queue until a solution is found. Assumes a valid string and needs
- * first node to load into queue and search tree
+ * onto the queue until a solution is found. Assumes a valid string. Uses
+ * a* search with manhattan distance priority function. When solution is found, 
+ * last element is loaded onto queue, where it can then be read when loading 
+ * the solution.
  */
-void solve8Tile(queue_t* p_queue, hash_t* table, tree_t** tree, char* s) {
+void solve8Tile(queue_t* p_queue, hash_t* table, char* s) {
     node_t* node = initNode(s);
     initPQueue(p_queue, node);
-    /**tree = initTree(node);*/
     initHashTable(table);
+    /* Add first element to hash table */
     addHashTable(table, node);
-    while (!expandNode(p_queue, table, *tree)) {
-        /* TODO could add isEMpyt function */
+
+    while (!expandNode(p_queue, table)) {
+        /* Don't need to check if queue is empty, as only solvable grids 
+       are permitted */
     }
 }
 
 /* Calls function shiftTile to expand possible moves of current node. Will 
  * return true if the solution is found
  */
-bool expandNode(queue_t* p_queue, hash_t* table, tree_t* tree) {
+bool expandNode(queue_t* p_queue, hash_t* table) {
     node_t* parent = getMin(p_queue);
     int x = parent->x;
     int y = parent->y;
 
     /* Remove expanded node from priority queue. Reference is still held in 
-       search tree */
+       hash table */
     delMin(p_queue);
 
     if (x < SIZE - 1) {
-        if (shiftTile(LEFT, p_queue, table, tree, parent)) {
+        if (shiftTile(LEFT, p_queue, table, parent)) {
             return true;
         }
     }
     if (x > 0) {
-        if (shiftTile(RIGHT, p_queue, table, tree, parent)) {
+        if (shiftTile(RIGHT, p_queue, table, parent)) {
             return true;
         }
     }
     if (y < SIZE - 1) {
-        if (shiftTile(UP, p_queue, table, tree, parent)) {
+        if (shiftTile(UP, p_queue, table, parent)) {
             return true;
         }
     }
     if (y > 0) {
-        if (shiftTile(DOWN, p_queue, table, tree, parent)) {
+        if (shiftTile(DOWN, p_queue, table, parent)) {
             return true;
         }
     }
@@ -290,14 +223,13 @@ bool expandNode(queue_t* p_queue, hash_t* table, tree_t* tree) {
 
 /* Generates next board state based on direction of shift. Shift direction 
  * refers to direction of tile being moved into the free space. Function assumes
- * that a valid shiftdirection is given. Copies board into queue, but queue
- * current index is only incremented if it's a valid board. This avoid copying
- * to a tmp and then copying to the queue
+ * that a valid shiftdirection is given. Copies board into tmp pointer, which 
+ * is only added to the queue if it's a valid board (i.e. not repeated)
  */
-bool shiftTile(swap_t dir, queue_t* p_queue, hash_t* table, tree_t* tree, node_t* parent) {
-    int x1, y1, x2, y2;
+bool shiftTile(swap_t dir, queue_t* p_queue, hash_t* table, node_t* parent) {
     static node_t* tmp = NULL;
-    counter++;
+    int x1, y1, x2, y2;
+
     /* tmp will only be malloced if the previous one has been added to the
        queue */
     if (tmp == NULL) {
@@ -325,19 +257,17 @@ bool shiftTile(swap_t dir, queue_t* p_queue, hash_t* table, tree_t* tree, node_t
     tmp->step = parent->step + 1;
     tmp->parent = parent;
     tmp->f = fPriority(tmp->grid, tmp->step);
+    tmp->hash = djb2Hash(tmp->grid);
 
     if (checkTarget(tmp->grid)) {
         /* Set cost function to zero to ensure that this ends up at head of
            priority queue */
         tmp->f = 0;
         addHashTable(table, tmp);
-        /*insertTree(tree, tmp);*/
         insertPQueue(p_queue, tmp);
         return true;
-    } /*else if (!searchInTree(tree, tmp->grid)) {*/
-    else if (!searchHashTable(table, tmp)) {
+    } else if (!searchHashTable(table, tmp)) {
         addHashTable(table, tmp);
-        /*insertTree(tree, tmp);*/
         insertPQueue(p_queue, tmp);
         /* reset tmp so it is malloced again on next loop */
         tmp = NULL;
@@ -346,8 +276,9 @@ bool shiftTile(swap_t dir, queue_t* p_queue, hash_t* table, tree_t* tree, node_t
     return false;
 }
 
-/* This just calls the compare boards function, but function adds to readability
- * above
+/* This just calls the compare boards function on the target solution. Has been
+ * defined as static so that it doesn't keep on being created and destroyed on
+ * function call. Not sure if this is good style
  */
 bool checkTarget(int grid[SIZE][SIZE]) {
     static int target[SIZE][SIZE] = {{1, 2, 3},
@@ -358,14 +289,16 @@ bool checkTarget(int grid[SIZE][SIZE]) {
 }
 
 /* Compares whether two 8-tile boards are the same. Have used memcmp() for
- * improved speed. Did compare against storing a value key for each grid and 
- * using that as the comparator, but the speed seemed basically the same. 
+ * improved speed.
  */
 bool compareBoards(int grid1[SIZE][SIZE], int grid2[SIZE][SIZE]) {
     return !(memcmp(grid1, grid2, SIZE * SIZE * sizeof(int)));
 }
 
 /* ------- LOADING FUNCTIONS ------ */
+/* Initiliases node with starting board which can then be added to the hash
+ * table and priority queue
+ */
 node_t* initNode(char* s) {
     node_t* node = (node_t*)malloc(sizeof(node_t));
 
@@ -373,8 +306,8 @@ node_t* initNode(char* s) {
     findFreeTile(node);
     node->step = 0;
     node->parent = NULL;
-    /* FIXME not really required */
     node->f = fPriority(node->grid, node->step);
+    node->hash = djb2Hash(node->grid);
     return node;
 }
 
@@ -419,7 +352,8 @@ void findFreeTile(node_t* node) {
 /* ------- PRIORITY QUEUE FUNCTIONS ------- */
 /* Priority queue is implemented as a binary heap with a dynamically sized 
  * array. Should offer O(1) retrieval of next (priority) node, O(log n) deletion
- * and insertion.
+ * and insertion. Looking to minimise cost function so min f-value will be moved
+ * to top
  */
 
 /* Initiliases priority queue to array of size QUEUE_SIZE. Adds starting grid to
@@ -441,6 +375,9 @@ void initPQueue(queue_t* p_queue, node_t* node) {
     p_queue->end = 1;
 }
 
+/* Insert element into priority queue and put it in right position in binary
+ * heap
+ */
 void insertPQueue(queue_t* p_queue, node_t* node) {
     if (p_queue->end == p_queue->size) {
         expandPQueue(p_queue);
@@ -452,10 +389,15 @@ void insertPQueue(queue_t* p_queue, node_t* node) {
     percolateUp(p_queue);
 }
 
+/* Retrieve the minimum f-value node from the queue. It does not get remove
+ */
 node_t* getMin(queue_t* p_queue) {
     return p_queue->node[1];
 }
 
+/* Delecte minimum f-value node from queue and bubble up next smallest f-value
+ * node
+ */
 void delMin(queue_t* p_queue) {
     p_queue->node[1] = p_queue->node[p_queue->end];
     percolateDown(p_queue);
@@ -470,10 +412,9 @@ bool isEmpty(queue_t* p_queue) {
     return false;
 }
 
-void unloadPQueue(queue_t* p_queue) {
-    free(p_queue->node);
-}
-
+/* Reallocates array if there are too many elements in the queue. Expanded by
+ * factor determined by BUFF_FACTOR
+ */
 void expandPQueue(queue_t* p_queue) {
     node_t** tmp;
     p_queue->size = p_queue->size * BUFF_FACTOR;
@@ -487,6 +428,8 @@ void expandPQueue(queue_t* p_queue) {
     p_queue->node = tmp;
 }
 
+/* Moves inserted element to corrrect place in tree
+ */
 void percolateUp(queue_t* p_queue) {
     node_t **child, **parent;
     size_t i = p_queue->end;
@@ -501,6 +444,8 @@ void percolateUp(queue_t* p_queue) {
     }
 }
 
+/* Moves min element to top of tree when previous min is remove
+ */
 void percolateDown(queue_t* p_queue) {
     node_t **child, **parent;
     size_t i = 1;
@@ -517,6 +462,8 @@ void percolateDown(queue_t* p_queue) {
     }
 }
 
+/* Find the minimum value child to determine which branch to move up a level
+ */
 size_t minChildIndex(queue_t* p_queue, size_t i) {
     int f1, f2;
     size_t child_index = i * 2;
@@ -537,77 +484,132 @@ size_t minChildIndex(queue_t* p_queue, size_t i) {
     }
 }
 
+/* Each node in binary tree is a pointer to a node, so need to swap the pointers
+ * by passing pointers to pointers into function
+ */
 void swapNodePtr(node_t** n1, node_t** n2) {
     node_t* tmp = *n1;
     *n1 = *n2;
     *n2 = tmp;
 }
 
-/* ------ SEARCH TREE FOR VISITED LIST ------ */
-tree_t* initTree(node_t* node) {
-    tree_t* tree = createTreeNode();
-    insertTree(tree, node);
-    return tree;
+void unloadPQueue(queue_t* p_queue) {
+    free(p_queue->node);
 }
 
-void insertTree(tree_t* tree, node_t* node) {
-    int i, j, leaf;
-    tree_t* branch = tree;
+/* ------ HASHING FUNCTIONS ------ */
+/* Hashing the grids does result in significant speed increases, even with a 
+ * small hash table. Repeatedly iterating through a LL of up to 30000 
+ * expanded nodes for worst case (i.e. linear search) takes significantly longer
+ */
 
+/* Would it be possible to hash based on node ptr value instead? Would this be
+   simpler? */
+/* http://www.cse.yorku.ca/~oz/hash.html */
+unsigned long djb2Hash(int grid[SIZE][SIZE]) {
+    int i, j;
+    unsigned long hash = HASH;
     for (i = 0; i < SIZE; i++) {
         for (j = 0; j < SIZE; j++) {
-            leaf = node->grid[i][j];
-            if (branch->children[leaf] == NULL) {
-                branch->children[leaf] = createTreeNode();
-            }
-            branch = branch->children[leaf];
+            hash += hash * MAGIC ^ (unsigned long)grid[i][j];
         }
     }
-    /* Insert pointer to node at end of branches */
-    branch->node = node;
+    return hash % HASH_TABLE;
 }
 
-/* FIXME combine search and insert? */
-bool searchInTree(tree_t* tree, int grid[SIZE][SIZE]) {
-    int i, j, leaf;
-    tree_t* tree_node = tree;
-
-    for (i = 0; i < SIZE; i++) {
-        for (j = 0; j < SIZE; j++) {
-            leaf = grid[i][j];
-            if (tree_node->children[leaf] == NULL) {
-                return false;
-            }
-            tree_node = tree_node->children[leaf];
-        }
+/* Initialise an empty hash table
+ */
+void initHashTable(hash_t* table) {
+    unsigned int i;
+    for (i = 0; i < HASH_TABLE; i++) {
+        table->hashed[i] = NULL;
     }
-    return true;
 }
 
-tree_t* createTreeNode(void) {
-    tree_t* ptr = (tree_t*)calloc(1, sizeof(tree_t));
-    if (ptr == NULL) {
-        /* QUESTION should i free previously allced memory?*/
+/* Add a node to hash table by hashing grid value and then adding node_t* to
+ * linked list at relevant point of array. This deals with collisions, and
+ * freeing all allocated nodes later as a reference to every explored node is
+ * stored in the hash table
+ */
+void addHashTable(hash_t* table, node_t* node) {
+    unsigned long hash = node->hash;
+    list_t* list = table->hashed[hash];
+
+    if (!list) {
+        table->hashed[hash] = addListNode(node);
+        return;
+    }
+    while (list->next != NULL) {
+        list = list->next;
+    }
+    list->next = addListNode(node);
+}
+
+/* Search hash table for duplicate values
+ */
+bool searchHashTable(hash_t* table, node_t* node) {
+    unsigned long hash = node->hash;
+    list_t* list = table->hashed[hash];
+    if (!list) {
+        return false;
+    }
+    return searchList(list, node);
+}
+
+/* Add a node to the relevant linked list
+ */
+list_t* addListNode(node_t* node) {
+    list_t* tmp = (list_t*)malloc(sizeof(list_t));
+    if (tmp == NULL) {
         fprintf(stderr, "Memory allocation error\n");
         exit(EXIT_FAILURE);
     }
-    node_count++;
-    return ptr;
+    tmp->node = node;
+    tmp->next = NULL;
+    return tmp;
 }
 
-/*FIXME not totally sure on this */
-void unloadTree(tree_t* tree) {
-    int i;
-    for (i = 0; i < SIZE * SIZE; i++) {
-        if (tree->children[i]) {
-            unloadTree(tree->children[i]);
+/* Search linked list of corresponding hash table bucket
+ */
+bool searchList(list_t* list, node_t* node) {
+    list_t* list_node = list;
+    while (list_node) {
+        if (compareBoards(list_node->node->grid, node->grid)) {
+            return true;
+        }
+        list_node = list_node->next;
+    }
+    return false;
+}
+
+/* This and the function below unload all the expanded nodes allocated during
+ * the search. The hash table contains references to all explored nodes, so
+ * going through it ensures that all memory is freed
+ */
+void unloadNodes(hash_t* table) {
+    unsigned long i;
+    for (i = 0; i < HASH_TABLE; i++) {
+        if (table->hashed[i]) {
+            unloadList(table->hashed[i]);
         }
     }
-    free(tree->node);
-    free(tree);
+}
+
+void unloadList(list_t* list) {
+    if (list->next) {
+        unloadList(list->next);
+    }
+    free(list->node);
+    free(list);
 }
 
 /* ------- PRIORIITY FUNCTION CALCULATION ------- */
+/* Initial idea to a* search came from here
+ * https://blog.goodaudience.com/solving-8-puzzle-using-a-algorithm-7b509c331288
+ */
+/* Calculate cost of node based. h-score is manhattan distance and g-score is
+ * number of steps made
+ */
 int fPriority(int grid[SIZE][SIZE], int step) {
     return manhattanDistance(grid) + step;
 }
@@ -628,6 +630,11 @@ int manhattanDistance(int grid[SIZE][SIZE]) {
 }
 
 /* ------ STACK FUNCTIONS ------ */
+/* If I were to expand this to larger grids, I would define the stack as a linked
+ * list or dynamically allocated array so it can be sized to match the number of
+ * solution steps. Given that 8-tile is relatively constrained, have just used 
+ * a fixed size array here that can hold the maximum number of steps.
+
 /* Stack has been implemented on basis of FIFO as list will be read in reverse
  * from queue once solution is found
  */
@@ -636,7 +643,7 @@ void initStack(stack_t* solution) {
 }
 
 /* Pushes pointer to grid_t* onto stack. Stack shouldn't overflow as 8tile has
- * maximum number of steps.
+ * maximum number of steps, defined by MAX_STEPS
  */
 void push(stack_t* solution, node_t* grid) {
     if (solution->top > MAX_STEPS) {
@@ -695,63 +702,57 @@ void printBoard(int grid[SIZE][SIZE]) {
     printf("\n");
 }
 
-/* FIXME can this be made more concise */
 /* Checks that a valid string has been inputted 
  */
 bool checkInputString(char* s) {
-    size_t len, i;
+    int i;
     int count[SIZE * SIZE] = {0};
+    bool valid = true;
 
-    /* Check string length */
-    if ((len = strlen(s)) != SIZE * SIZE) {
-        if (len < SIZE * SIZE) {
-            fprintf(stderr, "String is shorter than expected..\n");
-        } else {
-            fprintf(stderr, "String is longer than expected..\n");
-        }
-        return false;
+    if ((strlen(s)) != SIZE * SIZE) {
+        valid = false;
     }
 
     /* Check for invalid chars and check valid ones are unique */
-    for (i = 0; i < SIZE * SIZE; i++) {
+    for (i = 0; i < SIZE * SIZE && valid == true; i++) {
         if (s[i] == ' ') {
             count[0]++;
         } else if ('1' <= s[i] && s[i] <= '8') {
             count[s[i] - '0']++;
         } else {
-            fprintf(stderr, "Invalid character \"%c\" in input...\n", s[i]);
-            return false;
+            valid = false;
         }
     }
-
-    for (i = 0; i < SIZE * SIZE; i++) {
+    for (i = 0; i < SIZE * SIZE && valid == true; i++) {
         if (count[i] > 1) {
-            fprintf(stderr, "Each tile must have a unique value...\n");
-            return false;
+            valid = false;
         }
     }
 
-    return true;
+    return valid;
 }
 
 /* Reference: https://www.geeksforgeeks.org/check-instance-8-puzzle-solvable/ 
  * Checks whether the input string is acutally solvable before attempting to 
  * find a solution
  */
-/* FIXME readability */
 bool isSolvable(char* s) {
-    int i;
+    int i, j;
     int inversions = 0;
     int grid[SIZE][SIZE];
 
     loadBoard(grid, s);
 
     for (i = 0; i < SIZE * SIZE - 1; i++) {
-        if (*(grid + i + 1) && *(grid + i) && *(grid + i + 1) > *(grid + i)) {
-            inversions++;
+        for (j = i + 1; j < SIZE * SIZE; j++) {
+            /* First && comparison eliminates 0 from inversion count, second
+               size comp counts number of inversions */
+            if (grid[i / 3][i % 3] && grid[j / 3][j % 3] &&
+                grid[i / 3][i % 3] > grid[j / 3][j % 3]) {
+                inversions++;
+            }
         }
     }
-
     return inversions % 2 == 0;
 }
 
@@ -761,6 +762,9 @@ void swap(int* n1, int* n2) {
     *n2 = tmp;
 }
 
+/* Testing functions don't repeat testing from preivous exercises. Have only 
+ * checked that priority queue and hash table implementations work properly
+ */
 void test(void) {
     int i;
     int test_grid[SIZE][SIZE] = {{8, 1, 3}, {4, 0, 2}, {7, 6, 5}};
@@ -856,4 +860,83 @@ void test(void) {
     free(tst_node_2);
     free(tst_node_5);
     free(p_queue_tst.node);
+}
+
+/* ------ DEPRECATED. NOT IN USE ANYMORE ------ */
+/* ------ SEARCH TREE FOR VISITED LIST ------ */
+typedef struct tree_t {
+    node_t* node;
+    struct tree_t* children[SIZE * SIZE];
+} tree_t;
+
+/* DEPRECATED. WAS PREVIOUSLY USING THIS TO SPEED UP SEARCH, BUT THEN DECIDED
+ * A HASH TABLE WOULD BE NICE TO IMPLEMENT TOO ;)
+ */
+/* ------ SEARCH TREE AND VISITED FUNCTIONS ------ */
+tree_t* initTree(node_t* node);
+void insertTree(tree_t* tree, node_t* node);
+bool searchInTree(tree_t* tree, int grid[SIZE][SIZE]);
+tree_t* createTreeNode(void);
+void unloadTree(tree_t* tree);
+
+tree_t* initTree(node_t* node) {
+    tree_t* tree = createTreeNode();
+    insertTree(tree, node);
+    return tree;
+}
+
+void insertTree(tree_t* tree, node_t* node) {
+    int i, j, leaf;
+    tree_t* branch = tree;
+
+    for (i = 0; i < SIZE; i++) {
+        for (j = 0; j < SIZE; j++) {
+            leaf = node->grid[i][j];
+            if (branch->children[leaf] == NULL) {
+                branch->children[leaf] = createTreeNode();
+            }
+            branch = branch->children[leaf];
+        }
+    }
+    /* Insert pointer to node at end of branches */
+    branch->node = node;
+}
+
+/* FIXME combine search and insert? */
+bool searchInTree(tree_t* tree, int grid[SIZE][SIZE]) {
+    int i, j, leaf;
+    tree_t* tree_node = tree;
+
+    for (i = 0; i < SIZE; i++) {
+        for (j = 0; j < SIZE; j++) {
+            leaf = grid[i][j];
+            if (tree_node->children[leaf] == NULL) {
+                return false;
+            }
+            tree_node = tree_node->children[leaf];
+        }
+    }
+    return true;
+}
+
+tree_t* createTreeNode(void) {
+    tree_t* ptr = (tree_t*)calloc(1, sizeof(tree_t));
+    if (ptr == NULL) {
+        /* QUESTION should i free previously allced memory?*/
+        fprintf(stderr, "Memory allocation error\n");
+        exit(EXIT_FAILURE);
+    }
+    return ptr;
+}
+
+/*FIXME not totally sure on this */
+void unloadTree(tree_t* tree) {
+    int i;
+    for (i = 0; i < SIZE * SIZE; i++) {
+        if (tree->children[i]) {
+            unloadTree(tree->children[i]);
+        }
+    }
+    free(tree->node);
+    free(tree);
 }

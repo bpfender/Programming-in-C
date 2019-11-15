@@ -5,7 +5,8 @@
 #include <string.h>
 #include "neillsdl2.h"
 
-/* SDL constants to determine tile size, delays and positions */
+/* SDL constants to determine tile size, delays and positions 
+ */
 #define BORDER 5
 #define TILE_SIZE (WHEIGHT - BORDER * 2) / 3
 #define RADIUS TILE_SIZE / 2 - TILE_SIZE / 4
@@ -240,8 +241,9 @@ bool shiftTile(swap_t dir, queue_t* queue) {
     return false;
 }
 
-/* This just calls the compare boards function, but function adds to readability
- * above
+/* This just calls the compare boards function on the target solution. Has been
+ * defined as static so that it doesn't keep on being created and destroyed on
+ * function call. Not sure if this is good style
  */
 bool checkTarget(int grid[SIZE][SIZE]) {
     static int target[SIZE][SIZE] = {{1, 2, 3},

@@ -241,7 +241,9 @@ bool shiftTile(swap_t dir, queue_t* queue) {
     return false;
 }
 
-/* This just calls the compare boards function on the target solution
+/* This just calls the compare boards function on the target solution. Has been
+ * defined as static so that it doesn't keep on being created and destroyed on
+ * function call. Not sure if this is good style
  */
 bool checkTarget(int grid[SIZE][SIZE]) {
     static int target[SIZE][SIZE] = {{1, 2, 3},
