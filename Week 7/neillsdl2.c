@@ -116,7 +116,7 @@ void Neill_SDL_DrawChar(SDL_Simplewin *sw,
                 Neill_SDL_SetDrawColour(sw, 0, 0, 0);
                 SDL_RenderDrawPoint(sw->renderer, x + ox, y + oy);
             } else {
-                Neill_SDL_SetDrawColour(sw, 150, 150, 150);
+                Neill_SDL_SetDrawColour(sw, 255, 255, 255);
                 SDL_RenderDrawPoint(sw->renderer, x + ox, y + oy);
             }
         }

@@ -103,7 +103,9 @@ int main(void) {
     sol_t solution;
 
     /* test();*/
-    solve8Tile(&p_queue, &search_tree, "8672543 1");
+    solve8Tile(&p_queue, &search_tree, "64785 321");
+
+    /* FIXME don't load feom pqueue, just return pointer to solution node */
     loadSolution(&p_queue, &solution);
     printSolution(&solution);
     printf("Iterations: %ld\n", counter);

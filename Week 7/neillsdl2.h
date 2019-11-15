@@ -1,8 +1,8 @@
 #include <SDL.h>
 #include <math.h>
 
-#define WWIDTH 600
-#define WHEIGHT 600
+#define WWIDTH 620
+#define WHEIGHT WWIDTH
 
 /* Font stuff */
 typedef unsigned short fntrow;

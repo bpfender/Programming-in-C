@@ -31,7 +31,8 @@ typedef enum col_t { WHITE,
 typedef enum bool { false = 0,
                     true = 1 } bool;
 
-/* Encodes direction that tiles on the board are shifted */
+/* Encodes direction that tiles on the board are shifted 
+ */
 typedef enum swap_t { UP,
                       DOWN,
                       LEFT,
