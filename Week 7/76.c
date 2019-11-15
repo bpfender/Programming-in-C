@@ -10,12 +10,12 @@
 #define MAGIC 33
 
 typedef struct list_t {
-    node_t* node;
+    struct node_t* node;
     struct list_t* next;
 } list_t;
 
 typedef struct hash_t {
-    list_t* table[HASH_TABLE];
+    list_t* hashed[HASH_TABLE];
 } hash_t;
 
 #define QUEUE_SIZE 500
@@ -90,7 +90,19 @@ tree_t* initTree(node_t* node);
 void insertTree(tree_t* tree, node_t* node);
 bool searchInTree(tree_t* tree, int grid[SIZE][SIZE]);
 
+tree_t* createTreeNode(void);
+void unloadTree(tree_t* tree);
+
 /* ------ HASHING FUNCTION ------ */
+unsigned long djb2Hash(int grid[SIZE][SIZE]);
+void initHashTable(hash_t* table);
+void addHashTable(hash_t* table, node_t* node);
+list_t* addListNode(node_t* node);
+bool searchHashTable(hash_t* table, node_t* node);
+bool searchList(list_t* list, node_t* node);
+void unloadNodes(hash_t* table);
+void unloadList(list_t* list);
+
 /* http://www.cse.yorku.ca/~oz/hash.html */
 unsigned long djb2Hash(int grid[SIZE][SIZE]) {
     int i, j;
@@ -100,11 +112,77 @@ unsigned long djb2Hash(int grid[SIZE][SIZE]) {
             hash += hash * MAGIC ^ (unsigned long)grid[i][j];
         }
     }
-    return hash;
+    return hash % HASH_TABLE;
 }
 
-tree_t* createTreeNode(void);
-void unloadTree(tree_t* tree);
+void initHashTable(hash_t* table) {
+    unsigned int i;
+    for (i = 0; i < HASH_TABLE; i++) {
+        table->hashed[i] = NULL;
+    }
+}
+
+void addHashTable(hash_t* table, node_t* node) {
+    unsigned long hash = djb2Hash(node->grid);
+    list_t* list = table->hashed[hash];
+
+    if (!list) {
+        table->hashed[hash] = addListNode(node);
+        return;
+    }
+    while (list->next) {
+        list = list->next;
+    }
+    list->next = addListNode(node);
+}
+
+list_t* addListNode(node_t* node) {
+    list_t* tmp = (list_t*)malloc(sizeof(list_t));
+    if (tmp == NULL) {
+        fprintf(stderr, "Memory allocation error\n");
+        exit(EXIT_FAILURE);
+    }
+    tmp->node = node;
+    tmp->next = NULL;
+    return tmp;
+}
+
+bool searchHashTable(hash_t* table, node_t* node) {
+    /* FIXME duplication of hash */
+    unsigned long hash = djb2Hash(node->grid);
+    list_t* list = table->hashed[hash];
+    if (!list) {
+        return false;
+    }
+    return searchList(list, node);
+}
+
+bool searchList(list_t* list, node_t* node) {
+    list_t* list_node = list;
+    while (list_node) {
+        if (list_node->node == node) {
+            return true;
+        }
+        list_node = list_node->next;
+    }
+    return false;
+}
+
+void unloadNodes(hash_t* table) {
+    unsigned long i;
+    for (i = 0; i < HASH_TABLE; i++) {
+        if (table->hashed[i]) {
+            unloadList(table->hashed[i]);
+        }
+    }
+}
+void unloadList(list_t* list) {
+    if (list->next) {
+        unloadList(list->next);
+    }
+    free(list->node);
+    free(list);
+}
 
 /* ------ PRIORITY FUNCTION CALCULATIONS ------ */
 int fPriority(int grid[SIZE][SIZE], int g);
