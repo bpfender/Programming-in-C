@@ -17,6 +17,7 @@ node_t*
 makeNode(char c);
 void insertRandom(node_t* t, node_t* n);
 char* printTree(node_t* t);
+int compareTrees(node_t* t1, node_t* t2);
 
 int main(void) {
     char c;
@@ -34,6 +35,12 @@ int main(void) {
     }
     printf("%s\n", printTree(head_1));
     printf("%s\n", printTree(head_2));
+
+    if (compareTrees(head_1, head_2)) {
+        printf("Trees are identical\n");
+    } else {
+        printf("Trees are different\n");
+    }
 
     return 0;
 }
@@ -73,4 +80,21 @@ char* printTree(node_t* t) {
 }
 
 int compareTrees(node_t* t1, node_t* t2) {
+    if (t1->c != t2->c) {
+        return 0;
+    }
+
+    if (t1->left && t2->left) {
+        if (!compareTrees(t1->left, t2->left)) {
+            return 0;
+        }
+    }
+
+    if (t1->right && t2->right) {
+        if (!compareTrees(t1->right, t2->right)) {
+            return 0;
+        }
+    }
+
+    return 1;
 }
