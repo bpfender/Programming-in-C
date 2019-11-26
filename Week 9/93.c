@@ -9,7 +9,7 @@
  */
 #define ASCII_SIZE 127
 
-void countFileCharacters(int counts[], char* filename);
+void countFileChars(int counts[], char* filename);
 void frequencyCount(int counts[], char* s);
 
 void test(void);
@@ -20,7 +20,7 @@ int main(void) {
 }
 
 /* Count all characters in file */
-void countFileCharacters(int counts[], char* filename) {
+void countFileChars(int counts[], char* filename) {
     FILE* file = openFile(filename);
 
     char* buffer = NULL;
