@@ -10,11 +10,12 @@
  * NULL
  */
 #define ASCII_SIZE 127
+#define MAX_ENCODE 25
 
 typedef struct data_t {
     char c;
     unsigned long freq;
-    char encoding[17];
+    char encoding[MAX_ENCODE + 1];
     int bit;
 } data_t;
 
@@ -33,14 +34,25 @@ int main(void) {
     return 0;
 }
 
+void unloadHuffman(node_t* node) {
+    if (node->l) {
+        unloadHuffman(node->l);
+    }
+    if (node->r) {
+        unloadHuffman(node->r);
+    }
+    free(node);
+}
+
 void returnHuffmanEncodings(node_t* node, data_t letters[], char* encoding, int bit) {
+    bit++;
     if (node->l) {
         encoding[bit] = '0';
-        returnHuffmanEncodings(node->l, letters, encoding, ++bit);
+        returnHuffmanEncodings(node->l, letters, encoding, bit);
     }
     if (node->r) {
         encoding[bit] = '1';
-        returnHuffmanEncodings(node->r, letters, encoding, ++bit);
+        returnHuffmanEncodings(node->r, letters, encoding, bit);
     }
     if (!(node->l && node->r)) {
         encoding[bit] = '\0';
@@ -52,18 +64,17 @@ void returnHuffmanEncodings(node_t* node, data_t letters[], char* encoding, int 
 }
 
 node_t* buildHuffmanTree(queue_t* p_queue) {
-    node_t* parent = NULL;
+    node_t* parent = getMin(p_queue);
     node_t *child1, *child2;
 
-    while (!isEmpty(p_queue)) {
+    while (p_queue->end > 1) {
         child1 = getMin(p_queue);
-        printf("%li\n", child1->freq);
         delMin(p_queue);
         child2 = getMin(p_queue);
-        printf("%li\n", child1->freq);
         delMin(p_queue);
 
-        parent = createNode('\0', child1->freq + child2->freq);
+        parent = createNode(-1, child1->freq + child2->freq);
+
         parent->l = child1;
         parent->r = child2;
 
@@ -153,7 +164,8 @@ void test(void) {
     data_t letters[ASCII_SIZE];
     queue_t p_queue;
     node_t* huffman = NULL;
-    char encoding[20];
+    char encoding[MAX_ENCODE + 1];
+    size_t bytes = 0;
 
     initCntArr(letters);
 
@@ -175,8 +187,13 @@ void test(void) {
     assert(letters['\n'].freq == 4);
 
     getInitialFreqs(&p_queue, letters, "./test.txt");
+    for (i = 1; i <= p_queue.end; i++) {
+        free(p_queue.node[i]);
+    }
 
-    for (i = 0; i < ASCII_SIZE; i++) {
+    unloadPQueue(&p_queue);
+
+    /* for (i = 0; i < ASCII_SIZE; i++) {
         if (letters[i].c == '\n') {
             printf("Nl %li\n", letters[i].freq);
         } else {
@@ -191,14 +208,21 @@ void test(void) {
         } else {
             printf("%c %li\n", p_queue.node[i]->c, p_queue.node[i]->freq);
         }
-    }
+    }*/
 
+    getInitialFreqs(&p_queue, letters, "./war-and-peace.txt");
     huffman = buildHuffmanTree(&p_queue);
-    returnHuffmanEncodings(huffman, letters, encoding, 0);
+    returnHuffmanEncodings(huffman, letters, encoding, -1);
 
     for (i = 0; i < ASCII_SIZE; i++) {
         if (letters[i].freq) {
-            printf("'%c' : %16s (%2d * %3li)\n", letters[i].c, letters[i].encoding, letters[i].bit, letters[i].freq);
+            printf("'%c' : %18s (%3d * %5li)\n", letters[i].c, letters[i].encoding, letters[i].bit, letters[i].freq);
+            bytes += letters[i].freq * letters[i].bit;
         }
     }
+    bytes /= 8;
+    printf("%li bytes\n", bytes);
+
+    unloadPQueue(&p_queue);
+    unloadHuffman(huffman);
 }
