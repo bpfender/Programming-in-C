@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,7 +11,7 @@
  * NULL
  */
 #define ASCII_SIZE 127
-#define MAX_ENCODE 25
+#define MAX_ENCODE 30
 
 typedef struct data_t {
     char c;
@@ -210,13 +211,18 @@ void test(void) {
         }
     }*/
 
-    getInitialFreqs(&p_queue, letters, "./war-and-peace.txt");
+    getInitialFreqs(&p_queue, letters, "./aliceinwonderland.txt");
     huffman = buildHuffmanTree(&p_queue);
     returnHuffmanEncodings(huffman, letters, encoding, -1);
 
     for (i = 0; i < ASCII_SIZE; i++) {
         if (letters[i].freq) {
-            printf("'%c' : %18s (%3d * %5li)\n", letters[i].c, letters[i].encoding, letters[i].bit, letters[i].freq);
+            if (isalnum(letters[i].c) || ispunct(letters[i].c)) {
+                printf("%3c", letters[i].c);
+            } else {
+                printf("%3i", letters[i].c);
+            }
+            printf(" : %*s (%3d * %5li)\n", MAX_ENCODE + 1, letters[i].encoding, letters[i].bit, letters[i].freq);
             bytes += letters[i].freq * letters[i].bit;
         }
     }
