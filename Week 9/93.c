@@ -180,14 +180,14 @@ void test(void) {
 
     initCntArr(letters);
 
-    countFileChars(letters, "./test.txt");
+    countFileChars(letters, "./Text Files/test.txt");
     assert(letters['H'].freq == 2);
     assert(letters['B'].freq == 1);
     assert(letters['h'].freq == 4);
     assert(letters['o'].freq == 5);
     assert(letters['\n'].freq == 4);
 
-    getInitialFreqs(&p_queue, letters, "./test.txt");
+    getInitialFreqs(&p_queue, letters, "./Text Files/test.txt");
     for (i = 1; i <= p_queue.end; i++) {
         free(p_queue.node[i]);
     }
@@ -211,7 +211,7 @@ void test(void) {
         }
     }*/
 
-    getInitialFreqs(&p_queue, letters, "./aliceinwonderland.txt");
+    getInitialFreqs(&p_queue, letters, "./Text Files/aliceinwonderland.txt");
     huffman = buildHuffmanTree(&p_queue);
     returnHuffmanEncodings(huffman, letters, encoding, -1);
 
