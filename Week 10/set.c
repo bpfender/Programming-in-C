@@ -42,8 +42,6 @@ set* set_fromarray(arrtype* a, int n) {
 
 /* ------- Basic Operations ------- */
 void set_insert(set* s, arrtype l) {
-    int i;
-
     if (!set_contains(s, l)) {
         arr_set(s->ua, s->sz, l);
         s->sz++;
@@ -70,14 +68,15 @@ void set_remove(set* s, arrtype l) {
     arrtype val;
     arr* tmp = arr_init();
 
-    if (set_contain(s, l)) {
+    if (set_contains(s, l)) {
         for (i = 0; i < set_size(s); i++) {
-            if (val = arr_get(s->ua, i) != l) {
+            val = arr_get(s->ua, i);
+            if (val != l) {
                 arr_set(tmp, j, val);
                 j++;
             }
         }
-        arr_free(s->ua);
+        arr_free(&s->ua);
         s->ua = tmp;
         s->sz--;
     }
@@ -101,6 +100,8 @@ set* set_union(set* s1, set* s2) {
     for (i = 0; i < set_size(s2); i++) {
         set_insert(tmp, arr_get(s2->ua, i));
     }
+
+    return tmp;
 }
 
 set* set_intersection(set* s1, set* s2) {
@@ -115,16 +116,18 @@ set* set_intersection(set* s1, set* s2) {
 
     /* FIXME select smaller set */
     for (i = 0; i < set_size(minset); i++) {
-        val = arr_get(s1, i);
+        val = arr_get(minset->ua, i);
         if (set_contains(maxset, val)) {
             set_insert(tmp, val);
         }
     }
+
+    return tmp;
 }
 
 /* ------- Finish up ------- */
 void set_free(set** s) {
-    arr_free((*s)->ua);
+    arr_free(&(*s)->ua);
     free(*s);
     *s = NULL;
 }
