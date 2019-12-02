@@ -3,8 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-/*FIXME use setsize fucntion */
-
 set* set_init(void) {
     set* tmp = (set*)malloc(sizeof(set));
     if (!tmp) {
@@ -42,6 +40,10 @@ set* set_fromarray(arrtype* a, int n) {
 
 /* ------- Basic Operations ------- */
 void set_insert(set* s, arrtype l) {
+    if (!s) {
+        return;
+    }
+
     if (!set_contains(s, l)) {
         arr_set(s->ua, s->sz, l);
         s->sz++;
@@ -49,11 +51,15 @@ void set_insert(set* s, arrtype l) {
 }
 
 int set_size(set* s) {
-    return s->sz;
+    return s == NULL ? 0 : s->sz;
 }
 
 int set_contains(set* s, arrtype l) {
     int i;
+
+    if (!s) {
+        return 0;
+    }
 
     for (i = 0; i < set_size(s); i++) {
         if (arr_get(s->ua, i) == l) {
@@ -67,6 +73,10 @@ void set_remove(set* s, arrtype l) {
     int i, j = 0;
     arrtype val;
     arr* tmp = arr_init();
+
+    if (!s) {
+        return;
+    }
 
     if (set_contains(s, l)) {
         for (i = 0; i < set_size(s); i++) {
@@ -114,7 +124,6 @@ set* set_intersection(set* s1, set* s2) {
     minset = set_size(s1) > set_size(s2) ? s2 : s1;
     maxset = s1 == minset ? s2 : s1;
 
-    /* FIXME select smaller set */
     for (i = 0; i < set_size(minset); i++) {
         val = arr_get(minset->ua, i);
         if (set_contains(maxset, val)) {
@@ -127,7 +136,9 @@ set* set_intersection(set* s1, set* s2) {
 
 /* ------- Finish up ------- */
 void set_free(set** s) {
-    arr_free(&(*s)->ua);
-    free(*s);
-    *s = NULL;
+    if (s) {
+        arr_free(&(*s)->ua);
+        free(*s);
+        *s = NULL;
+    }
 }
