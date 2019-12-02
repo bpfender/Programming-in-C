@@ -1,4 +1,4 @@
-#include "./src/set.h"
+#include "set.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,7 +8,7 @@
 set* set_init(void) {
     set* tmp = (set*)malloc(sizeof(set));
     if (!tmp) {
-        ON_ERROR("Creation of set structure failed\n")
+        ON_ERROR("Creation of set failed\n");
     }
 
     tmp->ua = arr_init();
@@ -18,22 +18,23 @@ set* set_init(void) {
 }
 
 set* set_copy(set* s) {
+    int i;
     set* tmp = set_init();
-    memcpy(tmp->ua, s->ua, s->sz * sizeof(arr));
-    tmp->sz = s->sz;
+
+    for (i = 0; i < set_size(s); i++) {
+        set_insert(tmp, arr_get(s->ua, i));
+    }
 
     return tmp;
 }
 
 set* set_fromarray(arrtype* a, int n) {
-    size_t i, j = 0;
+    int i;
     set* tmp = set_init();
-    int val;
 
     for (i = 0; i < n; i++) {
-        val = a[i];
         /* Set insert already checks if value is in set */
-        set_insert(tmp, val);
+        set_insert(tmp, a[i]);
     }
 
     return tmp;
@@ -41,14 +42,12 @@ set* set_fromarray(arrtype* a, int n) {
 
 /* ------- Basic Operations ------- */
 void set_insert(set* s, arrtype l) {
-    size_t i;
+    int i;
 
-    if (set_contains(s, l)) {
-        return;
+    if (!set_contains(s, l)) {
+        arr_set(s->ua, s->sz, l);
+        s->sz++;
     }
-
-    s->sz++;
-    arr_set(s->ua, s->sz, l);
 }
 
 int set_size(set* s) {
@@ -56,10 +55,10 @@ int set_size(set* s) {
 }
 
 int set_contains(set* s, arrtype l) {
-    size_t i;
+    int i;
 
-    for (i = 0; i < s->sz; i++) {
-        if (arrget(s->ua, i) == l) {
+    for (i = 0; i < set_size(s); i++) {
+        if (arr_get(s->ua, i) == l) {
             return 1;
         }
     }
@@ -67,12 +66,12 @@ int set_contains(set* s, arrtype l) {
 }
 
 void set_remove(set* s, arrtype l) {
-    size_t i, j = 0;
+    int i, j = 0;
     arrtype val;
     arr* tmp = arr_init();
 
     if (set_contain(s, l)) {
-        for (i = 0; i < s->sz; i++) {
+        for (i = 0; i < set_size(s); i++) {
             if (val = arr_get(s->ua, i) != l) {
                 arr_set(tmp, j, val);
                 j++;
@@ -80,6 +79,7 @@ void set_remove(set* s, arrtype l) {
         }
         arr_free(s->ua);
         s->ua = tmp;
+        s->sz--;
     }
 }
 
@@ -92,7 +92,7 @@ arrtype set_removeone(set* s) {
 /* ------- Operations on 2 sets ------- */
 
 set* set_union(set* s1, set* s2) {
-    size_t i;
+    int i;
     set* tmp = set_init();
 
     for (i = 0; i < set_size(s1); i++) {
@@ -104,13 +104,19 @@ set* set_union(set* s1, set* s2) {
 }
 
 set* set_intersection(set* s1, set* s2) {
-    size_t i;
+    int i;
     set* tmp = set_init();
+
+    set *minset, *maxset;
     arrtype val;
 
-    for (i = 0; i < set_size(s1); i++) {
+    minset = set_size(s1) > set_size(s2) ? s2 : s1;
+    maxset = s1 == minset ? s2 : s1;
+
+    /* FIXME select smaller set */
+    for (i = 0; i < set_size(minset); i++) {
         val = arr_get(s1, i);
-        if (set_contains(s2, val)) {
+        if (set_contains(maxset, val)) {
             set_insert(tmp, val);
         }
     }
