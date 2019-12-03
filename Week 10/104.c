@@ -28,7 +28,7 @@ unsigned long djb2Hash(char* s, size_t size);
 void freeHashTable(hash_t** hashed);
 hash_t* initHashTable(size_t size);
 void addToHashTable(hash_t* hashed, char* s);
-hash_t* expandHashTable(hash_t* hashed);
+void expandHashTable(hash_t* hashed);
 size_t isPrime(size_t candidate);
 unsigned long secondaryHash(unsigned long hash);
 void insertString(char** dest, char* s);
@@ -42,12 +42,17 @@ void addToHashTable(hash_t* hashed, char* s) {
     unsigned long hash, probe;
     size_t index;
 
-    if (hashed->elem > (size_t)(hashed->size * 3 / 4)) {
-        hashed = expandHashTable(hashed);
+    if (hashed->elem >= (size_t)(hashed->size * 3 / 4)) {
+        expandHashTable(hashed);
     }
 
     index = hash = djb2Hash(s, hashed->size);
+
     if (hashed->string[index]) {
+        if (!strcmp(s, hashed->string[index])) {
+            return;
+        }
+
         probe = secondaryHash(hash);
         do {
             index = (index + probe) % hashed->size;
@@ -59,7 +64,7 @@ void addToHashTable(hash_t* hashed, char* s) {
 }
 
 void insertString(char** dest, char* s) {
-    *dest = (char*)malloc(sizeof(char) * strlen(s));
+    *dest = (char*)malloc(sizeof(char) * (strlen(s) + 1));
     if (!(*dest)) {
         ON_ERROR("Failed to allocate memory for string\n");
     }
@@ -67,25 +72,32 @@ void insertString(char** dest, char* s) {
 }
 
 /* TODO maybe rewrite this without a return value */
-hash_t* expandHashTable(hash_t* hashed) {
-    hash_t* tmp;
+void expandHashTable(hash_t* hashed) {
+    hash_t tmp;
     size_t i;
     size_t size = hashed->size * 4;
     while (!isPrime(size)) {
         size++;
     }
 
-    tmp = initHashTable(size);
+    tmp.string = hashed->string;
+    tmp.elem = hashed->elem;
+    tmp.size = hashed->size;
 
-    for (i = 0; i < hashed->size; i++) {
-        if (hashed->string[i]) {
-            addToHashTable(tmp, hashed->string[i]);
+    hashed->string = (char**)calloc(size, sizeof(char*));
+    if (!hashed->string) {
+        ON_ERROR("Error resizing hash table\n");
+    }
+    hashed->elem = 0;
+    hashed->size = size;
+
+    for (i = 0; i < tmp.size; i++) {
+        if (tmp.string[i]) {
+            addToHashTable(hashed, tmp.string[i]);
+            free(tmp.string[i]);
         }
     }
-
-    /* FIXME not totally sure about this free, does it update hashed properly?*/
-    freeHashTable(&hashed);
-    return tmp;
+    free(tmp.string);
 }
 
 hash_t* initHashTable(size_t size) {
@@ -109,11 +121,11 @@ void freeHashTable(hash_t** hashed) {
     size_t i;
     hash_t* p = *hashed;
 
-    for (i = 0; i < p->elem; i++) {
+    for (i = 0; i < p->size; i++) {
         free(p->string[i]);
     }
     free(p->string);
-    free(p);
+    free(*hashed);
     *hashed = NULL;
 }
 
@@ -152,6 +164,7 @@ size_t isPrime(size_t candidate) {
 }
 
 void test(void) {
+    size_t i;
     hash_t* hashed = initHashTable(HASH_TABLE);
 
     assert(hashed->size == HASH_TABLE);
@@ -160,6 +173,19 @@ void test(void) {
 
     freeHashTable(&hashed);
     assert(hashed == NULL);
+
+    hashed = initHashTable(11);
+    addToHashTable(hashed, "hello");
+
+    for (i = 0; i < hashed->size; i++) {
+        printf("%li: ", i);
+        if (hashed->string[i]) {
+            printf("%s  ", hashed->string[i]);
+        }
+    }
+    printf("\n");
+
+    freeHashTable(&hashed);
 
     hashed = initHashTable(11);
 
@@ -174,19 +200,27 @@ void test(void) {
 
     addToHashTable(hashed, "hello");
     assert(hashed->size == 11);
-    assert(hashed->elem == 2);
+    assert(hashed->elem == 1);
 
-    addToHashTable(hashed, "hello");
-    addToHashTable(hashed, "hello");
-    addToHashTable(hashed, "hello");
-    addToHashTable(hashed, "hello");
-    addToHashTable(hashed, "hello");
-    addToHashTable(hashed, "hello");
-    addToHashTable(hashed, "hello");
-    addToHashTable(hashed, "hello");
-    addToHashTable(hashed, "hello");
-    addToHashTable(hashed, "hello");
+    addToHashTable(hashed, "a");
+    addToHashTable(hashed, "b");
+    addToHashTable(hashed, "c");
+    addToHashTable(hashed, "d");
+    addToHashTable(hashed, "e");
+    addToHashTable(hashed, "f");
+    addToHashTable(hashed, "g");
+    addToHashTable(hashed, "h");
+    addToHashTable(hashed, "i");
+    addToHashTable(hashed, "j");
     assert(hashed->size == 47);
+
+    for (i = 0; i < hashed->size; i++) {
+        printf("%li: ", i);
+        if (hashed->string[i]) {
+            printf("%s  ", hashed->string[i]);
+        }
+    }
+    printf("\n");
 
     freeHashTable(&hashed);
 }
