@@ -4,12 +4,13 @@
 
 /* Hash table size doesn't need to be huge for good performance. 500 seems to 
  * be a fairly good compromise */
-#define HASH_TABLE 500
+#define HASH_TABLE 499
 /* djb2 Hash constants, defined based on reference below
  * http://www.cse.yorku.ca/~oz/hash.html
  */
 #define HASH 5381
 #define MAGIC 33
+#define PROBE_HASH 13
 
 #define ON_ERROR(str)     \
     fprintf(stderr, str); \
@@ -24,29 +25,67 @@ typedef struct hash_t {
 void test(void);
 unsigned long djb2Hash(char* s, size_t size);
 void freeHashTable(hash_t** hashed);
-hash_t* initHashTable(void);
+hash_t* initHashTable(size_t size);
 void addToHashTable(hash_t* hashed, char* s);
+hash_t* expandHashTable(hash_t* hashed);
+int isPrime(int candidate);
+unsigned long secondaryHash(unsigned long hash);
 
 int main(void) {
     return 0;
 }
 
 void addToHashTable(hash_t* hashed, char* s) {
+    unsigned long hash, probe;
+
+    if (hashed->elem > (size_t)(hashed->size * 0.75)) {
+        hashed = expandHashTable(hashed);
+    }
+
+    hash = djb2Hash(s, hashed->size);
+    if (hashed->string[hash]) {
+        probe = secondaryHash(hash);
+    }
 }
 
-hash_t* initHashTable(void) {
+void insertString(char* dest, char* s) {
+}
+
+/* TODO maybe rewrite this without a return value */
+hash_t* expandHashTable(hash_t* hashed) {
+    hash_t* tmp;
+    size_t i;
+    size_t size = hashed->size * 4;
+    while (!isPrime(size)) {
+        size++;
+    }
+
+    tmp = initHashTable(size);
+
+    for (i = 0; i < hashed->size; i++) {
+        if (hashed->string[i]) {
+            addToHashTable(tmp, hashed->string[i]);
+        }
+    }
+
+    /* FIXME not totally sure about this free, does it update hashed properly?*/
+    free(&hashed);
+    return tmp;
+}
+
+hash_t* initHashTable(size_t size) {
     hash_t* tmp = (hash_t*)malloc(sizeof(hash_t));
     if (!tmp) {
         ON_ERROR("Error allocating hash struct\n");
     }
 
-    tmp->string = (char**)calloc(HASH_TABLE, sizeof(char*));
+    tmp->string = (char**)calloc(size, sizeof(char*));
     if (!tmp->string) {
         ON_ERROR("Error allocating hash table\n");
     }
 
     tmp->elem = 0;
-    tmp->size = HASH_TABLE;
+    tmp->size = size;
 
     return tmp;
 }
@@ -74,8 +113,13 @@ unsigned long djb2Hash(char* s, size_t size) {
     return hash % size;
 }
 
+/* FIXME not totally sure about this */
+unsigned long secondaryHash(unsigned long hash) {
+    return hash - hash % PROBE_HASH;
+}
+
 void test(void) {
-    hash_t* hashed = initHashTable();
+    hash_t* hashed = initHashTable(HASH_TABLE);
 
     assert(hashed->size == HASH_TABLE);
     assert(hashed->elem == 0);
@@ -83,4 +127,22 @@ void test(void) {
 
     free(hashed);
     assert(hashed == NULL);
+}
+
+/* TODO could do with some optimisation */
+int isPrime(int candidate) {
+    int j;
+
+    if (candidate == 2) {
+        return 1;
+    }
+    if (candidate < 2 || candidate % 2 == 0) {
+        return 0;
+    }
+    for (j = 3; j <= candidate / 2; j += 2) {
+        if (candidate % j == 0) {
+            return 0;
+        }
+    }
+    return 1;
 }
