@@ -11,7 +11,7 @@
  */
 #define HASH 5381
 #define MAGIC 33
-#define PROBE_HASH 13
+#define PROBE_HASH 7
 
 #define ON_ERROR(str)     \
     fprintf(stderr, str); \
@@ -34,6 +34,7 @@ unsigned long secondaryHash(unsigned long hash);
 void insertString(char** dest, char* s);
 
 int main(void) {
+    test();
     return 0;
 }
 
@@ -49,11 +50,12 @@ void addToHashTable(hash_t* hashed, char* s) {
     if (hashed->string[index]) {
         probe = secondaryHash(hash);
         do {
-            index += probe;
+            index = (index + probe) % hashed->size;
         } while (hashed->string[index]);
     }
 
     insertString(&hashed->string[index], s);
+    hashed->elem++;
 }
 
 void insertString(char** dest, char* s) {
@@ -156,6 +158,35 @@ void test(void) {
     assert(hashed->elem == 0);
     assert(hashed->string[0] == NULL);
 
-    free(hashed);
+    freeHashTable(&hashed);
     assert(hashed == NULL);
+
+    hashed = initHashTable(11);
+
+    assert(hashed->size == 11);
+    assert(hashed->elem == 0);
+    assert(hashed->string[0] == NULL);
+
+    addToHashTable(hashed, "hello");
+
+    assert(hashed->size == 11);
+    assert(hashed->elem == 1);
+
+    addToHashTable(hashed, "hello");
+    assert(hashed->size == 11);
+    assert(hashed->elem == 2);
+
+    addToHashTable(hashed, "hello");
+    addToHashTable(hashed, "hello");
+    addToHashTable(hashed, "hello");
+    addToHashTable(hashed, "hello");
+    addToHashTable(hashed, "hello");
+    addToHashTable(hashed, "hello");
+    addToHashTable(hashed, "hello");
+    addToHashTable(hashed, "hello");
+    addToHashTable(hashed, "hello");
+    addToHashTable(hashed, "hello");
+    assert(hashed->size == 47);
+
+    freeHashTable(&hashed);
 }
