@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 /* Hash table size doesn't need to be huge for good performance. 500 seems to 
  * be a fairly good compromise */
@@ -28,8 +29,9 @@ void freeHashTable(hash_t** hashed);
 hash_t* initHashTable(size_t size);
 void addToHashTable(hash_t* hashed, char* s);
 hash_t* expandHashTable(hash_t* hashed);
-int isPrime(int candidate);
+size_t isPrime(size_t candidate);
 unsigned long secondaryHash(unsigned long hash);
+void insertString(char** dest, char* s);
 
 int main(void) {
     return 0;
@@ -37,18 +39,29 @@ int main(void) {
 
 void addToHashTable(hash_t* hashed, char* s) {
     unsigned long hash, probe;
+    size_t index;
 
-    if (hashed->elem > (size_t)(hashed->size * 0.75)) {
+    if (hashed->elem > (size_t)(hashed->size * 3 / 4)) {
         hashed = expandHashTable(hashed);
     }
 
-    hash = djb2Hash(s, hashed->size);
-    if (hashed->string[hash]) {
+    index = hash = djb2Hash(s, hashed->size);
+    if (hashed->string[index]) {
         probe = secondaryHash(hash);
+        do {
+            index += probe;
+        } while (hashed->string[index]);
     }
+
+    insertString(&hashed->string[index], s);
 }
 
-void insertString(char* dest, char* s) {
+void insertString(char** dest, char* s) {
+    *dest = (char*)malloc(sizeof(char) * strlen(s));
+    if (!(*dest)) {
+        ON_ERROR("Failed to allocate memory for string\n");
+    }
+    strcpy(*dest, s);
 }
 
 /* TODO maybe rewrite this without a return value */
@@ -69,7 +82,7 @@ hash_t* expandHashTable(hash_t* hashed) {
     }
 
     /* FIXME not totally sure about this free, does it update hashed properly?*/
-    free(&hashed);
+    freeHashTable(&hashed);
     return tmp;
 }
 
@@ -118,20 +131,9 @@ unsigned long secondaryHash(unsigned long hash) {
     return hash - hash % PROBE_HASH;
 }
 
-void test(void) {
-    hash_t* hashed = initHashTable(HASH_TABLE);
-
-    assert(hashed->size == HASH_TABLE);
-    assert(hashed->elem == 0);
-    assert(hashed->string[0] == NULL);
-
-    free(hashed);
-    assert(hashed == NULL);
-}
-
 /* TODO could do with some optimisation */
-int isPrime(int candidate) {
-    int j;
+size_t isPrime(size_t candidate) {
+    size_t j;
 
     if (candidate == 2) {
         return 1;
@@ -145,4 +147,15 @@ int isPrime(int candidate) {
         }
     }
     return 1;
+}
+
+void test(void) {
+    hash_t* hashed = initHashTable(HASH_TABLE);
+
+    assert(hashed->size == HASH_TABLE);
+    assert(hashed->elem == 0);
+    assert(hashed->string[0] == NULL);
+
+    free(hashed);
+    assert(hashed == NULL);
 }
