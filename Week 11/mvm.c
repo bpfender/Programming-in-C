@@ -13,6 +13,9 @@ mvmcell* mvm_findKey(mvm* m, char* key);
 mvmcell* mvmcell_init(size_t key_len, size_t data_len);
 void expandListBuffer(char** buffer, size_t size);
 char* initListBuffer(size_t size);
+mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key);
+void unloadNode(mvmcell* node);
+void unloadList(mvmcell* node);
 
 /* ------- FUNCTION BODIES ------ */
 mvm* mvm_init(void) {
@@ -35,23 +38,7 @@ void mvm_insert(mvm* m, char* key, char* data) {
     node->next = m->head;
 
     m->head = node;
-}
-
-char* initListBuffer(size_t size) {
-    /* FIXME is there a more clever way to initialise the buff size? */
-    char* tmp = (char*)malloc(sizeof(char) * size);
-    if (!tmp) {
-        ON_ERROR("Error allocating print buffer\n");
-    }
-    return tmp;
-}
-
-void expandListBuffer(char** buffer, size_t size) {
-    char* tmp = (char*)realloc(*buffer, size * sizeof(char));
-    if (!tmp) {
-        ON_ERROR("Error reallocating print buffer\n");
-    }
-    *buffer = tmp;
+    m->numkeys++;
 }
 
 /* TODO not particularly happy with this at the moment */
@@ -61,9 +48,8 @@ char* mvm_print(mvm* m) {
     char* buffer = initListBuffer(buffer_size);
 
     mvmcell* node = m->head;
-    int index = 0;
-    int increment;
-    char* tmp;
+    size_t index = 0;
+    size_t increment;
 
     while (node) {
         increment = strlen(node->key) + strlen(node->data) + 2 * BRACKET_CHARS;
@@ -82,10 +68,7 @@ char* mvm_print(mvm* m) {
 }
 
 void mvm_delete(mvm* m, char* key) {
-    mvmcell* node = m->head;
-
-    while (node) {
-    }
+    m->head = mvmcell_deleteHelper(m->head, key);
 }
 
 char* mvm_search(mvm* m, char* key) {
@@ -96,14 +79,14 @@ char* mvm_search(mvm* m, char* key) {
 
 /* return null pointer for robustness to mark end of list */
 char** mvm_multisearch(mvm* m, char* key, int* n) {
-    char** tmp;
+    int size = MULTI_SEARCH_LIST;
+    int index = 0;
+    mvmcell* node = m->head;
+
     char** list = (char**)malloc(sizeof(char*) * MULTI_SEARCH_LIST);
     if (!list) {
         ON_ERROR("Error allocating multi-search list\n");
     }
-    int size = MULTI_SEARCH_LIST;
-    int index = 0;
-    mvmcell* node = m->head;
 
     while (node) {
         if (!strcmp(node->key, key)) {
@@ -114,26 +97,26 @@ char** mvm_multisearch(mvm* m, char* key, int* n) {
         }
         node = node->next;
     }
+    *n = index;
+    return list;
 }
 
-/* QUESTION is it better to do these things recursively or not? In my mind
- * it's better to do this as a loop so you don't end up filling up the stack?
+/* QUESTION is it better to do these things recursively or not? 
  */
 void mvm_free(mvm** p) {
     mvm* m = *p;
-    mvmcell* curr;
-    mvmcell* next = m->head;
 
-    while (next) {
-        curr = next;
-        next = curr->next;
-        free(curr->key);
-        free(curr->data);
-        free(curr);
-    }
-
+    unloadList(m->head);
     free(m);
     *p = NULL;
+}
+
+void unloadList(mvmcell* node) {
+    if (node == NULL) {
+        return;
+    }
+    unloadList(node->next);
+    unloadNode(node);
 }
 
 /* ------ HELPER FUNCTIONS ------ */
@@ -172,4 +155,44 @@ void* mallocHandler(size_t nmemb, size_t size) {
         ON_ERROR("Memory allocation error\n");
     }
     return tmp;
+}
+
+char* initListBuffer(size_t size) {
+    /* FIXME is there a more clever way to initialise the buff size? */
+    char* tmp = (char*)malloc(sizeof(char) * size);
+    if (!tmp) {
+        ON_ERROR("Error allocating print buffer\n");
+    }
+    return tmp;
+}
+
+void expandListBuffer(char** buffer, size_t size) {
+    char* tmp = (char*)realloc(*buffer, size * sizeof(char));
+    if (!tmp) {
+        ON_ERROR("Error reallocating print buffer\n");
+    }
+    *buffer = tmp;
+}
+
+/* FIXME is this the best solution */
+mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key) {
+    mvmcell* tmp;
+
+    if (node == NULL) {
+        return NULL;
+    } else if (!strcmp(node->key, key)) {
+        tmp = node->next;
+        unloadNode(node);
+        /* Continue to call function to iterate through whole list for duplicates */
+        return mvmcell_deleteHelper(tmp, key);
+    } else {
+        node->next = mvmcell_deleteHelper(node->next, key);
+        return node;
+    }
+}
+
+void unloadNode(mvmcell* node) {
+    free(node->data);
+    free(node->key);
+    free(node);
 }
