@@ -10,16 +10,18 @@ A resizeable. variable-type indexed array ADT. Here:
 */
 
 /* What to do on error */
-#define ON_ERROR(STR) fprintf(stderr, STR); exit(EXIT_FAILURE)
+#define ON_ERROR(STR)     \
+    fprintf(stderr, STR); \
+    exit(EXIT_FAILURE)
 
 /* Main structure to implement array :
    data : pointer to start of memeory block
    pz   : current (max) size of array (in terms of elements)
    elsz : sizeof(element) */
 struct arr {
-   void* data;
-   int pz;
-   int elsz;
+    void* data;
+    int pz;
+    int elsz;
 };
 typedef struct arr arr;
 
@@ -27,11 +29,11 @@ typedef struct arr arr;
 arr* arr_init(int elementsize);
 /* Similar to l[n] = i, safely resizing if required */
 /* data from v is copied into array */
-void arr_set(arr *l, int n, void* v);
+void arr_set(arr* l, int n, void* v);
 /* Similar to = l[n] */
 /* pointer into array is returned */
-void* arr_get(arr *l, int n);
+void* arr_get(arr* l, int n);
 /* Clears all space used, and sets pointer to NULL */
-void arr_free(arr **l);
+void arr_free(arr** l);
 
 #endif

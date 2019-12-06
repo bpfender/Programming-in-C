@@ -48,7 +48,7 @@ size_t getLine(char** buffer, size_t* size, FILE* file) {
        based on how far into the file has been read. Allows for dyanmic resizing
        of buffer. The while loop handles \n characters. If EOF is reached, while
        loop will exit */
-    while (fgets(*buffer + i, *size - i, file)) {
+    while (fgets(*buffer + i, (int)(*size - i), file)) {
         /* Get number of characters read */
         i = ftell(file) - file_pos;
 

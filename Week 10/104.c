@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "../Week 9/fileio.c"
 
 /* Hash table size doesn't need to be huge for good performance. 500 seems to 
  * be a fairly good compromise */
@@ -30,12 +31,16 @@ hash_t* initHashTable(size_t size);
 void addToHashTable(hash_t* hashed, char* s);
 void expandHashTable(hash_t* hashed);
 size_t isPrime(size_t candidate);
-unsigned long secondaryHash(unsigned long hash);
+unsigned long secondaryHash(char* s);
 void insertString(char** dest, char* s);
 
 int main(void) {
     test();
     return 0;
+}
+
+void loadDictionary(hash_t* hashed, char* file){
+
 }
 
 void addToHashTable(hash_t* hashed, char* s) {
@@ -49,11 +54,13 @@ void addToHashTable(hash_t* hashed, char* s) {
     index = hash = djb2Hash(s, hashed->size);
 
     if (hashed->string[index]) {
+        /* Duplicates get ignored */
         if (!strcmp(s, hashed->string[index])) {
             return;
         }
 
-        probe = secondaryHash(hash);
+        /* QUESTION would it be worth checking if the probe has looped? */
+        probe = secondaryHash(s);
         do {
             index = (index + probe) % hashed->size;
         } while (hashed->string[index]);
@@ -141,7 +148,13 @@ unsigned long djb2Hash(char* s, size_t size) {
 }
 
 /* FIXME not totally sure about this */
-unsigned long secondaryHash(unsigned long hash) {
+unsigned long secondaryHash(char* s) {
+    size_t i;
+    unsigned long hash = 0;
+
+    for (i = 0; s[i] != '\0'; i++) {
+        hash += (unsigned long)s[i];
+    }
     return hash - hash % PROBE_HASH;
 }
 
@@ -182,6 +195,7 @@ void test(void) {
         if (hashed->string[i]) {
             printf("%s  ", hashed->string[i]);
         }
+        printf("\n");
     }
     printf("\n");
 
@@ -219,6 +233,7 @@ void test(void) {
         if (hashed->string[i]) {
             printf("%s  ", hashed->string[i]);
         }
+        printf("\n");
     }
     printf("\n");
 

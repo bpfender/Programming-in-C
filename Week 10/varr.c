@@ -35,7 +35,7 @@ void arr_set(arr* l, int n, void* v) {
         if (!tmp) {
             ON_ERROR("Array resize failed\n");
         }
-        /* QUESTION is this the correct way to do this? */
+        /* QUESTION is this the correct way to do this? because char* is just 1 size*/
         memcpy((char*)tmp + n * l->elsz, v, l->elsz);
         l->data = tmp;
     }
