@@ -3,9 +3,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define BUFF_SIZE 50
+/* TODO REDEFINE TO MORE SENSIBLE SIZE */
+#define BUFF_SIZE 5
 #define BRACKET_CHARS 2
-#define MULTI_SEARCH_LIST 4
+#define SPACE 1
+#define MULTI_SEARCH_LIST 2
 
 /* ------ HELPER FUNCTION DECLARATIONS ------ */
 /* These functions do not need to be exposed to the user */
@@ -13,7 +15,7 @@ mvmcell* mvm_findKey(mvm* m, char* key);
 mvmcell* mvmcell_init(size_t key_len, size_t data_len);
 void expandListBuffer(char** buffer, size_t size);
 char* initListBuffer(size_t size);
-mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key);
+mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key, int* deleted);
 void unloadNode(mvmcell* node);
 void unloadList(mvmcell* node);
 
@@ -27,11 +29,18 @@ mvm* mvm_init(void) {
 }
 
 int mvm_size(mvm* m) {
-    return m->numkeys;
+    return m ? m->numkeys : 0;
 }
 
 void mvm_insert(mvm* m, char* key, char* data) {
-    mvmcell* node = mvmcell_init(strlen(key) + 1, strlen(data) + 1);
+    mvmcell* node;
+
+    /* FIXME error checking is not pretty */
+    if (!(m && key && data)) {
+        return;
+    }
+
+    node = mvmcell_init(strlen(key) + 1, strlen(data) + 1);
 
     strcpy(node->key, key);
     strcpy(node->data, data);
@@ -52,28 +61,35 @@ char* mvm_print(mvm* m) {
     size_t increment;
 
     while (node) {
-        increment = strlen(node->key) + strlen(node->data) + 2 * BRACKET_CHARS;
+        increment = strlen(node->key) + strlen(node->data) + 2 * BRACKET_CHARS + SPACE;
 
         /* FIXME check this resizing routine and error checking */
-        if (index + increment > buffer_size) {
-            buffer_size = index - buffer_size + buffer_size * 2;
+        if (index + increment >= buffer_size) {
+            buffer_size = (index + increment) * 2;
             expandListBuffer(&buffer, buffer_size);
         }
 
-        sprintf(buffer + index, "[%s](%s) ", node->key, node->key);
+        sprintf(buffer + index, "[%s](%s) ", node->key, node->data);
         index += increment;
         node = node->next;
     }
+    printf("%s\n", buffer);
     return buffer;
 }
 
 void mvm_delete(mvm* m, char* key) {
-    m->head = mvmcell_deleteHelper(m->head, key);
+    int deleted = 0;
+
+    if (!(key && m)) {
+        return;
+    }
+
+    m->head = mvmcell_deleteHelper(m->head, key, &deleted);
+    m->numkeys -= deleted;
 }
 
 char* mvm_search(mvm* m, char* key) {
     mvmcell* node = mvm_findKey(m, key);
-
     return node ? node->data : NULL;
 }
 
@@ -81,6 +97,7 @@ char* mvm_search(mvm* m, char* key) {
 char** mvm_multisearch(mvm* m, char* key, int* n) {
     int size = MULTI_SEARCH_LIST;
     int index = 0;
+
     mvmcell* node = m->head;
 
     char** list = (char**)malloc(sizeof(char*) * MULTI_SEARCH_LIST);
@@ -90,9 +107,10 @@ char** mvm_multisearch(mvm* m, char* key, int* n) {
 
     while (node) {
         if (!strcmp(node->key, key)) {
-            strcpy(*(list + index), node->data);
+            *(list + index) = node->data;
             index++;
             if (index >= size) {
+                /* TODO reallocing list array */
             }
         }
         node = node->next;
@@ -167,7 +185,7 @@ char* initListBuffer(size_t size) {
 }
 
 void expandListBuffer(char** buffer, size_t size) {
-    char* tmp = (char*)realloc(*buffer, size * sizeof(char));
+    char* tmp = (char*)realloc(*buffer, sizeof(char) * size);
     if (!tmp) {
         ON_ERROR("Error reallocating print buffer\n");
     }
@@ -175,7 +193,9 @@ void expandListBuffer(char** buffer, size_t size) {
 }
 
 /* FIXME is this the best solution */
-mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key) {
+/* THis just deleted the first item found to conform to testing in test fikle */
+/* FIXME could deleted be passed as part of mvm* */
+mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key, int* deleted) {
     mvmcell* tmp;
 
     if (node == NULL) {
@@ -183,10 +203,10 @@ mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key) {
     } else if (!strcmp(node->key, key)) {
         tmp = node->next;
         unloadNode(node);
-        /* Continue to call function to iterate through whole list for duplicates */
-        return mvmcell_deleteHelper(tmp, key);
+        (*deleted)++;
+        return tmp;
     } else {
-        node->next = mvmcell_deleteHelper(node->next, key);
+        node->next = mvmcell_deleteHelper(node->next, key, deleted);
         return node;
     }
 }
