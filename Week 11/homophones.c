@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "mvm.h"
 
 #define BUFF_SIZE 20
@@ -13,7 +14,7 @@
 size_t getLine(char** buffer, size_t* size, FILE* file);
 FILE* openFile(char* filename);
 
-void loadDictionary(mvm* map1, mvm* map2);
+void loadDictionary(mvm* map1, mvm* map2, int n);
 char* parseWord(char* line);
 char* parsePhenome(char* line, size_t len, int n);
 
@@ -23,17 +24,29 @@ int main(void) {
     test();
 }
 
-void loadDictionary(mvm* map1, mvm* map2) {
+/* FIXME is it bad to just operate directly on the buffer line */
+void loadDictionary(mvm* map1, mvm* map2, int n) {
     FILE* file = openFile("./cmudict.txt");
     char* buffer = NULL;
     size_t size;
     size_t len;
+    char *word, *phenome;
 
     while ((len = getLine(&buffer, &size, file))) {
+        word = parseWord(buffer);
+        phenome = parsePhenome(buffer, len, n);
+        mvm_insert(map1, word, phenome);
+        mvm_insert(map2, phenome, word);
     }
 
     free(buffer);
     fclose(file);
+}
+
+void truncateLine(char* line, size_t len) {
+    if (line[len - 1] == '\n') {
+        line[len - 1] = '\0';
+    }
 }
 
 /* FIXME why allocate new memory. However could be written slightly more clearly*/
@@ -53,8 +66,17 @@ char* parseWord(char* line) {
 /* FIXME error handling*/
 char* parsePhenome(char* line, size_t len, int n) {
     size_t i;
-    for (i = len - 1; i = 0; i++) {
+    int count = 0;
+
+    for (i = len - 1; i != 0; i--) {
+        if (line[i] == ' ') {
+            count++;
+            if (count == n) {
+                return line + i + 1;
+            }
+        }
     }
+    return NULL;
 }
 
 FILE* openFile(char* filename) {
@@ -118,4 +140,8 @@ size_t getLine(char** buffer, size_t* size, FILE* file) {
 }
 
 void test(void) {
+    char string[25] = "STANO#S T AA1 N OW0";
+    size_t len = strlen(string);
+    printf("%s\n", parseWord(string));
+    printf("%s\n", parsePhenome(string, len, 3));
 }
