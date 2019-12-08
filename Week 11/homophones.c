@@ -4,17 +4,26 @@
 #include <string.h>
 #include "mvm.h"
 
+/* FIXME capitalisation of all words and dictionary */
+
 #define BUFF_SIZE 20
 #define BUFF_FACT 4
 
+#define ON_ERROR(STR)     \
+    fprintf(stderr, STR); \
+    exit(EXIT_FAILURE)
 #define STR_END(s) (s == '\0' || s == '\n')
 
 /* TODO check types in all files */
 
+typedef enum line_t { LF,
+                      CRLF,
+                      CR } line_t;
+
 size_t getLine(char** buffer, size_t* size, FILE* file);
 FILE* openFile(char* filename);
 
-void loadDictionary(mvm* map1, mvm* map2, int n);
+/*void loadDictionary(mvm* map1, mvm* map2, int n);*/
 char* parseWord(char* line);
 char* parsePhenome(char* line, size_t len, int n);
 
@@ -103,10 +112,9 @@ size_t getLine(char** buffer, size_t* size, FILE* file) {
     /* If buffer has not been initialised, buffer is malloced and size is set */
     if (!*buffer) {
         *size = BUFF_SIZE;
-        *buffer = (char*)malloc(BUFF_SIZE * sizeof(char));
+        *buffer = (char*)malloc(sizeof(char) * BUFF_SIZE);
         if (!*buffer) {
-            fprintf(stderr, "Memory allocation failed\n");
-            exit(EXIT_FAILURE);
+            ON_ERROR("Line buffer allocation failed\n");
         }
     }
 
@@ -119,17 +127,27 @@ size_t getLine(char** buffer, size_t* size, FILE* file) {
         i = ftell(file) - file_pos;
 
         /* Check whether last read character was a \n or eof reached*/
-        if ((*buffer)[i - 1] == '\n' || feof(file)) {
+        /* FIXME this line end check is super dirty at the moment write functino to check line end*/
+        /* QUESTION how does C read the newline character? */
+        if ((*buffer)[i - 1] == '\n') {
+            if ((*buffer)[i - 2] == '\r') {
+                (*buffer)[i - 2] = '\0';
+                return i - 2;
+            }
+
+            (*buffer)[i - 1] = '\0';
+            return i - 1;
+
+        } else if (feof(file)) {
             return i;
         }
         /* Check that buffer hasn't been filled. If it has expand, so rest of
            of the line can be read in */
         if (!(i < *size - 1)) {
             *size *= BUFF_FACT;
-            tmp = realloc(*buffer, *size * sizeof(char));
+            tmp = realloc(*buffer, sizeof(char) * *size);
             if (!*tmp) {
-                fprintf(stderr, "Memory allocation failed\n");
-                exit(EXIT_FAILURE);
+                ON_ERROR("Line buffer reallocation failed\n");
             }
             *buffer = tmp;
         }
@@ -140,8 +158,20 @@ size_t getLine(char** buffer, size_t* size, FILE* file) {
 }
 
 void test(void) {
-    char string[25] = "STANO#S T AA1 N OW0";
-    size_t len = strlen(string);
-    printf("%s\n", parseWord(string));
-    printf("%s\n", parsePhenome(string, len, 3));
+    char* buffer = NULL;
+    size_t buffer_size;
+    size_t line_len;
+    FILE* file;
+
+    file = openFile("cmudict.txt");
+    line_len = getLine(&buffer, &buffer_size, file);
+    assert(strcmp(buffer, "STANO#S T AA1 N OW0") == 0);
+
+    assert(strcmp(parseWord(buffer), "STANO") == 0);
+    assert(strcmp(parsePhenome(buffer, line_len, 3), "AA1 N OW0") == 0);
+
+    fclose(file);
+    free(buffer);
+
+    printf("Test End\n");
 }
