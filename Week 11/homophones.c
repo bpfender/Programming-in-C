@@ -5,6 +5,9 @@
 #include "mvm.h"
 
 /* FIXME capitalisation of all words and dictionary */
+/* FIXME default N value of 3 */
+/* FIXME handling number of phenomes */
+/* FIXME what other edge cases might there be? */
 
 #define BUFF_SIZE 20
 #define BUFF_FACT 4
@@ -26,6 +29,9 @@ FILE* openFile(char* filename);
 /*void loadDictionary(mvm* map1, mvm* map2, int n);*/
 char* parseWord(char* line);
 char* parsePhenome(char* line, size_t len, int n);
+char** findRhymes(mvm* map2, char* phenome, int* n);
+void loadDictionary(mvm* map1, mvm* map2, int n);
+void printRhymes(mvm* map1, mvm* map2, char* word);
 
 void test(void);
 
@@ -52,10 +58,22 @@ void loadDictionary(mvm* map1, mvm* map2, int n) {
     fclose(file);
 }
 
-void truncateLine(char* line, size_t len) {
-    if (line[len - 1] == '\n') {
-        line[len - 1] = '\0';
+void printRhymes(mvm* map1, mvm* map2, char* word) {
+    int n = 0;
+    int i;
+    char* phenome = mvm_search(map1, word);
+    char** rhymes = findRhymes(map2, phenome, &n);
+
+    printf("%s (%s): ", word, phenome);
+    for (i = 0; i < n; i++) {
+        printf("%s ", rhymes[i]);
     }
+    printf("\n");
+}
+
+char** findRhymes(mvm* map2, char* phenome, int* n) {
+    char** rhymes = mvm_multisearch(map2, phenome, n);
+    return rhymes;
 }
 
 /* FIXME why allocate new memory. However could be written slightly more clearly*/
@@ -73,6 +91,7 @@ char* parseWord(char* line) {
 }
 
 /* FIXME error handling*/
+/* FIXME needs handling of longer n specifier than phenomes, this is horrible at the moment */
 char* parsePhenome(char* line, size_t len, int n) {
     size_t i;
     int count = 0;
@@ -80,11 +99,12 @@ char* parsePhenome(char* line, size_t len, int n) {
     for (i = len - 1; i != 0; i--) {
         if (line[i] == ' ') {
             count++;
-            if (count == n) {
-                return line + i + 1;
-            }
+        }
+        if (count == n || line[i] == '\0') {
+            return line + i + 1;
         }
     }
+
     return NULL;
 }
 
@@ -163,6 +183,11 @@ void test(void) {
     size_t line_len;
     FILE* file;
 
+    mvm* map1 = mvm_init();
+    mvm* map2 = mvm_init();
+
+    printf("Test start...\n");
+
     file = openFile("cmudict.txt");
     line_len = getLine(&buffer, &buffer_size, file);
     assert(strcmp(buffer, "STANO#S T AA1 N OW0") == 0);
@@ -172,6 +197,14 @@ void test(void) {
 
     fclose(file);
     free(buffer);
+
+    loadDictionary(map1, map2, 1);
+    printf("%s\n", mvm_search(map1, "BOY"));
+
+    printRhymes(map1, map2, "BOY");
+
+    mvm_free(&map1);
+    mvm_free(&map2);
 
     printf("Test End\n");
 }
