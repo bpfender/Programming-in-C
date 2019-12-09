@@ -4,16 +4,18 @@
 #include <string.h>
 
 /* FIXME check types used */
+/* TODO check error handling on NULL inputs, can this be cleaned up? */
+/* TODO generic malloc function? */
 
 /* TODO REDEFINE TO MORE SENSIBLE SIZE */
 #define AVE_CHARS 10
-#define BUFF_FACT 2
+#define FACTOR 2
 #define PRNT_STR_CHARS "()[] "
-#define MULTI_SEARCH_LIST 2
+#define MULTI_SEARCH_LIST 5
 
 /* ------ HELPER FUNCTION DECLARATIONS ------ */
 /* These functions do not need to be exposed to the user */
-mvmcell* mvm_findKey(mvm* m, char* key);
+mvmcell* mvm_findKey(mvmcell* head, char* key);
 mvmcell* mvmcell_init(size_t key_len, size_t data_len);
 void expandListBuffer(char** buffer, size_t size);
 char* initListBuffer(size_t size);
@@ -64,34 +66,37 @@ void mvm_insert(mvm* m, char* key, char* data) {
  * GNU extension 
  */
 char* mvm_print(mvm* m) {
-    /* TODO is there a more steamlined method for this initialisation ? */
-    size_t buffer_size = AVE_CHARS * m->numkeys;
-    char* buffer = initListBuffer(buffer_size);
+    if (m) {
+        /* TODO is there a more steamlined method for this initialisation ? */
+        size_t buffer_size = AVE_CHARS * m->numkeys;
+        char* buffer = initListBuffer(buffer_size);
 
-    size_t curr_index = 0, next_index = 0;
+        size_t curr_index = 0, next_index = 0;
 
-    mvmcell* node = m->head;
+        mvmcell* node = m->head;
 
-    /* Loop first checks length of string to be appended to ensure it can fit
+        /* Loop first checks length of string to be appended to ensure it can fit
        the buffer. If required, buffer is expanded and string is then added to
        the buffer */
-    while (node) {
-        next_index += strlen(node->key) + strlen(node->data) + strlen(PRNT_STR_CHARS);
+        while (node) {
+            next_index += strlen(node->key) + strlen(node->data) + strlen(PRNT_STR_CHARS);
 
-        /* Check with "+ 1" to ensure there is space for NUll terminator if this
+            /* Check with "+ 1" to ensure there is space for NUll terminator if this
          * is the final appended string */
-        if (next_index + 1 >= buffer_size) {
-            buffer_size = next_index * BUFF_FACT;
-            expandListBuffer(&buffer, buffer_size);
+            if (next_index + 1 >= buffer_size) {
+                buffer_size = next_index * FACTOR;
+                expandListBuffer(&buffer, buffer_size);
+            }
+
+            sprintf(buffer + curr_index, "[%s](%s) ", node->key, node->data);
+
+            curr_index = next_index;
+            node = node->next;
         }
 
-        sprintf(buffer + curr_index, "[%s](%s) ", node->key, node->data);
-
-        curr_index = next_index;
-        node = node->next;
+        return buffer;
     }
-
-    return buffer;
+    return NULL;
 }
 
 /* This is currently defined to delete only one key at a time in order to past
@@ -110,35 +115,44 @@ void mvm_delete(mvm* m, char* key) {
  * pointed to the data stores in the MVM. Returns NULL if the key is not found
  */
 char* mvm_search(mvm* m, char* key) {
-    mvmcell* node = mvm_findKey(m, key);
+    mvmcell* node = mvm_findKey(m->head, key);
 
     return node ? node->data : NULL;
 }
 
 /* return null pointer for robustness to mark end of list */
 char** mvm_multisearch(mvm* m, char* key, int* n) {
-    int size = MULTI_SEARCH_LIST;
-    int curr_index = 0;
+    /* Sense check on input */
+    if (m && key && n) {
+        int size = MULTI_SEARCH_LIST;
+        int curr_index = 0;
 
-    mvmcell* node = m->head;
+        mvmcell* node = m->head;
 
-    char** list = (char**)malloc(sizeof(char*) * MULTI_SEARCH_LIST);
-    if (!list) {
-        ON_ERROR("Error allocating multi-search list\n");
-    }
+        char** list = (char**)malloc(sizeof(char*) * MULTI_SEARCH_LIST);
+        if (!list) {
+            ON_ERROR("Error allocating multi-search list\n");
+        }
 
-    while (node) {
-        if (!strcmp(node->key, key)) {
+        while ((node = mvm_findKey(node, key))) {
             *(list + curr_index) = node->data;
             curr_index++;
+
             if (curr_index >= size) {
-                /* TODO reallocing list array */
+                size *= FACTOR;
+                list = (char**)realloc(list, sizeof(char*) * size);
             }
+
+            /* Move to next node so mvm_findKey() doesn't search same node
+               again */
+            node = node->next;
         }
-        node = node->next;
+
+        *n = curr_index;
+        return list;
     }
-    *n = curr_index;
-    return list;
+
+    return NULL;
 }
 
 /* QUESTION is it better to do these things recursively or not? 
@@ -171,8 +185,8 @@ mvmcell* mvmcell_init(size_t key_len, size_t data_len) {
  * returns NULL. Pointing to the node, allows continue searching in the
  * multi-search function
  */
-mvmcell* mvm_findKey(mvm* m, char* key) {
-    mvmcell* node = m->head;
+mvmcell* mvm_findKey(mvmcell* head, char* key) {
+    mvmcell* node = head;
 
     while (node) {
         if (!strcmp(node->key, key)) {
