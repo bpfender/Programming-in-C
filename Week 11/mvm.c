@@ -18,8 +18,8 @@ mvmcell* mvmcell_init(size_t key_len, size_t data_len);
 void expandListBuffer(char** buffer, size_t size);
 char* initListBuffer(size_t size);
 mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key, mvm* m);
-void unloadNode(mvmcell* node);
-void unloadList(mvmcell* node);
+void mvmcell_unloadNode(mvmcell* node);
+void mvmcell_unloadList(mvmcell* node);
 
 /* ------- FUNCTION BODIES ------ */
 /* Initialises mvm ADT with calloc to make sure everything is zeroed
@@ -105,9 +105,13 @@ void mvm_delete(mvm* m, char* key) {
     }
 }
 
-/* FIXME unclear if this should return a pointer to origninal data or a copy */
+/* A little unclear from the spec if this is supposed o copy. Based on the fact
+ * the testing doesn't free this, indicated that it is just supposed to be a
+ * pointed to the data stores in the MVM. Returns NULL if the key is not found
+ */
 char* mvm_search(mvm* m, char* key) {
     mvmcell* node = mvm_findKey(m, key);
+
     return node ? node->data : NULL;
 }
 
@@ -142,17 +146,9 @@ char** mvm_multisearch(mvm* m, char* key, int* n) {
 void mvm_free(mvm** p) {
     mvm* m = *p;
 
-    unloadList(m->head);
+    mvmcell_unloadList(m->head);
     free(m);
     *p = NULL;
-}
-
-void unloadList(mvmcell* node) {
-    if (node == NULL) {
-        return;
-    }
-    unloadList(node->next);
-    unloadNode(node);
 }
 
 /* ------ HELPER FUNCTIONS ------ */
@@ -171,6 +167,10 @@ mvmcell* mvmcell_init(size_t key_len, size_t data_len) {
     return node;
 }
 
+/* Returns pointer to mvmcell node where key is found. If the key doesn't exist
+ * returns NULL. Pointing to the node, allows continue searching in the
+ * multi-search function
+ */
 mvmcell* mvm_findKey(mvm* m, char* key) {
     mvmcell* node = m->head;
 
@@ -206,7 +206,6 @@ void expandListBuffer(char** buffer, size_t size) {
  * returns address of next node to previous call, in turn removing the specified
  * node 
  */
-/* FIXME could deleted be passed as part of mvm* */
 mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key, mvm* m) {
     mvmcell* tmp;
 
@@ -214,7 +213,7 @@ mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key, mvm* m) {
         return NULL;
     } else if (!strcmp(node->key, key)) {
         tmp = node->next;
-        unloadNode(node);
+        mvmcell_unloadNode(node);
         m->numkeys--;
         return tmp;
     } else {
@@ -223,7 +222,19 @@ mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key, mvm* m) {
     }
 }
 
-void unloadNode(mvmcell* node) {
+/* Recursive function to unload linked list
+ */
+void mvmcell_unloadList(mvmcell* node) {
+    if (node == NULL) {
+        return;
+    }
+    mvmcell_unloadList(node->next);
+    mvmcell_unloadNode(node);
+}
+
+/* Unload node helper that frees all parts of the mvmcell LL node
+ */
+void mvmcell_unloadNode(mvmcell* node) {
     free(node->data);
     free(node->key);
     free(node);
