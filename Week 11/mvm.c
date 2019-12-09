@@ -17,7 +17,7 @@ mvmcell* mvm_findKey(mvm* m, char* key);
 mvmcell* mvmcell_init(size_t key_len, size_t data_len);
 void expandListBuffer(char** buffer, size_t size);
 char* initListBuffer(size_t size);
-mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key, int* deleted);
+mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key, mvm* m);
 void unloadNode(mvmcell* node);
 void unloadList(mvmcell* node);
 
@@ -76,7 +76,6 @@ char* mvm_print(mvm* m) {
        the buffer. If required, buffer is expanded and string is then added to
        the buffer */
     while (node) {
-        /* FIXME is this super dirty ("[]() ")? */
         next_index += strlen(node->key) + strlen(node->data) + strlen(PRNT_STR_CHARS);
 
         /* Check with "+ 1" to ensure there is space for NUll terminator if this
@@ -95,15 +94,15 @@ char* mvm_print(mvm* m) {
     return buffer;
 }
 
+/* This is currently defined to delete only one key at a time in order to past
+ * test cases in "testmvm.c". Recursive helper "deleteHelper" could easily be
+ * modified to delete all occurences of a key
+ */
 void mvm_delete(mvm* m, char* key) {
-    int deleted = 0;
-
-    if (!(key && m)) {
-        return;
+    /* Check for valid input before doing anything */
+    if (key && m) {
+        m->head = mvmcell_deleteHelper(m->head, key, m);
     }
-
-    m->head = mvmcell_deleteHelper(m->head, key, &deleted);
-    m->numkeys -= deleted;
 }
 
 /* FIXME unclear if this should return a pointer to origninal data or a copy */
@@ -202,10 +201,13 @@ void expandListBuffer(char** buffer, size_t size) {
     *buffer = tmp;
 }
 
-/* FIXME is this the best solution */
-/* THis just deleted the first item found to conform to testing in test fikle */
+/* Recursive helper function to delete element from linked list. Currently just
+ * deletes the first item found to conform to testing in "testmvm.c". Function
+ * returns address of next node to previous call, in turn removing the specified
+ * node 
+ */
 /* FIXME could deleted be passed as part of mvm* */
-mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key, int* deleted) {
+mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key, mvm* m) {
     mvmcell* tmp;
 
     if (node == NULL) {
@@ -213,10 +215,10 @@ mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key, int* deleted) {
     } else if (!strcmp(node->key, key)) {
         tmp = node->next;
         unloadNode(node);
-        (*deleted)++;
+        m->numkeys--;
         return tmp;
     } else {
-        node->next = mvmcell_deleteHelper(node->next, key, deleted);
+        node->next = mvmcell_deleteHelper(node->next, key, m);
         return node;
     }
 }
