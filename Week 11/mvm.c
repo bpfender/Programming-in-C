@@ -3,10 +3,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* FIXME check types used */
+
 /* TODO REDEFINE TO MORE SENSIBLE SIZE */
 #define BUFF_SIZE 5
-#define BRACKET_CHARS 2
-#define SPACE 1
+#define BUFF_FACT 2
 #define MULTI_SEARCH_LIST 2
 
 /* ------ HELPER FUNCTION DECLARATIONS ------ */
@@ -20,6 +21,8 @@ void unloadNode(mvmcell* node);
 void unloadList(mvmcell* node);
 
 /* ------- FUNCTION BODIES ------ */
+/* Initialises mvm ADT with calloc to make sure everything is zeroed
+ */
 mvm* mvm_init(void) {
     mvm* tmp = (mvm*)calloc(1, sizeof(mvm));
     if (!tmp) {
@@ -28,52 +31,64 @@ mvm* mvm_init(void) {
     return tmp;
 }
 
+/* Returns 0 if m is null, or the "numkeys" value stored in m 
+ */
 int mvm_size(mvm* m) {
     return m ? m->numkeys : 0;
 }
 
+/* Insert element at head of linked list stored in mvm ADT. Does nothing when
+ * given an invalid input */
 void mvm_insert(mvm* m, char* key, char* data) {
     mvmcell* node;
 
-    /* FIXME error checking is not pretty */
-    if (!(m && key && data)) {
-        return;
+    /* Check that no NULL values have been passed as arguments. If valid
+       build the node, other wise just return and do nothing */
+    if (m && key && data) {
+        /* Build node */
+        /* QUESTION does it make more sense to have +1 here or in init? */
+        node = mvmcell_init(strlen(key) + 1, strlen(data) + 1);
+        strcpy(node->key, key);
+        strcpy(node->data, data);
+
+        /* Update linked list */
+        node->next = m->head;
+        m->head = node;
+        m->numkeys++;
     }
-
-    node = mvmcell_init(strlen(key) + 1, strlen(data) + 1);
-
-    strcpy(node->key, key);
-    strcpy(node->data, data);
-    node->next = m->head;
-
-    m->head = node;
-    m->numkeys++;
 }
 
-/* TODO not particularly happy with this at the moment */
+/* Writes string into buffer that is dynamically resized as required. Would have
+ * liked to use strncat() for easier buffer resizing but I believe this is only
+ * GNU extension 
+ */
 char* mvm_print(mvm* m) {
-    /* IS there a more clever way to initialise the buffer size */
+    /* TODO IS there a more clever way to initialise the buffer size */
     size_t buffer_size = BUFF_SIZE;
     char* buffer = initListBuffer(buffer_size);
+    size_t curr_index = 0, next_index = 0;
 
     mvmcell* node = m->head;
-    size_t index = 0;
-    size_t increment;
 
+    /* Loop first checks length of string to be appended to ensure it can fit
+       the buffer. If required, buffer is expanded and string is then added to
+       the buffer */
     while (node) {
-        increment = strlen(node->key) + strlen(node->data) + 2 * BRACKET_CHARS + SPACE;
+        /* FIXME is this super dirty ("[]() ")? */
+        next_index += strlen(node->key) + strlen(node->data) + strlen("[]() ");
 
-        /* FIXME check this resizing routine and error checking */
-        if (index + increment >= buffer_size) {
-            buffer_size = (index + increment) * 2;
+        /* Check with "+ 1" to ensure there is space for NUll terminator if this
+         * is the final appended string */
+        if (next_index + 1 >= buffer_size) {
+            buffer_size = next_index * BUFF_FACT;
             expandListBuffer(&buffer, buffer_size);
         }
 
-        sprintf(buffer + index, "[%s](%s) ", node->key, node->data);
-        index += increment;
+        sprintf(buffer + curr_index, "[%s](%s) ", node->key, node->data);
+        curr_index = next_index;
         node = node->next;
     }
-    printf("%s\n", buffer);
+
     return buffer;
 }
 
@@ -88,6 +103,7 @@ void mvm_delete(mvm* m, char* key) {
     m->numkeys -= deleted;
 }
 
+/* FIXME unclear if this should return a pointer to origninal data or a copy */
 char* mvm_search(mvm* m, char* key) {
     mvmcell* node = mvm_findKey(m, key);
     return node ? node->data : NULL;
@@ -96,7 +112,7 @@ char* mvm_search(mvm* m, char* key) {
 /* return null pointer for robustness to mark end of list */
 char** mvm_multisearch(mvm* m, char* key, int* n) {
     int size = MULTI_SEARCH_LIST;
-    int index = 0;
+    int curr_index = 0;
 
     mvmcell* node = m->head;
 
@@ -107,15 +123,15 @@ char** mvm_multisearch(mvm* m, char* key, int* n) {
 
     while (node) {
         if (!strcmp(node->key, key)) {
-            *(list + index) = node->data;
-            index++;
-            if (index >= size) {
+            *(list + curr_index) = node->data;
+            curr_index++;
+            if (curr_index >= size) {
                 /* TODO reallocing list array */
             }
         }
         node = node->next;
     }
-    *n = index;
+    *n = curr_index;
     return list;
 }
 
@@ -138,7 +154,6 @@ void unloadList(mvmcell* node) {
 }
 
 /* ------ HELPER FUNCTIONS ------ */
-
 mvmcell* mvmcell_init(size_t key_len, size_t data_len) {
     mvmcell* node = (mvmcell*)malloc(sizeof(mvmcell));
     if (!node) {
@@ -147,8 +162,8 @@ mvmcell* mvmcell_init(size_t key_len, size_t data_len) {
 
     node->key = (char*)malloc(sizeof(char) * key_len);
     node->data = (char*)malloc(sizeof(char) * data_len);
-    /* FIXME check this condition */
-    if (!node->key && !node->data) {
+
+    if (!(node->key && node->data)) {
         ON_ERROR("Error allocating cell data\n");
     }
     return node;
@@ -166,15 +181,6 @@ mvmcell* mvm_findKey(mvm* m, char* key) {
     return NULL;
 }
 
-/* TODO is it worth using this function to cut down things a bit? */
-void* mallocHandler(size_t nmemb, size_t size) {
-    void* tmp = malloc(size * nmemb);
-    if (!tmp) {
-        ON_ERROR("Memory allocation error\n");
-    }
-    return tmp;
-}
-
 char* initListBuffer(size_t size) {
     /* FIXME is there a more clever way to initialise the buff size? */
     char* tmp = (char*)malloc(sizeof(char) * size);
@@ -185,7 +191,9 @@ char* initListBuffer(size_t size) {
 }
 
 void expandListBuffer(char** buffer, size_t size) {
-    char* tmp = (char*)realloc(*buffer, sizeof(char) * size);
+    char* tmp;
+
+    tmp = (char*)realloc(*buffer, sizeof(char) * size);
     if (!tmp) {
         ON_ERROR("Error reallocating print buffer\n");
     }
@@ -215,4 +223,13 @@ void unloadNode(mvmcell* node) {
     free(node->data);
     free(node->key);
     free(node);
+}
+
+/* TODO is it worth using this function to cut down things a bit? */
+void* mallocHandler(size_t nmemb, size_t size) {
+    void* tmp = malloc(size * nmemb);
+    if (!tmp) {
+        ON_ERROR("Memory allocation error\n");
+    }
+    return tmp;
 }
