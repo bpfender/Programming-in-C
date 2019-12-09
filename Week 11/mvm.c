@@ -6,8 +6,9 @@
 /* FIXME check types used */
 
 /* TODO REDEFINE TO MORE SENSIBLE SIZE */
-#define BUFF_SIZE 5
+#define AVE_CHARS 10
 #define BUFF_FACT 2
+#define PRNT_STR_CHARS "()[] "
 #define MULTI_SEARCH_LIST 2
 
 /* ------ HELPER FUNCTION DECLARATIONS ------ */
@@ -63,9 +64,10 @@ void mvm_insert(mvm* m, char* key, char* data) {
  * GNU extension 
  */
 char* mvm_print(mvm* m) {
-    /* TODO IS there a more clever way to initialise the buffer size */
-    size_t buffer_size = BUFF_SIZE;
+    /* TODO is there a more steamlined method for this initialisation ? */
+    size_t buffer_size = AVE_CHARS * m->numkeys;
     char* buffer = initListBuffer(buffer_size);
+
     size_t curr_index = 0, next_index = 0;
 
     mvmcell* node = m->head;
@@ -75,7 +77,7 @@ char* mvm_print(mvm* m) {
        the buffer */
     while (node) {
         /* FIXME is this super dirty ("[]() ")? */
-        next_index += strlen(node->key) + strlen(node->data) + strlen("[]() ");
+        next_index += strlen(node->key) + strlen(node->data) + strlen(PRNT_STR_CHARS);
 
         /* Check with "+ 1" to ensure there is space for NUll terminator if this
          * is the final appended string */
@@ -85,6 +87,7 @@ char* mvm_print(mvm* m) {
         }
 
         sprintf(buffer + curr_index, "[%s](%s) ", node->key, node->data);
+
         curr_index = next_index;
         node = node->next;
     }
@@ -181,6 +184,7 @@ mvmcell* mvm_findKey(mvm* m, char* key) {
     return NULL;
 }
 
+/* FIXME this could probably just be concotenated into expand buffer */
 char* initListBuffer(size_t size) {
     /* FIXME is there a more clever way to initialise the buff size? */
     char* tmp = (char*)malloc(sizeof(char) * size);
@@ -191,9 +195,7 @@ char* initListBuffer(size_t size) {
 }
 
 void expandListBuffer(char** buffer, size_t size) {
-    char* tmp;
-
-    tmp = (char*)realloc(*buffer, sizeof(char) * size);
+    char* tmp = (char*)realloc(*buffer, sizeof(char) * size);
     if (!tmp) {
         ON_ERROR("Error reallocating print buffer\n");
     }
