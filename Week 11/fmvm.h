@@ -1,25 +1,31 @@
 /* Multi-Value Map ADT : via Linked List
    Both key & data are strings (char*) 
    Multiple Keys may be stored
+   FIXME explain the approach taken BLOOM FILTER, SKIP LIST, DAWG, vs. Hashing vs. Trie different option available
    New data is inserted at the front of the list:
+   Hashing seems to make the most sense simply sa it's fairly robust regardless of the
+   data fed to it. Succinct tries, radix trees, DAWGs etc all seem to require some prior
+   knowledge about the data that will be fed to the problem
    O(1) insertion
    O(n) search
    O(n) deletion
 */
 
 /* Error that can't be ignored */
-#define ON_ERROR(STR) fprintf(stderr, STR); exit(EXIT_FAILURE)
+#define ON_ERROR(STR)     \
+    fprintf(stderr, STR); \
+    exit(EXIT_FAILURE)
 
 struct mvmcell {
-   char* key;
-   char* data;
-   struct mvmcell* next;
+    char* key;
+    char* data;
+    struct mvmcell* next;
 };
 typedef struct mvmcell mvmcell;
 
 struct mvm {
-   mvmcell* head;
-   int numkeys;
+    mvmcell* head;
+    int numkeys;
 };
 typedef struct mvm mvm;
 
