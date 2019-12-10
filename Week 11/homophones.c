@@ -18,7 +18,7 @@
 #define STR_END(s) (s == '\0' || s == '\n')
 
 /* TODO check types in all files */
-
+/* FIXME write line ending checker */
 typedef enum line_t { LF,
                       CRLF,
                       CR } line_t;

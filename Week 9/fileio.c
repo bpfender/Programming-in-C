@@ -15,6 +15,7 @@ int main(void) {
     return 0;
 }*/
 
+/* TODO this doesn't handle CR or CRLF at the moment */
 FILE* openFile(char* filename) {
     FILE* file = fopen(filename, "r");
     if (file == NULL) {

@@ -28,5 +28,5 @@ memleaks: $(TESTBASE)_d $(TESTBASE)_s
 	@echo "Sanitize :"
 	@./$(TESTBASE)_s BOY
 	@echo "Valgrind :"
-	@valgrind --leak-check=full $(TESTBASE)_d BOY
+	@valgrind --leak-check=full ./$(TESTBASE)_d BOY
 
