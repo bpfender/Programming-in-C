@@ -172,10 +172,30 @@ void mvm_delete(mvm* m, char* key) {
     free(node);
 
     if (bucket->head == NULL) {
-        while ()
+        removeKey(bucket);
     }
 
     m->num_keys--;
+}
+
+void removeKey(bucket_t* bucket) {
+    size_t i = 0;
+
+    while (!(bucket[i].distance == 0 || bucket[i].key == NULL)) {
+        i++;
+    }
+
+    memcpy(bucket, bucket + 1, i * sizeof(bucket));
+
+    clearBucket(bucket + i);
+}
+
+/* FIXME does everything actually need to be zeroed? */
+void clearBucket(bucket_t* bucket) {
+    bucket->key = NULL;
+    bucket->distance = 0;
+    bucket->hash = 0;
+    bucket->key = NULL;
 }
 
 char* mvm_search(mvm* m, char* key) {
