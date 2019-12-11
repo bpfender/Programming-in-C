@@ -8,6 +8,7 @@
 #define FACTOR 2
 #define PRNT_STR_CHARS "[]() "
 
+/* FIXME no resizing of hash table implemented yet */
 #define HASH_SIZE 500
 #define HASH_FACTOR 2
 /* djb2 Hash constants, defined based on reference below
@@ -18,14 +19,18 @@
 
 unsigned long djb2Hash(char* s);
 bucket_t* buildBucket(char* key);
-mvmcell* insertKey(mvm* m, char* key);
+bucket_t* insertKey(mvm* m, char* key);
 bucket_t* findKey(mvm* m, char* key);
 bucket_t* buildBucket(char* key);
-void swapBuckets(bucket_t** b1, bucket_t** b2);
+void swapBuckets(bucket_t* b1, bucket_t* b2);
 bucket_t* initHashTable(int size);
 mvmcell* mvmcell_init(size_t data_len);
 char* initListBuffer(size_t size);
 void expandListBuffer(char** buffer, size_t size);
+void removeKey(bucket_t* bucket);
+void clearBucket(bucket_t* bucket);
+void mvmcell_unloadList(mvmcell* node);
+void mvmcell_unloadNode(mvmcell* node);
 
 mvm* mvm_init(void) {
     mvm* tmp = (mvm*)calloc(1, sizeof(mvm));
@@ -44,10 +49,9 @@ int mvm_size(mvm* m) {
 }
 
 void mvm_insert(mvm* m, char* key, char* data) {
-    mvmcell* node;
     bucket_t* cell = insertKey(m, key);
 
-    node = mvmcell_init(strlen(data) + 1);
+    mvmcell* node = mvmcell_init(strlen(data) + 1);
     strcpy(node->data, data);
 
     /* Update linked list */
@@ -57,46 +61,55 @@ void mvm_insert(mvm* m, char* key, char* data) {
     m->num_keys++;
 }
 
-mvmcell* insertKey(mvm* m, char* key) {
+/* FIXME need to include a resize table in here */
+bucket_t* insertKey(mvm* m, char* key) {
     bucket_t* table = m->hash_table;
     bucket_t* bucket = buildBucket(key);
     unsigned long index = bucket->hash % m->table_size;
     bucket_t* location = NULL;
+    unsigned long offset_index;
 
-    if (location = findKey(m, key)) {
+    if ((location = findKey(m, key))) {
         return location;
     }
     if (!table[index].key) {
-        return &table[index];
+        return table + index;
     }
 
     /* FIXME could this be neatened up a little bit with a function call */
-    /* Probably needs a preincrement of offset */
-    while (table[index + bucket->distance].key) {
-        if (bucket->distance > table[index + bucket->distance].distance) {
-            if (!location) {
-                location = table + index + bucket->distance;
-            }
-            swapBuckets(bucket, table + index + bucket->distance);
-        }
+    do {
         bucket->distance++;
-    }
+        offset_index = (index + bucket->distance) % m->table_size;
+
+        if (bucket->distance > table[offset_index].distance) {
+            if (!location) {
+                location = table + offset_index;
+            }
+            swapBuckets(bucket, table + offset_index);
+        }
+
+    } while (table[offset_index].key);
+
+    return location;
 }
 
 bucket_t* findKey(mvm* m, char* key) {
+    /* FIXME duplication of hash calc above */
     unsigned long index = djb2Hash(key) % m->table_size;
     int offset = 0;
+    size_t offset_index = index;
 
     if (!strcmp(m->hash_table[index].key, key)) {
         return m->hash_table + index;
     }
 
     /* This can be combined into one loop with the above */
-    while (!(m->hash_table[index + offset].distance < offset || !m->hash_table[index + offset].key)) {
-        if (!strcmp(m->hash_table[index + offset].key, key)) {
-            return m->hash_table + index + offset;
+    while (!(m->hash_table[offset_index].distance < offset || !m->hash_table[offset_index].key)) {
+        if (!strcmp(m->hash_table[offset_index].key, key)) {
+            return m->hash_table + offset_index;
         }
         offset++;
+        offset_index = (index + offset) % m->table_size;
     }
     return NULL;
 }
@@ -119,14 +132,16 @@ bucket_t* buildBucket(char* key) {
     return tmp;
 }
 
-void swapBuckets(bucket_t** b1, bucket_t** b2) {
-    bucket_t* tmp = *b1;
-    *b1 = *b2;
-    *b2 = tmp;
+/* TODO is this a good implementation, no other alternative really */
+void swapBuckets(bucket_t* b1, bucket_t* b2) {
+    bucket_t tmp;
+    memcpy(&tmp, b1, sizeof(bucket_t));
+    memcpy(b1, b2, sizeof(bucket_t));
+    memcpy(b2, &tmp, sizeof(bucket_t));
 }
 
 char* mvm_print(mvm* m) {
-    size_t i;
+    int i;
     mvmcell* node;
     size_t buffer_size = AVE_CHARS * m->num_keys;
     size_t curr_index = 0, next_index = 0;
@@ -163,7 +178,6 @@ char* mvm_print(mvm* m) {
 
 void mvm_delete(mvm* m, char* key) {
     bucket_t* bucket = findKey(m, key);
-    int offset = 0;
 
     mvmcell* node = bucket->head;
     bucket->head = node->next;
@@ -199,12 +213,68 @@ void clearBucket(bucket_t* bucket) {
 }
 
 char* mvm_search(mvm* m, char* key) {
+    bucket_t* bucket = findKey(m, key);
+
+    if (bucket) {
+        return bucket->head->data;
+    }
+    return NULL;
 }
 
 char** mvm_multisearch(mvm* m, char* key, int* n) {
+    int size = MULTI_SEARCH_LIST;
+    int curr_index = 0;
+
+    bucket_t* bucket = findKey(m, key);
+    mvmcell* node = bucket->head;
+
+    char** list = (char**)malloc(sizeof(char*) * MULTI_SEARCH_LIST);
+    if (!list) {
+        ON_ERROR("Error allocating multi-search list\n");
+    }
+
+    while (node) {
+        *(list + curr_index) = node->data;
+        curr_index++;
+
+        if (curr_index >= size) {
+            size *= FACTOR;
+            list = (char**)realloc(list, sizeof(char*) * size);
+        }
+
+        /* Move to next node so mvm_findKey() doesn't search same node
+               again */
+        node = node->next;
+    }
+
+    *n = curr_index;
+    return list;
 }
 
 void mvm_free(mvm** p) {
+    int i;
+    mvm* m = *p;
+
+    for (i = 0; i < m->table_size; i++) {
+        if (m->hash_table[i].key) {
+            mvmcell_unloadList(m->hash_table[i].head);
+        }
+    }
+}
+
+void mvmcell_unloadList(mvmcell* node) {
+    if (node == NULL) {
+        return;
+    }
+    mvmcell_unloadList(node->next);
+    mvmcell_unloadNode(node);
+}
+
+/* Unload node helper that frees all parts of the mvmcell LL node
+ */
+void mvmcell_unloadNode(mvmcell* node) {
+    free(node->data);
+    free(node);
 }
 
 /* ------ HELPER FUNCTIONS ------ */
