@@ -8,8 +8,8 @@
 /* djb2 Hash constants, defined based on reference below
  * http://www.cse.yorku.ca/~oz/hash.html
  */
-#define HASH 5381
-#define MAGIC 33
+#define DJB2_HASH 5381
+#define DJB2_MAGIC 33
 
 unsigned long djb2Hash(char* s);
 
@@ -30,40 +30,68 @@ int mvm_size(mvm* m) {
 }
 
 void mvm_insert(mvm* m, char* key, char* data) {
-    mvmcell* cell = findHashTableCell(m, key);
+    bucket_t* cell = insertKey(m, key);
+
+    m->num_keys++;
 }
 
-/* FIXME perhaps try and remove all this dereferencing */
-mvmcell* findHashTableCell(mvm* m, char* key) {
-    size_t i = 0;
-    int offset;
-    unsigned long hash = djb2Hash(key);
-    unsigned long index = hash % m->table_size;
+mvmcell* insertKey(mvm* m, char* key) {
+    bucket_t* table = m->hash_table;
+    bucket_t* bucket = buildBucket(key);
+    unsigned long index = bucket->hash % m->table_size;
+    bucket_t* location = NULL;
 
-    if (!m->hash_table[index].key) {
-        m->hash_table[index].key = initKey(strlen(key) + 1);
-        strcpy(m->hash_table[index].key, key);
+    if (location = findKey(m, key)) {
+        return location;
+    }
+    if (!table[index].key) {
+        return &table[index];
+    }
 
-        m->hash_table[index].distance = 0;
-        m->hash_table[index].hash = hash;
-    } else {
-        for (offset = 0; offset > m->hash_table[index + offset].distance; offset++) {
+    /* FIXME could this be neatened up a little bit with a function call */
+    while (table[index + bucket->distance].key) {
+        if (bucket->distance > table[index + bucket->distance].distance) {
+            if (!location) {
+                location = table + index + bucket->distance;
+            }
+            swapBuckets(bucket, table + index + bucket->distance);
         }
+        bucket->distance++;
     }
 }
 
-char* initKey(size_t size) {
-    char* tmp = (char*)malloc(sizeof(char) * size);
+bucket_t* findKey(mvm* m, char* key) {
+}
+
+bucket_t* buildBucket(char* key) {
+    bucket_t* tmp = (bucket_t*)malloc(sizeof(bucket_t));
     if (!tmp) {
-        ON_ERROR("Error allocating space for key\n");
+        ON_ERROR("Error allocating memory for bucket\n");
     }
+
+    tmp->key = (char*)malloc(sizeof(char) * (strlen(key) + 1));
+    if (!tmp->key) {
+        ON_ERROR("Error allocating memory for key\n");
+    }
+    strcpy(tmp->key, key);
+    tmp->hash = djb2Hash(key);
+    tmp->head = NULL;
+    tmp->distance = 0;
+
     return tmp;
+}
+
+void swapBuckets(bucket_t** b1, bucket_t** b2) {
+    bucket_t* tmp = *b1;
+    *b1 = *b2;
+    *b2 = tmp;
 }
 
 char* mvm_print(mvm* m) {
 }
 
 void mvm_delete(mvm* m, char* key) {
+    m->num_keys--;
 }
 
 char* mvm_search(mvm* m, char* key) {
@@ -82,9 +110,9 @@ void mvm_free(mvm** p) {
 /* http://www.cse.yorku.ca/~oz/hash.html */
 unsigned long djb2Hash(char* s) {
     size_t i;
-    unsigned long hash = HASH;
+    unsigned long hash = DJB2_HASH;
     for (i = 0; s[i] != '\0'; i++) {
-        hash += hash * MAGIC ^ (unsigned long)s[i];
+        hash += hash * DJB2_MAGIC ^ (unsigned long)s[i];
     }
 
     return hash;
