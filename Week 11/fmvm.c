@@ -3,13 +3,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define AVE_CHARS 5 /*FIXME could actually functionise this now */
+#define AVE_CHARS 6 /*FIXME could actually functionise this now */
 #define MULTI_SEARCH_LIST 2
 #define FACTOR 2
 #define PRNT_STR_CHARS "[]() "
 
 /* FIXME no resizing of hash table implemented yet */
-#define HASH_SIZE 500
+#define HASH_SIZE 6
 #define HASH_FACTOR 2
 /* djb2 Hash constants, defined based on reference below
  * http://www.cse.yorku.ca/~oz/hash.html
@@ -27,7 +27,7 @@ bucket_t* initHashTable(int size);
 mvmcell* mvmcell_init(size_t data_len);
 char* initListBuffer(size_t size);
 void expandListBuffer(char** buffer, size_t size);
-void removeKey(bucket_t* bucket);
+void removeKey(mvm* m, char* key);
 void clearBucket(bucket_t* bucket);
 void mvmcell_unloadList(mvmcell* node);
 void mvmcell_unloadNode(mvmcell* node);
@@ -51,6 +51,7 @@ int mvm_size(mvm* m) {
 void mvm_insert(mvm* m, char* key, char* data) {
     bucket_t* cell = insertKey(m, key);
 
+    /* FIXME declare this as a whole function */
     mvmcell* node = mvmcell_init(strlen(data) + 1);
     strcpy(node->data, data);
 
@@ -66,14 +67,20 @@ bucket_t* insertKey(mvm* m, char* key) {
     bucket_t* table = m->hash_table;
     bucket_t* bucket = buildBucket(key);
     unsigned long index = bucket->hash % m->table_size;
+
     bucket_t* location = NULL;
     unsigned long offset_index;
 
+    printf("HASH INDEX: %li\n", index);
+
+    if (!table[index].key) {
+        memcpy(table + index, bucket, sizeof(bucket_t));
+        printf("RETURNED INDEX: %li\n", index);
+        return table + index;
+    }
+
     if ((location = findKey(m, key))) {
         return location;
-    }
-    if (!table[index].key) {
-        return table + index;
     }
 
     /* FIXME could this be neatened up a little bit with a function call */
@@ -89,7 +96,7 @@ bucket_t* insertKey(mvm* m, char* key) {
         }
 
     } while (table[offset_index].key);
-
+    printf("RETURNED INDEX: %li\n", offset_index);
     return location;
 }
 
@@ -98,6 +105,10 @@ bucket_t* findKey(mvm* m, char* key) {
     unsigned long index = djb2Hash(key) % m->table_size;
     int offset = 0;
     size_t offset_index = index;
+
+    if (!(m->hash_table[index].key)) {
+        return NULL;
+    }
 
     if (!strcmp(m->hash_table[index].key, key)) {
         return m->hash_table + index;
@@ -192,16 +203,28 @@ void mvm_delete(mvm* m, char* key) {
     m->num_keys--;
 }
 
-void removeKey(bucket_t* bucket) {
-    size_t i = 0;
+bucket_t* removeKey(mvm* m, char* key) {
+    bucket_t* bucket = findKey(m, key);
 
-    while (!(bucket[i].distance == 0 || bucket[i].key == NULL)) {
-        i++;
+    if (!bucket) {
+        size_t i = 0;
+        size_t index;
+
+        do {
+            i++;
+            index = i % m->table_size;
+        } while (!(bucket[index].distance == 0 || bucket[index].key == NULL));
+
+        if (i < m->table_size - 1) {
+            memcpy(bucket, bucket + 1, i * sizeof(bucket));
+        } else {
+            memcpy(bucket + m->table_size - 1, m->hash_table);
+                }
+
+        clearBucket(bucket + i);
+        return NULL
     }
-
-    memcpy(bucket, bucket + 1, i * sizeof(bucket));
-
-    clearBucket(bucket + i);
+    return bucket;
 }
 
 /* FIXME does everything actually need to be zeroed? */
@@ -214,7 +237,6 @@ void clearBucket(bucket_t* bucket) {
 
 char* mvm_search(mvm* m, char* key) {
     bucket_t* bucket = findKey(m, key);
-
     if (bucket) {
         return bucket->head->data;
     }

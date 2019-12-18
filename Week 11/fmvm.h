@@ -5,7 +5,12 @@
    New data is inserted at the front of the list:
    Hashing seems to make the most sense simply sa it's fairly robust regardless of the
    data fed to it. Succinct tries, radix trees, DAWGs etc all seem to require some prior
-   knowledge about the data that will be fed to the problem
+   knowledge about the data that will be fed to the problem. ALso we're only matching whole words, there's no need to find prefixes or the like
+   Considered perfect hashing but don't know application of MVM, robin hood as general option, (PROVIDE REFS)   
+   POssible that i'm destroying all the performance gains of caching through linked list
+   Would be very interested to compare against performance of red black as have no idea about overhead
+
+
    O(1) insertion
    O(n) search
    O(n) deletion
@@ -16,18 +21,25 @@
     fprintf(stderr, STR); \
     exit(EXIT_FAILURE)
 
-struct mvmcell {
-    char* key;
+typedef struct mvmcell {
     char* data;
     struct mvmcell* next;
-};
-typedef struct mvmcell mvmcell;
+} mvmcell;
 
-struct mvm {
+typedef struct bucket_t {
+    char* key;
     mvmcell* head;
-    int numkeys;
-};
-typedef struct mvm mvm;
+    int distance;
+    unsigned long hash;
+} bucket_t;
+
+/* FIXME types int vs size_t */
+typedef struct mvm {
+    bucket_t* hash_table;
+    int num_keys;
+    int num_buckets;
+    int table_size;
+} mvm;
 
 mvm* mvm_init(void);
 /* Number of key/value pairs stored */
