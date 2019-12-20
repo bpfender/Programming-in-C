@@ -8,16 +8,16 @@
 /* TODO generic malloc function? */
 
 /* TODO REDEFINE TO MORE SENSIBLE SIZE */
-#define AVE_CHARS 10
+#define AVE_CHARS 1
 #define FACTOR 2
-#define PRNT_STR_CHARS "()[] "
+#define PRNT_STR_LEN strlen("()[] ")
 #define MULTI_SEARCH_LIST 5
 
 /* ------ HELPER FUNCTION DECLARATIONS ------ */
 /* These functions do not need to be exposed to the user */
 mvmcell* mvm_findKey(mvmcell* head, char* key);
-mvmcell* mvmcell_init(size_t key_len, size_t data_len);
-void expandListBuffer(char** buffer, size_t size);
+mvmcell* mvmcell_init(char* key, char* data);
+char* expandListBuffer(char* buffer, size_t size);
 char* initListBuffer(size_t size);
 mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key, mvm* m);
 void mvmcell_unloadNode(mvmcell* node);
@@ -48,13 +48,8 @@ void mvm_insert(mvm* m, char* key, char* data) {
     /* Check that no NULL values have been passed as arguments. If valid
        build the node, other wise just return and do nothing */
     if (m && key && data) {
-        /* Build node */
-        /* QUESTION does it make more sense to have +1 here or in init? */
-        node = mvmcell_init(strlen(key) + 1, strlen(data) + 1);
-        strcpy(node->key, key);
-        strcpy(node->data, data);
+        node = mvmcell_init(key, data);
 
-        /* Update linked list */
         node->next = m->head;
         m->head = node;
         m->numkeys++;
@@ -62,12 +57,12 @@ void mvm_insert(mvm* m, char* key, char* data) {
 }
 
 /* Writes string into buffer that is dynamically resized as required. Would have
- * liked to use strncat() for easier buffer resizing but I believe this is only
- * GNU extension 
+ * liked to use strncat() for easier buffer resizing but I believe this is a GNU
+ * only extension 
  */
 char* mvm_print(mvm* m) {
     if (m) {
-        /* TODO is there a more steamlined method for this initialisation ? */
+        /* Initialise a buffer to store the string */
         size_t buffer_size = AVE_CHARS * m->numkeys;
         char* buffer = initListBuffer(buffer_size);
 
@@ -79,13 +74,13 @@ char* mvm_print(mvm* m) {
        the buffer. If required, buffer is expanded and string is then added to
        the buffer */
         while (node) {
-            next_index += strlen(node->key) + strlen(node->data) + strlen(PRNT_STR_CHARS);
+            next_index += strlen(node->key) + strlen(node->data) + PRNT_STR_LEN;
 
             /* Check with "+ 1" to ensure there is space for NUll terminator if this
          * is the final appended string */
             if (next_index + 1 >= buffer_size) {
                 buffer_size = next_index * FACTOR;
-                expandListBuffer(&buffer, buffer_size);
+                buffer = expandListBuffer(buffer, buffer_size);
             }
 
             sprintf(buffer + curr_index, "[%s](%s) ", node->key, node->data);
@@ -141,6 +136,7 @@ char** mvm_multisearch(mvm* m, char* key, int* n) {
             if (curr_index >= size) {
                 size *= FACTOR;
                 list = (char**)realloc(list, sizeof(char*) * size);
+                /* FIXME NO ERROR HANDLING */
             }
 
             /* Move to next node so mvm_findKey() doesn't search same node
@@ -166,18 +162,23 @@ void mvm_free(mvm** p) {
 }
 
 /* ------ HELPER FUNCTIONS ------ */
-mvmcell* mvmcell_init(size_t key_len, size_t data_len) {
+/* Allocates memory for mvmcell and populates values
+ */
+mvmcell* mvmcell_init(char* key, char* data) {
     mvmcell* node = (mvmcell*)malloc(sizeof(mvmcell));
     if (!node) {
         ON_ERROR("Error allocating cell\n");
     }
 
-    node->key = (char*)malloc(sizeof(char) * key_len);
-    node->data = (char*)malloc(sizeof(char) * data_len);
-
+    node->key = (char*)malloc(sizeof(char) * (strlen(key) + 1));
+    node->data = (char*)malloc(sizeof(char) * (strlen(data) + 1));
     if (!(node->key && node->data)) {
         ON_ERROR("Error allocating cell data\n");
     }
+
+    strcpy(node->key, key);
+    strcpy(node->data, data);
+
     return node;
 }
 
@@ -207,12 +208,12 @@ char* initListBuffer(size_t size) {
     return tmp;
 }
 
-void expandListBuffer(char** buffer, size_t size) {
-    char* tmp = (char*)realloc(*buffer, sizeof(char) * size);
+char* expandListBuffer(char* buffer, size_t size) {
+    char* tmp = (char*)realloc(buffer, sizeof(char) * size);
     if (!tmp) {
         ON_ERROR("Error reallocating print buffer\n");
     }
-    *buffer = tmp;
+    return tmp;
 }
 
 /* Recursive helper function to delete element from linked list. Currently just
@@ -252,13 +253,4 @@ void mvmcell_unloadNode(mvmcell* node) {
     free(node->data);
     free(node->key);
     free(node);
-}
-
-/* TODO is it worth using this function to cut down things a bit? */
-void* mallocHandler(size_t nmemb, size_t size) {
-    void* tmp = malloc(size * nmemb);
-    if (!tmp) {
-        ON_ERROR("Memory allocation error\n");
-    }
-    return tmp;
 }
