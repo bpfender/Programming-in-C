@@ -16,20 +16,19 @@
 /* These functions do not need to be exposed to the user */
 mvmcell* mvm_findKey(mvmcell* head, char* key);
 mvmcell* mvmcell_build(char* key, char* data);
-char* allocListBuffer(char* buffer, size_t size);
-char** allocMultiSearch(char** list, size_t size);
 mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key, mvm* m);
 void mvmcell_unloadNode(mvmcell* node);
 void mvmcell_unloadList(mvmcell* node);
+void* allocHandler(void* ptr, size_t nmemb, size_t size);
 
 /* ------- FUNCTION BODIES ------ */
 /* Initialises mvm ADT with calloc to make sure everything is zeroed
  */
 mvm* mvm_init(void) {
-    mvm* tmp = (mvm*)calloc(1, sizeof(mvm));
-    if (!tmp) {
-        ON_ERROR("Error allocating Multi-Value Map\n");
-    }
+    mvm* tmp = (mvm*)allocHandler(NULL, 1, sizeof(mvm));
+    tmp->head = NULL;
+    tmp->numkeys = 0;
+
     return tmp;
 }
 
@@ -59,7 +58,7 @@ char* mvm_print(mvm* m) {
     if (m) {
         /* FIXME more elegant initial sizing? */
         size_t buffer_size = AVE_CHARS * m->numkeys;
-        char* buffer = allocListBuffer(NULL, buffer_size);
+        char* buffer = (char*)allocHandler(NULL, buffer_size, sizeof(char));
 
         mvmcell* node = m->head;
         size_t curr_index = 0;
@@ -75,7 +74,7 @@ char* mvm_print(mvm* m) {
             this is the final appended string. Resize buffer if required */
             if (next_index + 1 >= buffer_size) {
                 buffer_size = next_index * FACTOR;
-                buffer = allocListBuffer(buffer, buffer_size);
+                buffer = (char*)allocHandler(buffer, buffer_size, sizeof(char));
             }
 
             sprintf(buffer + curr_index, "[%s](%s) ", node->key, node->data);
@@ -114,7 +113,7 @@ char* mvm_search(mvm* m, char* key) {
 char** mvm_multisearch(mvm* m, char* key, int* n) {
     if (m && key && n) {
         size_t size = MULTI_SEARCH_LIST;
-        char** list = allocMultiSearch(NULL, size);
+        char** list = (char**)allocHandler(NULL, size, sizeof(char*));
 
         mvmcell* node = m->head;
         size_t i = 0;
@@ -122,7 +121,7 @@ char** mvm_multisearch(mvm* m, char* key, int* n) {
         while ((node = mvm_findKey(node, key))) {
             if (i >= size) {
                 size *= FACTOR;
-                list = allocMultiSearch(list, size);
+                list = (char**)allocHandler(list, size, sizeof(char*));
             }
 
             list[i] = node->data;
@@ -150,16 +149,9 @@ void mvm_free(mvm** p) {
 /* Allocates memory for mvmcell and populates values.
  */
 mvmcell* mvmcell_build(char* key, char* data) {
-    mvmcell* node = (mvmcell*)malloc(sizeof(mvmcell));
-    if (!node) {
-        ON_ERROR("Error allocating cell\n");
-    }
-
-    node->key = (char*)malloc(sizeof(char) * (strlen(key) + 1));
-    node->data = (char*)malloc(sizeof(char) * (strlen(data) + 1));
-    if (!(node->key && node->data)) {
-        ON_ERROR("Error allocating cell data\n");
-    }
+    mvmcell* node = (mvmcell*)allocHandler(NULL, 1, sizeof(mvmcell));
+    node->key = (char*)allocHandler(NULL, strlen(key) + 1, sizeof(char));
+    node->data = (char*)allocHandler(NULL, strlen(data) + 1, sizeof(char));
 
     strcpy(node->key, key);
     strcpy(node->data, data);
@@ -182,36 +174,6 @@ mvmcell* mvm_findKey(mvmcell* head, char* key) {
         node = node->next;
     }
     return NULL;
-}
-
-/* Dual-purpose function for building a buffer for the print list. The initial 
- * malloc should be called with buffer = NULL. Resizes should be called with 
- * pointer to current buffer
- */
-char* allocListBuffer(char* buffer, size_t size) {
-    char* tmp = (char*)realloc(buffer, sizeof(char) * size);
-    if (!tmp) {
-        if (!buffer) {
-            ON_ERROR("Error allocating print buffer\n");
-        } else {
-            ON_ERROR("Error reallocating print buffer\n");
-        }
-    }
-    return tmp;
-}
-
-/* Use NULL for list for initial malloc, and pass list pointer for resizing
- */
-char** allocMultiSearch(char** list, size_t size) {
-    char** tmp = (char**)realloc(list, sizeof(char*) * size);
-    if (!tmp) {
-        if (!list) {
-            ON_ERROR("Error allocation multi-search list\n");
-        } else {
-            ON_ERROR("Error reallocating multi-search list\n");
-        }
-    }
-    return tmp;
 }
 
 /* Recursive helper function to delete element from linked list. Currently just
@@ -252,4 +214,16 @@ void mvmcell_unloadNode(mvmcell* node) {
     free(node->data);
     free(node->key);
     free(node);
+}
+
+/* Wrote a generic malloc/realloc function because the same structure was
+ * repeating itself multiple times and I wanted to play with void*. Requires
+ * ptr = NULL for initial malloc, and ptr value for resizing
+ */
+void* allocHandler(void* ptr, size_t nmemb, size_t size) {
+    void* tmp = realloc(ptr, nmemb * size);
+    if (!tmp) {
+        ON_ERROR("Memory allocation error\n");
+    }
+    return tmp;
 }
