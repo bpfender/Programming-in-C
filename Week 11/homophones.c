@@ -11,10 +11,8 @@
 
 #define BUFF_SIZE 20
 #define BUFF_FACT 4
+#define FILENAME "./cmudict.txt"
 
-#define ON_ERROR(STR)     \
-    fprintf(stderr, STR); \
-    exit(EXIT_FAILURE)
 #define STR_END(s) (s == '\0' || s == '\n')
 
 /* TODO check types in all files */
@@ -24,9 +22,10 @@ typedef enum line_t { LF,
                       CR } line_t;
 
 size_t getLine(char** buffer, size_t* size, FILE* file);
+char* bufferAllocHandler(char* buffer, size_t size);
 FILE* openFile(char* filename);
 
-/*void loadDictionary(mvm* map1, mvm* map2, int n);*/
+void loadDictionary(mvm* map1, mvm* map2, int n);
 char* parseWord(char* line);
 char* parsePhenome(char* line, size_t len, int n);
 char** findRhymes(mvm* map2, char* phenome, int* n);
@@ -37,14 +36,17 @@ void test(void);
 
 int main(void) {
     test();
+    return 0;
 }
 
 /* FIXME is it bad to just operate directly on the buffer line */
 void loadDictionary(mvm* map1, mvm* map2, int n) {
-    FILE* file = openFile("./cmudict.txt");
+    FILE* file = openFile(FILENAME);
+
     char* buffer = NULL;
     size_t size;
     size_t len;
+
     char *word, *phenome;
 
     while ((len = getLine(&buffer, &size, file))) {
@@ -69,6 +71,7 @@ void printRhymes(mvm* map1, mvm* map2, char* word) {
         printf("%s ", rhymes[i]);
     }
     printf("\n");
+    free(rhymes);
 }
 
 char** findRhymes(mvm* map2, char* phenome, int* n) {
@@ -110,15 +113,29 @@ char* parsePhenome(char* line, size_t len, int n) {
 
 FILE* openFile(char* filename) {
     FILE* file = fopen(filename, "r");
-    /* FIXME can this be written with ON_ERROR? */
-    if (file == NULL) {
-        fprintf(stderr, "Cannot open \"%s\"\n", filename);
-        exit(EXIT_FAILURE);
+
+    if (!file) {
+        ON_ERROR("Cannot open dictionary file\n");
     }
     return file;
 }
 
-/* FIXME modify so that \n is removed */
+/* Handles malloc and reallocing buffer. On the initial call buffer should be 
+ * passed as NULL
+ */
+char* bufferAllocHandler(char* buffer, size_t size) {
+    char* tmp = (char*)realloc(buffer, sizeof(char) * size);
+    if (!tmp) {
+        if (!buffer) {
+            ON_ERROR("Line buffer allocation failed\n");
+        } else {
+            ON_ERROR("Line buffer reallocation failed\n");
+        }
+    }
+
+    return tmp;
+}
+
 /* Reads line from a file. '\n' is appended by '\0' character. Must be passed
  * either initialised buffer or NULL pointer. Returns 0 when EOF reached or
  * error in file reading. This should be checked after return from getLine().
@@ -127,22 +144,18 @@ FILE* openFile(char* filename) {
 size_t getLine(char** buffer, size_t* size, FILE* file) {
     size_t i = 0;
     long int file_pos = ftell(file);
-    char* tmp;
 
-    /* If buffer has not been initialised, buffer is malloced and size is set */
+    /* If buffer has not been initialised, buffer is allocated and size is set */
     if (!*buffer) {
         *size = BUFF_SIZE;
-        *buffer = (char*)malloc(sizeof(char) * BUFF_SIZE);
-        if (!*buffer) {
-            ON_ERROR("Line buffer allocation failed\n");
-        }
+        *buffer = bufferAllocHandler(NULL, *size);
     }
 
-    /* Use fgets to read into buffer. Space remaining in buffer is decremnted 
+    /* Use fgets to read into buffer. Space remaining in buffer is decremented 
        based on how far into the file has been read. Allows for dyanmic resizing
        of buffer. The while loop handles \n characters. If EOF is reached, while
        loop will exit */
-    while (fgets(*buffer + i, (int)(*size - i), file)) {
+    while (fgets(*buffer + i, *size - i, file)) {
         /* Get number of characters read */
         i = ftell(file) - file_pos;
 
@@ -165,11 +178,7 @@ size_t getLine(char** buffer, size_t* size, FILE* file) {
            of the line can be read in */
         if (!(i < *size - 1)) {
             *size *= BUFF_FACT;
-            tmp = realloc(*buffer, sizeof(char) * *size);
-            if (!*tmp) {
-                ON_ERROR("Line buffer reallocation failed\n");
-            }
-            *buffer = tmp;
+            *buffer = bufferAllocHandler(*buffer, *size);
         }
     }
 
