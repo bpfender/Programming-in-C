@@ -3,22 +3,21 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* TODO consider generic malloc handler */
 /* FIXME check types used */
-/* TODO check error handling on NULL inputs, can this be cleaned up? */
-/* TODO generic malloc function? */
 
 /* TODO REDEFINE TO MORE SENSIBLE SIZE */
 #define AVE_CHARS 1
 #define FACTOR 2
-#define PRNT_STR_LEN strlen("()[] ")
+#define FORMAT_LEN strlen("[]() ")
 #define MULTI_SEARCH_LIST 5
 
 /* ------ HELPER FUNCTION DECLARATIONS ------ */
 /* These functions do not need to be exposed to the user */
 mvmcell* mvm_findKey(mvmcell* head, char* key);
-mvmcell* mvmcell_init(char* key, char* data);
-char* expandListBuffer(char* buffer, size_t size);
-char* initListBuffer(size_t size);
+mvmcell* mvmcell_build(char* key, char* data);
+char* allocListBuffer(char* buffer, size_t size);
+char** allocMultiSearch(char** list, size_t size);
 mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key, mvm* m);
 void mvmcell_unloadNode(mvmcell* node);
 void mvmcell_unloadList(mvmcell* node);
@@ -43,12 +42,8 @@ int mvm_size(mvm* m) {
 /* Insert element at head of linked list stored in mvm ADT. Does nothing when
  * given an invalid input */
 void mvm_insert(mvm* m, char* key, char* data) {
-    mvmcell* node;
-
-    /* Check that no NULL values have been passed as arguments. If valid
-       build the node, other wise just return and do nothing */
     if (m && key && data) {
-        node = mvmcell_init(key, data);
+        mvmcell* node = mvmcell_build(key, data);
 
         node->next = m->head;
         m->head = node;
@@ -62,25 +57,25 @@ void mvm_insert(mvm* m, char* key, char* data) {
  */
 char* mvm_print(mvm* m) {
     if (m) {
-        /* Initialise a buffer to store the string */
+        /* FIXME more elegant initial sizing? */
         size_t buffer_size = AVE_CHARS * m->numkeys;
-        char* buffer = initListBuffer(buffer_size);
-
-        size_t curr_index = 0, next_index = 0;
+        char* buffer = allocListBuffer(NULL, buffer_size);
 
         mvmcell* node = m->head;
+        size_t curr_index = 0;
+        size_t next_index = 0;
 
-        /* Loop first checks length of string to be appended to ensure it can fit
-       the buffer. If required, buffer is expanded and string is then added to
-       the buffer */
+        /* Loop first checks length of string to be appended to ensure it can 
+        fit the buffer. If required, buffer is expanded and string is then added
+        to the buffer. Loop continues to last node in linked list */
         while (node) {
-            next_index += strlen(node->key) + strlen(node->data) + PRNT_STR_LEN;
+            next_index += strlen(node->key) + strlen(node->data) + FORMAT_LEN;
 
-            /* Check with "+ 1" to ensure there is space for NUll terminator if this
-         * is the final appended string */
+            /* Check with "+ 1" to ensure there is space for NUll terminator if 
+            this is the final appended string. Resize buffer if required */
             if (next_index + 1 >= buffer_size) {
                 buffer_size = next_index * FACTOR;
-                buffer = expandListBuffer(buffer, buffer_size);
+                buffer = allocListBuffer(buffer, buffer_size);
             }
 
             sprintf(buffer + curr_index, "[%s](%s) ", node->key, node->data);
@@ -94,65 +89,55 @@ char* mvm_print(mvm* m) {
     return NULL;
 }
 
-/* This is currently defined to delete only one key at a time in order to past
+/* This is currently defined to delete only one key at a time in order to pass
  * test cases in "testmvm.c". Recursive helper "deleteHelper" could easily be
- * modified to delete all occurences of a key
+ * modified to delete all occurences of a key. Does nothing on invalid input
  */
 void mvm_delete(mvm* m, char* key) {
-    /* Check for valid input before doing anything */
     if (key && m) {
         m->head = mvmcell_deleteHelper(m->head, key, m);
     }
 }
 
-/* A little unclear from the spec if this is supposed o copy. Based on the fact
- * the testing doesn't free this, indicated that it is just supposed to be a
- * pointed to the data stores in the MVM. Returns NULL if the key is not found
+/* A little unclear from the spec if this is supposed to copy. Based on the fact
+ * the testing code doesn't free this, I assumed that it is just supposed to
+ * point to the data stored in the MVM. Returns NULL if the key is not found
  */
 char* mvm_search(mvm* m, char* key) {
-    mvmcell* node = mvm_findKey(m->head, key);
-
-    return node ? node->data : NULL;
-}
-
-/* return null pointer for robustness to mark end of list */
-char** mvm_multisearch(mvm* m, char* key, int* n) {
-    /* Sense check on input */
-    if (m && key && n) {
-        int size = MULTI_SEARCH_LIST;
-        int curr_index = 0;
-
-        mvmcell* node = m->head;
-
-        char** list = (char**)malloc(sizeof(char*) * MULTI_SEARCH_LIST);
-        if (!list) {
-            ON_ERROR("Error allocating multi-search list\n");
-        }
-
-        while ((node = mvm_findKey(node, key))) {
-            *(list + curr_index) = node->data;
-            curr_index++;
-
-            if (curr_index >= size) {
-                size *= FACTOR;
-                list = (char**)realloc(list, sizeof(char*) * size);
-                /* FIXME NO ERROR HANDLING */
-            }
-
-            /* Move to next node so mvm_findKey() doesn't search same node
-               again */
-            node = node->next;
-        }
-
-        *n = curr_index;
-        return list;
+    if (m && key) {
+        mvmcell* node = mvm_findKey(m->head, key);
+        return node ? node->data : NULL;
     }
-
     return NULL;
 }
 
-/* QUESTION is it better to do these things recursively or not? 
- */
+char** mvm_multisearch(mvm* m, char* key, int* n) {
+    if (m && key && n) {
+        size_t size = MULTI_SEARCH_LIST;
+        char** list = allocMultiSearch(NULL, size);
+
+        mvmcell* node = m->head;
+        size_t i = 0;
+
+        while ((node = mvm_findKey(node, key))) {
+            if (i >= size) {
+                size *= FACTOR;
+                list = allocMultiSearch(list, size);
+            }
+
+            list[i] = node->data;
+            i++;
+
+            /* Move to next node so mvm_findKey() doesn't return same node */
+            node = node->next;
+        }
+
+        *n = i;
+        return list;
+    }
+    return NULL;
+}
+
 void mvm_free(mvm** p) {
     mvm* m = *p;
 
@@ -162,9 +147,9 @@ void mvm_free(mvm** p) {
 }
 
 /* ------ HELPER FUNCTIONS ------ */
-/* Allocates memory for mvmcell and populates values
+/* Allocates memory for mvmcell and populates values.
  */
-mvmcell* mvmcell_init(char* key, char* data) {
+mvmcell* mvmcell_build(char* key, char* data) {
     mvmcell* node = (mvmcell*)malloc(sizeof(mvmcell));
     if (!node) {
         ON_ERROR("Error allocating cell\n");
@@ -178,6 +163,7 @@ mvmcell* mvmcell_init(char* key, char* data) {
 
     strcpy(node->key, key);
     strcpy(node->data, data);
+    /* FIXME should next be NULLed to avoid any issues? */
 
     return node;
 }
@@ -198,20 +184,32 @@ mvmcell* mvm_findKey(mvmcell* head, char* key) {
     return NULL;
 }
 
-/* FIXME this could probably just be concotenated into expand buffer */
-char* initListBuffer(size_t size) {
-    /* FIXME is there a more clever way to initialise the buff size? */
-    char* tmp = (char*)malloc(sizeof(char) * size);
+/* Dual-purpose function for building a buffer for the print list. The initial 
+ * malloc should be called with buffer = NULL. Resizes should be called with 
+ * pointer to current buffer
+ */
+char* allocListBuffer(char* buffer, size_t size) {
+    char* tmp = (char*)realloc(buffer, sizeof(char) * size);
     if (!tmp) {
-        ON_ERROR("Error allocating print buffer\n");
+        if (!buffer) {
+            ON_ERROR("Error allocating print buffer\n");
+        } else {
+            ON_ERROR("Error reallocating print buffer\n");
+        }
     }
     return tmp;
 }
 
-char* expandListBuffer(char* buffer, size_t size) {
-    char* tmp = (char*)realloc(buffer, sizeof(char) * size);
+/* Use NULL for list for initial malloc, and pass list pointer for resizing
+ */
+char** allocMultiSearch(char** list, size_t size) {
+    char** tmp = (char**)realloc(list, sizeof(char*) * size);
     if (!tmp) {
-        ON_ERROR("Error reallocating print buffer\n");
+        if (!list) {
+            ON_ERROR("Error allocation multi-search list\n");
+        } else {
+            ON_ERROR("Error reallocating multi-search list\n");
+        }
     }
     return tmp;
 }
@@ -224,7 +222,7 @@ char* expandListBuffer(char* buffer, size_t size) {
 mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key, mvm* m) {
     mvmcell* tmp;
 
-    if (node == NULL) {
+    if (!node) {
         return NULL;
     } else if (!strcmp(node->key, key)) {
         tmp = node->next;
@@ -237,10 +235,11 @@ mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key, mvm* m) {
     }
 }
 
-/* Recursive function to unload linked list
+/* Recursive function to unload linked list. Still not completely sure if it's
+ * better to do this recursively or with a loop?
  */
 void mvmcell_unloadList(mvmcell* node) {
-    if (node == NULL) {
+    if (!node) {
         return;
     }
     mvmcell_unloadList(node->next);
