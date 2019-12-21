@@ -3,11 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* TODO consider generic malloc handler */
-/* FIXME check types used */
-
 /* TODO REDEFINE TO MORE SENSIBLE SIZE */
-#define AVE_CHARS 1
+#define AVE_CHARS 10
 #define FACTOR 2
 #define FORMAT_LEN strlen("[]() ")
 #define MULTI_SEARCH_LIST 5
