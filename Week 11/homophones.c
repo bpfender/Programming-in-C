@@ -9,7 +9,7 @@
 /* FIXME handling number of phenomes */
 /* FIXME what other edge cases might there be? */
 
-#define BUFF_SIZE 20
+#define BUFF_SIZE 200
 #define BUFF_FACT 4
 #define FILENAME "./cmudict.txt"
 
@@ -138,10 +138,12 @@ char* bufferAllocHandler(char* buffer, size_t size) {
 
 /* Reads line from a file. Line endings are replaced with '\0' and function
  * LF and CRLF endings automatically. Function returns number of characters in 
- * the string or -1 on file end or error.
+ * the string or -1 on file end or error. Must be passed initialised buffer or
+ * NULL value ptr
  */
 int getLine(char** buffer, size_t* size, FILE* file) {
-    size_t i = 0;
+    /* FIXME some weird typing issues that need to be fixed */
+    unsigned int i = 0;
     long int file_pos = ftell(file);
 
     /* If buffer has not been initialised, buffer is allocated and size is set */
@@ -158,9 +160,14 @@ int getLine(char** buffer, size_t* size, FILE* file) {
         /* Get number of characters read */
         i = ftell(file) - file_pos;
 
+        /* First time stream reaches the EOF, fgets will end up here. Can return
+        number of characters read */
+        if (feof(file)) {
+            return i;
+        }
+
         /* Check whether last read character was a \n or eof reached*/
         /* FIXME this line end check is super dirty at the moment write functino to check line end*/
-        /* QUESTION how does C read the newline character? */
         if ((*buffer)[i - 1] == '\n') {
             if ((*buffer)[i - 2] == '\r') {
                 (*buffer)[i - 2] = '\0';
@@ -169,16 +176,12 @@ int getLine(char** buffer, size_t* size, FILE* file) {
 
             (*buffer)[i - 1] = '\0';
             return i - 1;
+        }
 
-        } else if (feof(file)) {
-            return i;
-        }
-        /* Check that buffer hasn't been filled. If it has expand, so rest of
-           of the line can be read in */
-        if (!(i < *size - 1)) {
-            *size *= BUFF_FACT;
-            *buffer = bufferAllocHandler(*buffer, *size);
-        }
+        /* If fgets stopped reading and last char wasn't \n, buffer was filled
+        and needs ot be expanded */
+        *size *= BUFF_FACT;
+        *buffer = bufferAllocHandler(*buffer, *size);
     }
 
     /* Returns 0 on eof or error */
