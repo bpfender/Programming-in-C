@@ -31,6 +31,7 @@ char* parsePhenome(char* line, size_t len, int n);
 char** findRhymes(mvm* map2, char* phenome, int* n);
 void loadDictionary(mvm* map1, mvm* map2, int n);
 void printRhymes(mvm* map1, mvm* map2, char* word);
+void truncateLineEnd(char* buffer, int* len);
 
 void test(void);
 
@@ -45,11 +46,12 @@ void loadDictionary(mvm* map1, mvm* map2, int n) {
 
     char* buffer = NULL;
     size_t size;
-    size_t len;
+    int len;
 
     char *word, *phenome;
 
     while ((len = getLine(&buffer, &size, file)) != -1) {
+        truncateLineEnd(buffer, &len);
         word = parseWord(buffer);
         phenome = parsePhenome(buffer, len, n);
         mvm_insert(map1, word, phenome);
@@ -74,6 +76,8 @@ void printRhymes(mvm* map1, mvm* map2, char* word) {
     free(rhymes);
 }
 
+/* Just a wrapper function for mvm_multisearch here
+ */
 char** findRhymes(mvm* map2, char* phenome, int* n) {
     char** rhymes = mvm_multisearch(map2, phenome, n);
     return rhymes;
@@ -136,9 +140,25 @@ char* bufferAllocHandler(char* buffer, size_t size) {
     return tmp;
 }
 
-/* Reads line from a file. Line endings are replaced with '\0' and function
- * LF and CRLF endings automatically. Function returns number of characters in 
- * the string or -1 on file end or error. Must be passed initialised buffer or
+/* Truncates line endings from lines. Can handle LF or CRLF. Uses short-circuit
+ * evaluation to avoid reading outside array indices
+ */
+void truncateLineEnd(char* buffer, int* len) {
+    int end = *len;
+
+    if (end && buffer[end - 1] == '\n') {
+        if (end >= 2 && buffer[end - 2] == '\r') {
+            buffer[end - 2] = '\0';
+            *len = end - 2;
+        } else {
+            buffer[end - 1] = '\0';
+            *len = end - 1;
+        }
+    }
+}
+
+/* Reads line from a file. Function returns number of characters in the string
+ * including \n or -1 on file end or error. Must be passed initialised buffer or
  * NULL value ptr
  */
 int getLine(char** buffer, size_t* size, FILE* file) {
@@ -154,28 +174,15 @@ int getLine(char** buffer, size_t* size, FILE* file) {
 
     /* Use fgets to read into buffer. Space remaining in buffer is decremented 
        based on how far into the file has been read. Allows for dyanmic resizing
-       of buffer. The while loop handles \n characters. If EOF is reached, while
-       loop will exit */
+       of buffer. The while loop handles \n characters. */
     while (fgets(*buffer + i, *size - i, file)) {
         /* Get number of characters read */
         i = ftell(file) - file_pos;
 
         /* First time stream reaches the EOF, fgets will end up here. Can return
         number of characters read */
-        if (feof(file)) {
+        if (feof(file) || (*buffer)[i - 1] == '\n') {
             return i;
-        }
-
-        /* Check whether last read character was a \n or eof reached*/
-        /* FIXME this line end check is super dirty at the moment write functino to check line end*/
-        if ((*buffer)[i - 1] == '\n') {
-            if ((*buffer)[i - 2] == '\r') {
-                (*buffer)[i - 2] = '\0';
-                return i - 2;
-            }
-
-            (*buffer)[i - 1] = '\0';
-            return i - 1;
         }
 
         /* If fgets stopped reading and last char wasn't \n, buffer was filled
@@ -183,7 +190,6 @@ int getLine(char** buffer, size_t* size, FILE* file) {
         *size *= BUFF_FACT;
         *buffer = bufferAllocHandler(*buffer, *size);
     }
-
     /* Returns 0 on eof or error */
     return -1;
 }
@@ -191,7 +197,7 @@ int getLine(char** buffer, size_t* size, FILE* file) {
 void test(void) {
     char* buffer = NULL;
     size_t buffer_size;
-    size_t line_len;
+    int line_len;
     FILE* file;
 
     mvm* map1 = mvm_init();
@@ -201,6 +207,9 @@ void test(void) {
 
     file = openFile("cmudict.txt");
     line_len = getLine(&buffer, &buffer_size, file);
+
+    truncateLineEnd(buffer, &line_len);
+    printf("%s\n", buffer);
     assert(strcmp(buffer, "STANO#S T AA1 N OW0") == 0);
 
     assert(strcmp(parseWord(buffer), "STANO") == 0);
