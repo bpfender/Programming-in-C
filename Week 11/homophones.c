@@ -21,7 +21,7 @@ typedef enum line_t { LF,
                       CRLF,
                       CR } line_t;
 
-size_t getLine(char** buffer, size_t* size, FILE* file);
+int getLine(char** buffer, size_t* size, FILE* file);
 char* bufferAllocHandler(char* buffer, size_t size);
 FILE* openFile(char* filename);
 
@@ -49,7 +49,7 @@ void loadDictionary(mvm* map1, mvm* map2, int n) {
 
     char *word, *phenome;
 
-    while ((len = getLine(&buffer, &size, file))) {
+    while ((len = getLine(&buffer, &size, file)) != -1) {
         word = parseWord(buffer);
         phenome = parsePhenome(buffer, len, n);
         mvm_insert(map1, word, phenome);
@@ -136,12 +136,11 @@ char* bufferAllocHandler(char* buffer, size_t size) {
     return tmp;
 }
 
-/* Reads line from a file. '\n' is appended by '\0' character. Must be passed
- * either initialised buffer or NULL pointer. Returns 0 when EOF reached or
- * error in file reading. This should be checked after return from getLine().
- * Returns number of characters in string including \n but not \0
+/* Reads line from a file. Line endings are replaced with '\0' and function
+ * LF and CRLF endings automatically. Function returns number of characters in 
+ * the string or -1 on file end or error.
  */
-size_t getLine(char** buffer, size_t* size, FILE* file) {
+int getLine(char** buffer, size_t* size, FILE* file) {
     size_t i = 0;
     long int file_pos = ftell(file);
 
@@ -183,7 +182,7 @@ size_t getLine(char** buffer, size_t* size, FILE* file) {
     }
 
     /* Returns 0 on eof or error */
-    return 0;
+    return -1;
 }
 
 void test(void) {
