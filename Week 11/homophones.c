@@ -27,21 +27,20 @@ void truncateLineEnd(char* buffer, size_t* len);
 void test(void);
 
 int main(int argc, char* argv[]) {
-    int n;
-    int i;
+    int n, i;
     mvm *map1, *map2;
+
     test();
 
-    if (argc < 2) {
-        printf("Incorrect usage...\n");
-        return 1;
-    }
-    if (!strcmp(argv[1], "-n")) {
+    if (argc > 3 && !strcmp(argv[1], "-n")) {
         n = atoi(argv[2]);
         i = 3;
-    } else {
+    } else if (argc > 1) {
         n = 3;
         i = 1;
+    } else {
+        printf("Incorrect usage...\n");
+        return 1;
     }
 
     map1 = mvm_init();
