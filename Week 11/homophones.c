@@ -21,7 +21,7 @@ typedef enum line_t { LF,
                       CRLF,
                       CR } line_t;
 
-int getLine(char** buffer, size_t* size, FILE* file);
+size_t getLine(char** buffer, size_t* size, FILE* file);
 char* bufferAllocHandler(char* buffer, size_t size);
 FILE* openFile(char* filename);
 
@@ -31,7 +31,7 @@ char* parsePhenome(char* line, size_t len, int n);
 char** findRhymes(mvm* map2, char* phenome, int* n);
 void loadDictionary(mvm* map1, mvm* map2, int n);
 void printRhymes(mvm* map1, mvm* map2, char* word);
-void truncateLineEnd(char* buffer, int* len);
+void truncateLineEnd(char* buffer, size_t* len);
 
 void test(void);
 
@@ -46,11 +46,11 @@ void loadDictionary(mvm* map1, mvm* map2, int n) {
 
     char* buffer = NULL;
     size_t size;
-    int len;
+    size_t len;
 
     char *word, *phenome;
 
-    while ((len = getLine(&buffer, &size, file)) != -1) {
+    while ((len = getLine(&buffer, &size, file))) {
         truncateLineEnd(buffer, &len);
         word = parseWord(buffer);
         phenome = parsePhenome(buffer, len, n);
@@ -76,7 +76,7 @@ void printRhymes(mvm* map1, mvm* map2, char* word) {
     free(rhymes);
 }
 
-/* Just a wrapper function for mvm_multisearch here
+/* Just a wrapper function for mvm_multisearch
  */
 char** findRhymes(mvm* map2, char* phenome, int* n) {
     char** rhymes = mvm_multisearch(map2, phenome, n);
@@ -85,8 +85,13 @@ char** findRhymes(mvm* map2, char* phenome, int* n) {
 
 /* FIXME why allocate new memory. However could be written slightly more clearly*/
 /* FIXME error handlign */
+
+/* Simply modifies buffer string to avoid copying things around unecesarrily.
+ * Replaces '#' in dictionary format with '\0' so that string functions will 
+ * work on first half of the buffer properly.
+ */
 char* parseWord(char* line) {
-    size_t i;
+    int i;
     for (i = 0; line[i] != '#'; i++) {
         /* FIXME how is file terminated? Avoid exceeding buffer */
         if (line[i] == '\0') {
@@ -141,10 +146,11 @@ char* bufferAllocHandler(char* buffer, size_t size) {
 }
 
 /* Truncates line endings from lines. Can handle LF or CRLF. Uses short-circuit
- * evaluation to avoid reading outside array indices
+ * evaluation to avoid reading outside array indices by checking for zero-length
+ * strings and relevant line ending.
  */
-void truncateLineEnd(char* buffer, int* len) {
-    int end = *len;
+void truncateLineEnd(char* buffer, size_t* len) {
+    size_t end = *len;
 
     if (end && buffer[end - 1] == '\n') {
         if (end >= 2 && buffer[end - 2] == '\r') {
@@ -161,9 +167,8 @@ void truncateLineEnd(char* buffer, int* len) {
  * including \n or -1 on file end or error. Must be passed initialised buffer or
  * NULL value ptr
  */
-int getLine(char** buffer, size_t* size, FILE* file) {
-    /* FIXME some weird typing issues that need to be fixed */
-    unsigned int i = 0;
+size_t getLine(char** buffer, size_t* size, FILE* file) {
+    size_t i = 0;
     long int file_pos = ftell(file);
 
     /* If buffer has not been initialised, buffer is allocated and size is set */
@@ -179,25 +184,26 @@ int getLine(char** buffer, size_t* size, FILE* file) {
         /* Get number of characters read */
         i = ftell(file) - file_pos;
 
-        /* First time stream reaches the EOF, fgets will end up here. Can return
-        number of characters read */
+        /* When '\n' read of the first time stream reaches the
+        EOF, fgets will end up here. Can return number of characters read */
         if (feof(file) || (*buffer)[i - 1] == '\n') {
             return i;
         }
 
-        /* If fgets stopped reading and last char wasn't \n, buffer was filled
-        and needs ot be expanded */
+        /* If fgets stopped reading and last char wasn't \n of eof, buffer was 
+        filled and needs ot be expanded */
         *size *= BUFF_FACT;
         *buffer = bufferAllocHandler(*buffer, *size);
     }
-    /* Returns 0 on eof or error */
-    return -1;
+    /* Returns 0 on eof or error. This should be the only case where 0 can be
+    returned as newlines will always include at least the line ending chars */
+    return 0;
 }
 
 void test(void) {
     char* buffer = NULL;
     size_t buffer_size;
-    int line_len;
+    size_t line_len;
     FILE* file;
 
     mvm* map1 = mvm_init();
