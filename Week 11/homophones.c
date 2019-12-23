@@ -13,14 +13,6 @@
 #define BUFF_FACT 4
 #define FILENAME "./cmudict.txt"
 
-#define STR_END(s) (s == '\0' || s == '\n')
-
-/* TODO check types in all files */
-/* FIXME write line ending checker */
-typedef enum line_t { LF,
-                      CRLF,
-                      CR } line_t;
-
 size_t getLine(char** buffer, size_t* size, FILE* file);
 char* bufferAllocHandler(char* buffer, size_t size);
 FILE* openFile(char* filename);
@@ -28,7 +20,6 @@ FILE* openFile(char* filename);
 void loadDictionary(mvm* map1, mvm* map2, int n);
 char* parseWord(char* line, size_t len);
 char* parsePhenome(char* line, size_t len, int n);
-char** findRhymes(mvm* map2, char* phenome, int* n);
 void loadDictionary(mvm* map1, mvm* map2, int n);
 void printRhymes(mvm* map1, mvm* map2, char* word);
 void truncateLineEnd(char* buffer, size_t* len);
@@ -40,7 +31,6 @@ int main(void) {
     return 0;
 }
 
-/* FIXME is it bad to just operate directly on the buffer line */
 void loadDictionary(mvm* map1, mvm* map2, int n) {
     FILE* file = openFile(FILENAME);
 
@@ -65,8 +55,9 @@ void loadDictionary(mvm* map1, mvm* map2, int n) {
 void printRhymes(mvm* map1, mvm* map2, char* word) {
     int n = 0;
     int i;
+
     char* phenome = mvm_search(map1, word);
-    char** rhymes = findRhymes(map2, phenome, &n);
+    char** rhymes = mvm_multisearch(map2, phenome, &n);
 
     printf("%s (%s): ", word, phenome);
     for (i = 0; i < n; i++) {
@@ -74,13 +65,6 @@ void printRhymes(mvm* map1, mvm* map2, char* word) {
     }
     printf("\n");
     free(rhymes);
-}
-
-/* Just a wrapper function for mvm_multisearch
- */
-char** findRhymes(mvm* map2, char* phenome, int* n) {
-    char** rhymes = mvm_multisearch(map2, phenome, n);
-    return rhymes;
 }
 
 /* Modifies buffer in place to avoid copying things around unecesarrily.
