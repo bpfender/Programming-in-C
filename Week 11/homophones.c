@@ -26,7 +26,7 @@ char* bufferAllocHandler(char* buffer, size_t size);
 FILE* openFile(char* filename);
 
 void loadDictionary(mvm* map1, mvm* map2, int n);
-char* parseWord(char* line);
+char* parseWord(char* line, size_t len);
 char* parsePhenome(char* line, size_t len, int n);
 char** findRhymes(mvm* map2, char* phenome, int* n);
 void loadDictionary(mvm* map1, mvm* map2, int n);
@@ -52,7 +52,7 @@ void loadDictionary(mvm* map1, mvm* map2, int n) {
 
     while ((len = getLine(&buffer, &size, file))) {
         truncateLineEnd(buffer, &len);
-        word = parseWord(buffer);
+        word = parseWord(buffer, len);
         phenome = parsePhenome(buffer, len, n);
         mvm_insert(map1, word, phenome);
         mvm_insert(map2, phenome, word);
@@ -83,27 +83,27 @@ char** findRhymes(mvm* map2, char* phenome, int* n) {
     return rhymes;
 }
 
-/* FIXME why allocate new memory. However could be written slightly more clearly*/
-/* FIXME error handlign */
-
-/* Simply modifies buffer string to avoid copying things around unecesarrily.
- * Replaces '#' in dictionary format with '\0' so that string functions will 
- * work on first half of the buffer properly.
+/* Modifies buffer in place to avoid copying things around unecesarrily.
+ * Replaces '#' in dictionary format string with '\0' so that string functions
+ * will work on first half of the buffer properly.
  */
-char* parseWord(char* line) {
-    int i;
-    for (i = 0; line[i] != '#'; i++) {
-        /* FIXME how is file terminated? Avoid exceeding buffer */
-        if (line[i] == '\0') {
-            ON_ERROR("Incorrect dictionary format. Exiting\n");
+char* parseWord(char* line, size_t len) {
+    size_t i;
+    for (i = 0; i < len; i++) {
+        if (line[i] == '#') {
+            line[i] = '\0';
+            return line;
         }
     }
-    line[i] = '\0';
-    return line;
+    ON_ERROR("Incorrect dictionary word format. Exiting\n");
 }
 
-/* FIXME error handling*/
-/* FIXME needs handling of longer n specifier than phenomes, this is horrible at the moment */
+/* Reads from buffer in place. Counts back from end of string to "n" desired
+ * phenomes. If n > than the number of phenomes, the maximum number of phenomes
+ * of the word are read into the dictionary. Returns pointer to beginning of 
+ * phenome string stored in the line buffer.
+ */
+/* FIXME not totally sure about n > phenome number handling */
 char* parsePhenome(char* line, size_t len, int n) {
     size_t i;
     int count = 0;
@@ -112,12 +112,13 @@ char* parsePhenome(char* line, size_t len, int n) {
         if (line[i] == ' ') {
             count++;
         }
-        if (count == n || line[i] == '\0') {
+        /* Extra condition for '\0' and '#' allows this to work whether it's
+        called before or after parseWord() */
+        if (count == n || line[i] == '\0' || line[i] == '#') {
             return line + i + 1;
         }
     }
-
-    return NULL;
+    ON_ERROR("Incorrect dictionary phenome format. Exiting\n");
 }
 
 FILE* openFile(char* filename) {
@@ -164,7 +165,7 @@ void truncateLineEnd(char* buffer, size_t* len) {
 }
 
 /* Reads line from a file. Function returns number of characters in the string
- * including \n or -1 on file end or error. Must be passed initialised buffer or
+ * including \n or 0 on file end or error. Must be passed initialised buffer or
  * NULL value ptr
  */
 size_t getLine(char** buffer, size_t* size, FILE* file) {
@@ -218,13 +219,13 @@ void test(void) {
     printf("%s\n", buffer);
     assert(strcmp(buffer, "STANO#S T AA1 N OW0") == 0);
 
-    assert(strcmp(parseWord(buffer), "STANO") == 0);
+    assert(strcmp(parseWord(buffer, line_len), "STANO") == 0);
     assert(strcmp(parsePhenome(buffer, line_len, 3), "AA1 N OW0") == 0);
 
     fclose(file);
     free(buffer);
 
-    loadDictionary(map1, map2, 1);
+    loadDictionary(map1, map2, 7);
     printf("%s\n", mvm_search(map1, "BOY"));
 
     printRhymes(map1, map2, "BOY");
