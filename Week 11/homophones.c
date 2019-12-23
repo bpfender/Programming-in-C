@@ -27,7 +27,19 @@ void truncateLineEnd(char* buffer, size_t* len);
 void test(void);
 
 int main(void) {
+    int n = 3;
+    char* s;
     test();
+
+    mvm* map1 = mvm_init();
+    mvm* map2 = mvm_init();
+
+    loadDictionary(map1, map2, n);
+    printRhymes(map1, map2, s);
+
+    mvm_free(map1);
+    mvm_free(map2);
+
     return 0;
 }
 
