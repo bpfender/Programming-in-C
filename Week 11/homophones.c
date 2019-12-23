@@ -26,19 +26,33 @@ void truncateLineEnd(char* buffer, size_t* len);
 
 void test(void);
 
-int main(void) {
-    int n = 3;
-    char* s;
+int main(int argc, char* argv[]) {
+    int n;
+    int i;
+    mvm *map1, *map2;
     test();
 
-    mvm* map1 = mvm_init();
-    mvm* map2 = mvm_init();
+    if (argc < 2) {
+        printf("Incorrect usage...\n");
+        return 1;
+    }
+    if (!strcmp(argv[1], "-n")) {
+        n = atoi(argv[2]);
+        i = 3;
+    } else {
+        n = 3;
+        i = 1;
+    }
 
+    map1 = mvm_init();
+    map2 = mvm_init();
     loadDictionary(map1, map2, n);
-    printRhymes(map1, map2, s);
 
-    mvm_free(map1);
-    mvm_free(map2);
+    for (; i < argc; i++) {
+        printRhymes(map1, map2, argv[i]);
+    }
+    mvm_free(&map1);
+    mvm_free(&map2);
 
     return 0;
 }
@@ -67,9 +81,16 @@ void loadDictionary(mvm* map1, mvm* map2, int n) {
 void printRhymes(mvm* map1, mvm* map2, char* word) {
     int n = 0;
     int i;
+    char* phenome;
+    char** rhymes;
 
-    char* phenome = mvm_search(map1, word);
-    char** rhymes = mvm_multisearch(map2, phenome, &n);
+    phenome = mvm_search(map1, word);
+    if (!phenome) {
+        printf("%s not found in dictionary.\n", word);
+        return;
+    }
+
+    rhymes = mvm_multisearch(map2, phenome, &n);
 
     printf("%s (%s): ", word, phenome);
     for (i = 0; i < n; i++) {
@@ -224,7 +245,7 @@ void test(void) {
     loadDictionary(map1, map2, 7);
     printf("%s\n", mvm_search(map1, "BOY"));
 
-    printRhymes(map1, map2, "BOY");
+    printRhymes(map1, map2, "BLAHBLAH");
 
     mvm_free(&map1);
     mvm_free(&map2);
