@@ -17,29 +17,31 @@
 #define DJB2_HASH 5381
 #define DJB2_MAGIC 33
 
+void fillBucket(hash_t* bucket, char* key, unsigned long hash, unsigned long offset);
 unsigned long djb2Hash(char* s);
-bucket_t* buildBucket(char* key);
-bucket_t* insertKey(mvm* m, char* key);
-bucket_t* findKey(mvm* m, char* key);
-bucket_t* buildBucket(char* key);
-void swapBuckets(bucket_t* b1, bucket_t* b2);
-bucket_t* initHashTable(int size);
+hash_t* buildBucket(char* key, unsigned long hash);
+hash_t* insertKey(mvm* m, char* key);
+hash_t* findKey(mvm* m, char* key);
+void swapBuckets(hash_t* b1, hash_t* b2);
+hash_t* initHashTable(int size);
 mvmcell* mvmcell_init(size_t data_len);
 char* initListBuffer(size_t size);
 void expandListBuffer(char** buffer, size_t size);
 void removeKey(mvm* m, char* key);
-void clearBucket(bucket_t* bucket);
+void clearBucket(hash_t* bucket);
 void mvmcell_unloadList(mvmcell* node);
 void mvmcell_unloadNode(mvmcell* node);
 
 mvm* mvm_init(void) {
-    mvm* tmp = (mvm*)calloc(1, sizeof(mvm));
+    mvm* tmp = (mvm*)malloc(sizeof(mvm));
     if (!tmp) {
         ON_ERROR("Error allocating memory for MVM\n");
     }
 
     tmp->hash_table = initHashTable(HASH_SIZE);
     tmp->table_size = HASH_SIZE;
+    tmp->num_keys = 0;
+    tmp->num_buckets = 0;
 
     return tmp;
 }
@@ -49,7 +51,7 @@ int mvm_size(mvm* m) {
 }
 
 void mvm_insert(mvm* m, char* key, char* data) {
-    bucket_t* cell = insertKey(m, key);
+    hash_t* cell = insertKey(m, key);
 
     /* FIXME declare this as a whole function */
     mvmcell* node = mvmcell_init(strlen(data) + 1);
@@ -62,45 +64,63 @@ void mvm_insert(mvm* m, char* key, char* data) {
     m->num_keys++;
 }
 
-/* FIXME need to include a resize table in here */
-bucket_t* insertKey(mvm* m, char* key) {
-    bucket_t* table = m->hash_table;
-    bucket_t* bucket = buildBucket(key);
-    unsigned long index = bucket->hash % m->table_size;
+/* Returns location for data to be stored in hash table */
+hash_t* insertKey(mvm* m, char* key) {
+    hash_t* table = m->hash_table;
+    unsigned long hash = djb2Hash(key);
+    unsigned long index = hash % m->table_size;
+    unsigned long offset = 0;
 
-    bucket_t* location = NULL;
-    unsigned long offset_index;
+    hash_t* bucket = buildBucket(key, hash);
+
+    hash_t* location = NULL;
 
     printf("HASH INDEX: %li\n", index);
 
     if (!table[index].key) {
-        memcpy(table + index, bucket, sizeof(bucket_t));
+        fillBucket(table + index, key, hash, offset);
         printf("RETURNED INDEX: %li\n", index);
         return table + index;
     }
 
-    if ((location = findKey(m, key))) {
-        return location;
-    }
-
     /* FIXME could this be neatened up a little bit with a function call */
     do {
-        bucket->distance++;
-        offset_index = (index + bucket->distance) % m->table_size;
+        offset++;
+        index = (++index) % m->table_size;
 
-        if (bucket->distance > table[offset_index].distance) {
-            if (!location) {
-                location = table + offset_index;
-            }
-            swapBuckets(bucket, table + offset_index);
+        if (!table[index].key) {
+            fillBucket(table + index, key, hash, offset);
+            return table + index;
         }
 
-    } while (table[offset_index].key);
-    printf("RETURNED INDEX: %li\n", offset_index);
+        if (!strcmp(table[index].key, key)) {
+            return table + index;
+        }
+
+        if (offset > table[index].distance) {
+            if (!location) {
+                location = table + index;
+            }
+            swapBuckets(bucket, table + index);
+        }
+
+    } while (table[index].key);
+
+    printf("RETURNED INDEX: %li\n", index);
     return location;
 }
 
-bucket_t* findKey(mvm* m, char* key) {
+void shiftBuckets(mvm* m, unsigned long index) {
+    hash_t tmp = m->hash_table[index];
+    do {
+        tmp.distance++;
+        index = (++index) % m->table_size;
+        if (tmp.distance > m->hash_table[index].distance) {
+        }
+    } while (/* condition */);
+}
+
+hash_t* findKey(mvm* m, char* key) {
     /* FIXME duplication of hash calc above */
     unsigned long index = djb2Hash(key) % m->table_size;
     int offset = 0;
@@ -125,8 +145,20 @@ bucket_t* findKey(mvm* m, char* key) {
     return NULL;
 }
 
-bucket_t* buildBucket(char* key) {
-    bucket_t* tmp = (bucket_t*)malloc(sizeof(bucket_t));
+void fillBucket(hash_t* bucket, char* key, unsigned long hash, unsigned long offset) {
+    bucket->key = (char*)malloc(sizeof(char) * (strlen(key) + 1));
+    if (!bucket->key) {
+        ON_ERROR("Error allocating memory for key\n");
+    }
+    strcpy(bucket->key, key);
+
+    bucket->hash = hash;
+    bucket->distance = offset;
+    bucket->head = NULL;
+}
+
+hash_t* buildBucket(char* key, unsigned long hash) {
+    hash_t* tmp = (hash_t*)malloc(sizeof(hash_t));
     if (!tmp) {
         ON_ERROR("Error allocating memory for bucket\n");
     }
@@ -136,7 +168,7 @@ bucket_t* buildBucket(char* key) {
         ON_ERROR("Error allocating memory for key\n");
     }
     strcpy(tmp->key, key);
-    tmp->hash = djb2Hash(key);
+    tmp->hash = hash;
     tmp->head = NULL;
     tmp->distance = 0;
 
@@ -144,11 +176,11 @@ bucket_t* buildBucket(char* key) {
 }
 
 /* TODO is this a good implementation, no other alternative really */
-void swapBuckets(bucket_t* b1, bucket_t* b2) {
-    bucket_t tmp;
-    memcpy(&tmp, b1, sizeof(bucket_t));
-    memcpy(b1, b2, sizeof(bucket_t));
-    memcpy(b2, &tmp, sizeof(bucket_t));
+void swapBuckets(hash_t* b1, hash_t* b2) {
+    hash_t tmp;
+    memcpy(&tmp, b1, sizeof(hash_t));
+    memcpy(b1, b2, sizeof(hash_t));
+    memcpy(b2, &tmp, sizeof(hash_t));
 }
 
 char* mvm_print(mvm* m) {
@@ -188,7 +220,7 @@ char* mvm_print(mvm* m) {
 }
 
 void mvm_delete(mvm* m, char* key) {
-    bucket_t* bucket = findKey(m, key);
+    hash_t* bucket = findKey(m, key);
 
     mvmcell* node = bucket->head;
     bucket->head = node->next;
@@ -203,8 +235,8 @@ void mvm_delete(mvm* m, char* key) {
     m->num_keys--;
 }
 
-bucket_t* removeKey(mvm* m, char* key) {
-    bucket_t* bucket = findKey(m, key);
+hash_t* removeKey(mvm* m, char* key) {
+    hash_t* bucket = findKey(m, key);
 
     if (!bucket) {
         size_t i = 0;
@@ -219,7 +251,7 @@ bucket_t* removeKey(mvm* m, char* key) {
             memcpy(bucket, bucket + 1, i * sizeof(bucket));
         } else {
             memcpy(bucket + m->table_size - 1, m->hash_table);
-                }
+        }
 
         clearBucket(bucket + i);
         return NULL
@@ -228,7 +260,7 @@ bucket_t* removeKey(mvm* m, char* key) {
 }
 
 /* FIXME does everything actually need to be zeroed? */
-void clearBucket(bucket_t* bucket) {
+void clearBucket(hash_t* bucket) {
     bucket->key = NULL;
     bucket->distance = 0;
     bucket->hash = 0;
@@ -236,7 +268,7 @@ void clearBucket(bucket_t* bucket) {
 }
 
 char* mvm_search(mvm* m, char* key) {
-    bucket_t* bucket = findKey(m, key);
+    hash_t* bucket = findKey(m, key);
     if (bucket) {
         return bucket->head->data;
     }
@@ -247,7 +279,7 @@ char** mvm_multisearch(mvm* m, char* key, int* n) {
     int size = MULTI_SEARCH_LIST;
     int curr_index = 0;
 
-    bucket_t* bucket = findKey(m, key);
+    hash_t* bucket = findKey(m, key);
     mvmcell* node = bucket->head;
 
     char** list = (char**)malloc(sizeof(char*) * MULTI_SEARCH_LIST);
@@ -314,12 +346,11 @@ unsigned long djb2Hash(char* s) {
     return hash;
 }
 
-bucket_t* initHashTable(int size) {
-    bucket_t* tmp = (bucket_t*)calloc(size, sizeof(bucket_t));
+hash_t* initHashTable(int size) {
+    hash_t* tmp = (hash_t*)calloc(size, sizeof(hash_t));
     if (!tmp) {
         ON_ERROR("Error allocating hash table\n");
     }
-
     return tmp;
 }
 
