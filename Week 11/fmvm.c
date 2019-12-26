@@ -71,7 +71,6 @@ hash_t* insertKey(mvm* m, char* key) {
     unsigned long index = hash % m->table_size;
     unsigned long offset = 0;
 
-    /* FIXME could this be neatened up a little bit with a function call */
     for (;;) {
         if (!table[index].key) {
             fillBucket(table + index, key, hash, offset);
@@ -95,22 +94,19 @@ hash_t* insertKey(mvm* m, char* key) {
 
 void shiftBuckets(mvm* m, unsigned long index) {
     hash_t* table = m->hash_table;
-    unsigned long swap_index = index;
-    hash_t tmp;
+    hash_t tmp = table[index];
 
-    /* FIXME SOMETHING IS DEFINITELY WRONG HERE AND NEEDS FIXING */
     for (;;) {
-        index++;
-        table[swap_index].distance++;
+        index = (++index) % m->table_size;
+        tmp.distance++;
 
         if (!table[index].key) {
-            table[index] = table[swap_index];
+            table[index] = tmp;
+            return;
         }
 
-        if (table[swap_index].distance > table[index].distance) {
-            tmp = table[index];
-            table[index] = table[swap_index];
-            swap_index = index;
+        if (tmp.distance > table[index].distance) {
+            swapBuckets(&tmp, table + index);
         }
     }
 }
@@ -173,9 +169,9 @@ hash_t* buildBucket(char* key, unsigned long hash) {
 /* TODO is this a good implementation, no other alternative really */
 void swapBuckets(hash_t* b1, hash_t* b2) {
     hash_t tmp;
-    memcpy(&tmp, b1, sizeof(hash_t));
-    memcpy(b1, b2, sizeof(hash_t));
-    memcpy(b2, &tmp, sizeof(hash_t));
+    tmp = *b1;
+    *b1 = *b2;
+    *b2 = tmp;
 }
 
 char* mvm_print(mvm* m) {
