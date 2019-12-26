@@ -71,23 +71,8 @@ hash_t* insertKey(mvm* m, char* key) {
     unsigned long index = hash % m->table_size;
     unsigned long offset = 0;
 
-    hash_t* bucket = buildBucket(key, hash);
-
-    hash_t* location = NULL;
-
-    printf("HASH INDEX: %li\n", index);
-
-    if (!table[index].key) {
-        fillBucket(table + index, key, hash, offset);
-        printf("RETURNED INDEX: %li\n", index);
-        return table + index;
-    }
-
     /* FIXME could this be neatened up a little bit with a function call */
-    do {
-        offset++;
-        index = (++index) % m->table_size;
-
+    for (;;) {
         if (!table[index].key) {
             fillBucket(table + index, key, hash, offset);
             return table + index;
@@ -97,27 +82,37 @@ hash_t* insertKey(mvm* m, char* key) {
             return table + index;
         }
 
+        offset++;
+        index = (++index) % m->table_size;
+
         if (offset > table[index].distance) {
-            if (!location) {
-                location = table + index;
-            }
-            swapBuckets(bucket, table + index);
+            shiftBuckets(m, index);
+            fillBucket(table + index, key, hash, offset);
+            return table + index;
         }
-
-    } while (table[index].key);
-
-    printf("RETURNED INDEX: %li\n", index);
-    return location;
+    }
 }
 
 void shiftBuckets(mvm* m, unsigned long index) {
-    hash_t tmp = m->hash_table[index];
-    do {
-        tmp.distance++;
-        index = (++index) % m->table_size;
-        if (tmp.distance > m->hash_table[index].distance) {
+    hash_t* table = m->hash_table;
+    unsigned long swap_index = index;
+    hash_t tmp;
+
+    /* FIXME SOMETHING IS DEFINITELY WRONG HERE AND NEEDS FIXING */
+    for (;;) {
+        index++;
+        table[swap_index].distance++;
+
+        if (!table[index].key) {
+            table[index] = table[swap_index];
         }
-    } while (/* condition */);
+
+        if (table[swap_index].distance > table[index].distance) {
+            tmp = table[index];
+            table[index] = table[swap_index];
+            swap_index = index;
+        }
+    }
 }
 
 hash_t* findKey(mvm* m, char* key) {
