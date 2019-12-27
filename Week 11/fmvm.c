@@ -6,7 +6,7 @@
 #define AVE_CHARS 6 /*FIXME could actually functionise this now */
 #define MULTI_SEARCH_LIST 2
 #define FACTOR 2
-#define PRNT_STR_CHARS "[]() "
+#define FORMAT_LEN strlen("[]() ")
 
 /* FIXME no resizing of hash table implemented yet */
 #define HASH_SIZE 6
@@ -17,14 +17,16 @@
 #define DJB2_HASH 5381
 #define DJB2_MAGIC 33
 
+#define LIST_LEN 10
+
 void fillBucket(hash_t* bucket, char* key, unsigned long hash, unsigned long offset);
+void shiftBuckets(mvm* m, unsigned long index);
 unsigned long djb2Hash(char* s);
-hash_t* buildBucket(char* key, unsigned long hash);
 hash_t* insertKey(mvm* m, char* key);
 hash_t* findKey(mvm* m, char* key);
 void swapBuckets(hash_t* b1, hash_t* b2);
 hash_t* initHashTable(int size);
-mvmcell* mvmcell_init(size_t data_len);
+mvmcell* mvmcell_init(char* data);
 char* initListBuffer(size_t size);
 void expandListBuffer(char** buffer, size_t size);
 void removeKey(mvm* m, char* key);
@@ -53,27 +55,26 @@ int mvm_size(mvm* m) {
 void mvm_insert(mvm* m, char* key, char* data) {
     hash_t* cell = insertKey(m, key);
 
-    /* FIXME declare this as a whole function */
-    mvmcell* node = mvmcell_init(strlen(data) + 1);
-    strcpy(node->data, data);
-
-    /* Update linked list */
+    /* Add data entry to linked list */
+    mvmcell* node = mvmcell_init(data);
     node->next = cell->head;
     cell->head = node;
 
     m->num_keys++;
 }
 
+/* FIXME doesn't resize yet */
 /* Returns location for data to be stored in hash table */
 hash_t* insertKey(mvm* m, char* key) {
     hash_t* table = m->hash_table;
     unsigned long hash = djb2Hash(key);
     unsigned long index = hash % m->table_size;
-    unsigned long offset = 0;
+    int offset = 0;
 
     for (;;) {
         if (!table[index].key) {
             fillBucket(table + index, key, hash, offset);
+            m->num_buckets++;
             return table + index;
         }
 
@@ -82,11 +83,13 @@ hash_t* insertKey(mvm* m, char* key) {
         }
 
         offset++;
-        index = (++index) % m->table_size;
+        index = (index + 1) % m->table_size;
 
+        /* FIXME not 100% sure on the offset here */
         if (offset > table[index].distance) {
             shiftBuckets(m, index);
             fillBucket(table + index, key, hash, offset);
+            m->num_buckets++;
             return table + index;
         }
     }
@@ -97,14 +100,13 @@ void shiftBuckets(mvm* m, unsigned long index) {
     hash_t tmp = table[index];
 
     for (;;) {
-        index = (++index) % m->table_size;
+        index = (index + 1) % m->table_size;
         tmp.distance++;
 
         if (!table[index].key) {
             table[index] = tmp;
             return;
         }
-
         if (tmp.distance > table[index].distance) {
             swapBuckets(&tmp, table + index);
         }
@@ -112,26 +114,20 @@ void shiftBuckets(mvm* m, unsigned long index) {
 }
 
 hash_t* findKey(mvm* m, char* key) {
-    /* FIXME duplication of hash calc above */
+    hash_t* table = m->hash_table;
+
     unsigned long index = djb2Hash(key) % m->table_size;
     int offset = 0;
-    size_t offset_index = index;
 
-    if (!(m->hash_table[index].key)) {
-        return NULL;
-    }
-
-    if (!strcmp(m->hash_table[index].key, key)) {
-        return m->hash_table + index;
-    }
-
-    /* This can be combined into one loop with the above */
-    while (!(m->hash_table[offset_index].distance < offset || !m->hash_table[offset_index].key)) {
-        if (!strcmp(m->hash_table[offset_index].key, key)) {
-            return m->hash_table + offset_index;
+    /* Does this work with shortcircuit evaluation? */
+    /* FIXME not 100% on offset calculation */
+    while (table[index].key && table[index].distance == offset) {
+        if (!strcmp(table[index].key, key)) {
+            return table + index;
         }
+
         offset++;
-        offset_index = (index + offset) % m->table_size;
+        index = (index + 1) % m->table_size;
     }
     return NULL;
 }
@@ -145,28 +141,9 @@ void fillBucket(hash_t* bucket, char* key, unsigned long hash, unsigned long off
 
     bucket->hash = hash;
     bucket->distance = offset;
-    bucket->head = NULL;
+    bucket->head = NULL; /*FIXME this shouldn;t really need to be modified */
 }
 
-hash_t* buildBucket(char* key, unsigned long hash) {
-    hash_t* tmp = (hash_t*)malloc(sizeof(hash_t));
-    if (!tmp) {
-        ON_ERROR("Error allocating memory for bucket\n");
-    }
-
-    tmp->key = (char*)malloc(sizeof(char) * (strlen(key) + 1));
-    if (!tmp->key) {
-        ON_ERROR("Error allocating memory for key\n");
-    }
-    strcpy(tmp->key, key);
-    tmp->hash = hash;
-    tmp->head = NULL;
-    tmp->distance = 0;
-
-    return tmp;
-}
-
-/* TODO is this a good implementation, no other alternative really */
 void swapBuckets(hash_t* b1, hash_t* b2) {
     hash_t tmp;
     tmp = *b1;
@@ -174,24 +151,25 @@ void swapBuckets(hash_t* b1, hash_t* b2) {
     *b2 = tmp;
 }
 
+/* FIXME can this be broken down into functions a little bit more ? */
 char* mvm_print(mvm* m) {
     int i;
-    mvmcell* node;
-    size_t buffer_size = AVE_CHARS * m->num_keys;
-    size_t curr_index = 0, next_index = 0;
 
+    size_t buffer_size = AVE_CHARS * m->num_keys;
     char* buffer = initListBuffer(buffer_size);
 
-    char** list = (char**)malloc(sizeof(char*) * MULTI_SEARCH_LIST);
-    if (!list) {
-        ON_ERROR("Error allocating multi-search list\n");
-    }
+    mvmcell* node;
+    hash_t table;
+    size_t curr_index = 0;
+    size_t next_index = 0;
 
     for (i = 0; i < m->table_size; i++) {
-        if (m->hash_table[i].key) {
+        table = m->hash_table[i];
+        if (table.key) {
             node = m->hash_table[i].head;
+
             while (node) {
-                next_index += strlen(m->hash_table[i].key) + strlen(node->data) + strlen(PRNT_STR_CHARS);
+                next_index += strlen(table.key) + strlen(node->data) + FORMAT_LEN;
 
                 /* Check with "+ 1" to ensure there is space for NUll terminator if this
          * is the final appended string */
@@ -200,7 +178,7 @@ char* mvm_print(mvm* m) {
                     expandListBuffer(&buffer, buffer_size);
                 }
 
-                sprintf(buffer + curr_index, "[%s](%s) ", m->hash_table[i].key, node->data);
+                sprintf(buffer + curr_index, "[%s](%s) ", table.key, node->data);
 
                 curr_index = next_index;
                 node = node->next;
@@ -345,17 +323,18 @@ hash_t* initHashTable(int size) {
     return tmp;
 }
 
-mvmcell* mvmcell_init(size_t data_len) {
+mvmcell* mvmcell_init(char* data) {
     mvmcell* node = (mvmcell*)malloc(sizeof(mvmcell));
     if (!node) {
         ON_ERROR("Error allocating cell\n");
     }
 
-    node->data = (char*)malloc(sizeof(char) * data_len);
-
+    node->data = (char*)malloc(sizeof(char) * (strlen(data) + 1));
     if (!node->data) {
         ON_ERROR("Error allocating cell data\n");
     }
+    strcpy(node->data, data);
+
     return node;
 }
 
