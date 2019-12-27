@@ -1,4 +1,5 @@
 #include "fmvm.h"
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,7 +30,7 @@ hash_t* initHashTable(int size);
 mvmcell* mvmcell_init(char* data);
 char* initListBuffer(size_t size);
 void expandListBuffer(char** buffer, size_t size);
-void removeKey(mvm* m, char* key);
+void removeKey(mvm* m, ptrdiff_t base);
 void clearBucket(hash_t* bucket);
 void mvmcell_unloadList(mvmcell* node);
 void mvmcell_unloadNode(mvmcell* node);
@@ -191,41 +192,20 @@ char* mvm_print(mvm* m) {
 void mvm_delete(mvm* m, char* key) {
     hash_t* bucket = findKey(m, key);
 
-    mvmcell* node = bucket->head;
-    bucket->head = node->next;
+    if (bucket) {
+        mvmcell* node = bucket->head;
+        bucket->head = node->next;
+        mvmcell_unloadNode(node);
+        m->num_keys--;
 
-    free(node->data);
-    free(node);
-
-    if (bucket->head == NULL) {
-        removeKey(bucket);
+        if (bucket->head == NULL) {
+            /* FIXME Not totally convinced by this indexing method */
+            removeKey(m, bucket - m->hash_table);
+        }
     }
-
-    m->num_keys--;
 }
 
-hash_t* removeKey(mvm* m, char* key) {
-    hash_t* bucket = findKey(m, key);
-
-    if (!bucket) {
-        size_t i = 0;
-        size_t index;
-
-        do {
-            i++;
-            index = i % m->table_size;
-        } while (!(bucket[index].distance == 0 || bucket[index].key == NULL));
-
-        if (i < m->table_size - 1) {
-            memcpy(bucket, bucket + 1, i * sizeof(bucket));
-        } else {
-            memcpy(bucket + m->table_size - 1, m->hash_table);
-        }
-
-        clearBucket(bucket + i);
-        return NULL
-    }
-    return bucket;
+void removeKey(mvm* m, ptrdiff_t base) {
 }
 
 /* FIXME does everything actually need to be zeroed? */
