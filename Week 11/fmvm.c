@@ -122,7 +122,7 @@ hash_t* findKey(mvm* m, char* key) {
 
     /* Does this work with shortcircuit evaluation? */
     /* FIXME not 100% on offset calculation */
-    while (table[index].key && table[index].distance == offset) {
+    while (table[index].key && table[index].distance >= offset) {
         if (!strcmp(table[index].key, key)) {
             return table + index;
         }
@@ -191,9 +191,12 @@ char* mvm_print(mvm* m) {
 
 void mvm_delete(mvm* m, char* key) {
     hash_t* bucket = findKey(m, key);
+    mvmcell* node;
 
     if (bucket) {
-        mvmcell* node = bucket->head;
+        printf("REMOVING %s\n", key);
+
+        node = bucket->head;
         bucket->head = node->next;
         mvmcell_unloadNode(node);
         m->num_keys--;
@@ -206,6 +209,19 @@ void mvm_delete(mvm* m, char* key) {
 }
 
 void removeKey(mvm* m, ptrdiff_t base) {
+    hash_t* table = m->hash_table;
+    size_t dest = base;
+    size_t src = (base + 1) % m->table_size;
+
+    /* FIXME can this shift be made more efficient? */
+    while (table[src].key && table[src].distance != 0) {
+        table[dest] = table[src];
+        dest = (dest + 1) % m->table_size;
+        src = (src + 1) % m->table_size;
+    }
+
+    clearBucket(&table[src]);
+    m->num_buckets--;
 }
 
 /* FIXME does everything actually need to be zeroed? */
@@ -243,10 +259,9 @@ char** mvm_multisearch(mvm* m, char* key, int* n) {
         if (curr_index >= size) {
             size *= FACTOR;
             list = (char**)realloc(list, sizeof(char*) * size);
+            /*FIXME no error checking yet */
         }
 
-        /* Move to next node so mvm_findKey() doesn't search same node
-               again */
         node = node->next;
     }
 
