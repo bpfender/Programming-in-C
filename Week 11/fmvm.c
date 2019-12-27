@@ -10,7 +10,7 @@
 #define FORMAT_LEN strlen("[]() ")
 
 /* FIXME no resizing of hash table implemented yet */
-#define HASH_SIZE 6
+#define HASH_SIZE 10
 #define HASH_FACTOR 2
 /* djb2 Hash constants, defined based on reference below
  * http://www.cse.yorku.ca/~oz/hash.html
@@ -71,15 +71,18 @@ hash_t* insertKey(mvm* m, char* key) {
     unsigned long hash = djb2Hash(key);
     unsigned long index = hash % m->table_size;
     int offset = 0;
+    printf("INITIAL INDEX %li\n", index);
 
     for (;;) {
         if (!table[index].key) {
             fillBucket(table + index, key, hash, offset);
             m->num_buckets++;
+            printf("HASH INDEX %li\n", index);
             return table + index;
         }
 
         if (!strcmp(table[index].key, key)) {
+            printf("HASH INDEX %li\n", index);
             return table + index;
         }
 
@@ -91,6 +94,7 @@ hash_t* insertKey(mvm* m, char* key) {
             shiftBuckets(m, index);
             fillBucket(table + index, key, hash, offset);
             m->num_buckets++;
+            printf("HASH INDEX %li\n", index);
             return table + index;
         }
     }
@@ -202,6 +206,7 @@ void mvm_delete(mvm* m, char* key) {
         m->num_keys--;
 
         if (bucket->head == NULL) {
+            printf("DELETING SHIT\n");
             /* FIXME Not totally convinced by this indexing method */
             removeKey(m, bucket - m->hash_table);
         }
@@ -218,7 +223,9 @@ void removeKey(mvm* m, ptrdiff_t base) {
         table[dest] = table[src];
         dest = (dest + 1) % m->table_size;
         src = (src + 1) % m->table_size;
+        printf("%s ", table[dest].key);
     }
+    printf("\n");
 
     clearBucket(&table[src]);
     m->num_buckets--;
@@ -226,10 +233,10 @@ void removeKey(mvm* m, ptrdiff_t base) {
 
 /* FIXME does everything actually need to be zeroed? */
 void clearBucket(hash_t* bucket) {
+    free(bucket->key);
     bucket->key = NULL;
     bucket->distance = 0;
     bucket->hash = 0;
-    bucket->key = NULL;
 }
 
 char* mvm_search(mvm* m, char* key) {

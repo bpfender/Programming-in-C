@@ -15,7 +15,6 @@
    O(n) search
    O(n) deletion
 */
-
 /* Error that can't be ignored */
 #define ON_ERROR(STR)     \
     fprintf(stderr, STR); \
@@ -26,16 +25,16 @@ typedef struct mvmcell {
     struct mvmcell* next;
 } mvmcell;
 
-typedef struct bucket_t {
+typedef struct hash_t {
     char* key;
     mvmcell* head;
     int distance;
     unsigned long hash;
-} bucket_t;
+} hash_t;
 
 /* FIXME types int vs size_t */
 typedef struct mvm {
-    bucket_t* hash_table;
+    hash_t* hash_table;
     int num_keys;
     int num_buckets;
     int table_size;
