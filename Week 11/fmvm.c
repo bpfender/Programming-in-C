@@ -71,7 +71,8 @@ void expandHashTable(mvm* m) {
     free(m->hash_table);
 
     m->hash_table = tmp->hash_table;
-    free(m);
+    m->num_buckets = tmp->num_buckets;
+    free(tmp);
 }
 
 void insertData(hash_t* cell, char* data) {

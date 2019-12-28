@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "mvm.h"
+#include <time.h>
 
 /* FIXME capitalisation of all words and dictionary */
 /* FIXME default N value of 3 */
@@ -27,6 +28,8 @@ void truncateLineEnd(char* buffer, size_t* len);
 void test(void);
 
 int main(int argc, char* argv[]) {
+    clock_t t;
+    double time;
     int n, i;
     mvm *map1, *map2;
 
@@ -47,9 +50,16 @@ int main(int argc, char* argv[]) {
     map2 = mvm_init();
     loadDictionary(map1, map2, n);
 
+    t = clock();
     for (; i < argc; i++) {
+        
         printRhymes(map1, map2, argv[i]);
+        
     }
+    t = clock()-t;
+    time = (double)t/CLOCKS_PER_SEC;
+    printf("TIME: %f\n", time);
+
     mvm_free(&map1);
     mvm_free(&map2);
 
@@ -58,7 +68,6 @@ int main(int argc, char* argv[]) {
 
 void loadDictionary(mvm* map1, mvm* map2, int n) {
     FILE* file = openFile(FILENAME);
-
     char* buffer = NULL;
     size_t size;
     size_t len;
