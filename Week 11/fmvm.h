@@ -15,6 +15,11 @@
    O(n) search
    O(n) deletion
 */
+#include <stddef.h>
+
+#define HASH_SIZE 10
+#define HASH_FACTOR 2
+
 /* Error that can't be ignored */
 #define ON_ERROR(STR)     \
     fprintf(stderr, STR); \
@@ -55,3 +60,19 @@ char* mvm_search(mvm* m, char* key);
 char** mvm_multisearch(mvm* m, char* key, int* n);
 /* Free & set p to NULL */
 void mvm_free(mvm** p);
+
+void unloadTable(hash_t* table, size_t size);
+void fillBucket(hash_t* bucket, char* key, unsigned long hash, unsigned long offset);
+void shiftBuckets(mvm* m, unsigned long index);
+unsigned long djb2Hash(char* s);
+hash_t* insertKey(mvm* m, char* key);
+hash_t* findKey(mvm* m, char* key);
+void swapBuckets(hash_t* b1, hash_t* b2);
+hash_t* initHashTable(int size);
+mvmcell* mvmcell_init(char* data);
+char* initListBuffer(size_t size);
+void expandListBuffer(char** buffer, size_t size);
+void removeKey(mvm* m, ptrdiff_t base);
+void clearBucket(hash_t* bucket);
+void mvmcell_unloadList(mvmcell* node);
+void mvmcell_unloadNode(mvmcell* node);

@@ -1,5 +1,4 @@
 #include "fmvm.h"
-#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,8 +9,7 @@
 #define FORMAT_LEN strlen("[]() ")
 
 /* FIXME no resizing of hash table implemented yet */
-#define HASH_SIZE 10
-#define HASH_FACTOR 2
+
 /* djb2 Hash constants, defined based on reference below
  * http://www.cse.yorku.ca/~oz/hash.html
  */
@@ -19,21 +17,6 @@
 #define DJB2_MAGIC 33
 
 #define LIST_LEN 10
-
-void fillBucket(hash_t* bucket, char* key, unsigned long hash, unsigned long offset);
-void shiftBuckets(mvm* m, unsigned long index);
-unsigned long djb2Hash(char* s);
-hash_t* insertKey(mvm* m, char* key);
-hash_t* findKey(mvm* m, char* key);
-void swapBuckets(hash_t* b1, hash_t* b2);
-hash_t* initHashTable(int size);
-mvmcell* mvmcell_init(char* data);
-char* initListBuffer(size_t size);
-void expandListBuffer(char** buffer, size_t size);
-void removeKey(mvm* m, ptrdiff_t base);
-void clearBucket(hash_t* bucket);
-void mvmcell_unloadList(mvmcell* node);
-void mvmcell_unloadNode(mvmcell* node);
 
 mvm* mvm_init(void) {
     mvm* tmp = (mvm*)malloc(sizeof(mvm));
@@ -277,14 +260,24 @@ char** mvm_multisearch(mvm* m, char* key, int* n) {
 }
 
 void mvm_free(mvm** p) {
-    int i;
     mvm* m = *p;
 
-    for (i = 0; i < m->table_size; i++) {
-        if (m->hash_table[i].key) {
-            mvmcell_unloadList(m->hash_table[i].head);
+    unloadTable(m->hash_table, m->table_size);
+    free(m);
+
+    *p = NULL;
+}
+
+void unloadTable(hash_t* table, size_t size) {
+    size_t i;
+
+    for (i = 0; i < size; i++) {
+        if (table[i].key) {
+            mvmcell_unloadList(table[i].head);
+            free(table[i].key);
         }
     }
+    free(table);
 }
 
 void mvmcell_unloadList(mvmcell* node) {
