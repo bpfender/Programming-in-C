@@ -19,13 +19,17 @@
 #define LIST_LEN 10
 
 mvm* mvm_init(void) {
+    return mvm_initHelper(HASH_SIZE);
+}
+
+mvm* mvm_initHelper(size_t size) {
     mvm* tmp = (mvm*)malloc(sizeof(mvm));
     if (!tmp) {
         ON_ERROR("Error allocating memory for MVM\n");
     }
 
-    tmp->hash_table = initHashTable(HASH_SIZE);
-    tmp->table_size = HASH_SIZE;
+    tmp->hash_table = initHashTable(size);
+    tmp->table_size = size;
     tmp->num_keys = 0;
     tmp->num_buckets = 0;
 
@@ -37,12 +41,37 @@ int mvm_size(mvm* m) {
 }
 
 void mvm_insert(mvm* m, char* key, char* data) {
-    unsigned long hash = djb2Hash(key);
-    hash_t* cell = insertKey(m, key, hash);
+    hash_t* cell;
 
-    /* Add data entry to linked list */
+    if (m->num_buckets / m->table_size > FILL_FACTOR) {
+        expandHashTable(m);
+    }
+
+    cell = insertKey(m, key, djb2Hash(key));
+
     insertData(cell, data);
     m->num_keys++;
+}
+
+void expandHashTable(mvm* m) {
+    int i;
+    hash_t* bucket;
+    hash_t* table = m->hash_table;
+    int size = m->table_size * HASH_FACTOR;
+
+    mvm* tmp = mvm_initHelper(size);
+
+    for (i = 0; i < m->table_size; i++) {
+        if (table[i].key) {
+            bucket = insertKey(tmp, table[i].key, table[i].hash);
+            bucket->head = table[i].head;
+        }
+    }
+
+    free(m->hash_table);
+
+    m->hash_table = tmp->hash_table;
+    free(m);
 }
 
 void insertData(hash_t* cell, char* data) {
@@ -57,32 +86,29 @@ hash_t* insertKey(mvm* m, char* key, unsigned long hash) {
     hash_t* table = m->hash_table;
     unsigned long index = hash % m->table_size;
     int offset = 0;
-    printf("INITIAL INDEX %li\n", index);
 
     for (;;) {
         if (!table[index].key) {
             fillBucket(table + index, key, hash, offset);
             m->num_buckets++;
-            printf("HASH INDEX %li\n", index);
             return table + index;
         }
 
         if (!strcmp(table[index].key, key)) {
-            printf("HASH INDEX %li\n", index);
+            return table + index;
+        }
+
+        /* FIXME not 100% sure on the offset here */
+        /* FIXME can we skip this evaluation on the first go? */
+        if (offset > table[index].distance) {
+            shiftBuckets(m, index);
+            fillBucket(table + index, key, hash, offset);
+            m->num_buckets++;
             return table + index;
         }
 
         offset++;
         index = (index + 1) % m->table_size;
-
-        /* FIXME not 100% sure on the offset here */
-        if (offset > table[index].distance) {
-            shiftBuckets(m, index);
-            fillBucket(table + index, key, hash, offset);
-            m->num_buckets++;
-            printf("HASH INDEX %li\n", index);
-            return table + index;
-        }
     }
 }
 
@@ -110,8 +136,6 @@ hash_t* findKey(mvm* m, char* key, unsigned long hash) {
     unsigned long index = hash % m->table_size;
     int offset = 0;
 
-    /* Does this work with shortcircuit evaluation? */
-    /* FIXME not 100% on offset calculation */
     while (table[index].key && offset <= table[index].distance) {
         if (!strcmp(table[index].key, key)) {
             return table + index;
@@ -184,15 +208,12 @@ void mvm_delete(mvm* m, char* key) {
     mvmcell* node;
 
     if (bucket) {
-        printf("REMOVING %s\n", key);
-
         node = bucket->head;
         bucket->head = node->next;
         mvmcell_unloadNode(node);
         m->num_keys--;
 
         if (bucket->head == NULL) {
-            printf("DELETING SHIT\n");
             /* FIXME Not totally convinced by this indexing method */
             removeKey(m, bucket - m->hash_table);
         }
@@ -202,7 +223,7 @@ void mvm_delete(mvm* m, char* key) {
 void removeKey(mvm* m, ptrdiff_t base) {
     hash_t* table = m->hash_table;
     size_t curr = base;
-    size_t next = (curr + 1)% m->table_size;
+    size_t next = (curr + 1) % m->table_size;
 
     free(table[curr].key);
     /* FIXME can this shift be made more efficient? */
@@ -210,11 +231,8 @@ void removeKey(mvm* m, ptrdiff_t base) {
         table[curr] = table[next];
         table[curr].distance--;
 
-        printf("%s ", table[curr].key);
-        printf("%s\n", table[curr].head->data);
         curr = next;
         next = (next + 1) % m->table_size;
-        
     }
 
     clearBucket(&table[curr]);

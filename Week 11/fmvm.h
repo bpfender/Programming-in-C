@@ -18,7 +18,8 @@
 #include <stddef.h>
 
 #define HASH_SIZE 10
-#define HASH_FACTOR 2
+#define HASH_FACTOR 4
+#define FILL_FACTOR 0.7
 
 /* Error that can't be ignored */
 #define ON_ERROR(STR)     \
@@ -60,6 +61,9 @@ char* mvm_search(mvm* m, char* key);
 char** mvm_multisearch(mvm* m, char* key, int* n);
 /* Free & set p to NULL */
 void mvm_free(mvm** p);
+
+void expandHashTable(mvm* m);
+mvm* mvm_initHelper(size_t size);
 
 void unloadTable(hash_t* table, size_t size);
 void fillBucket(hash_t* bucket, char* key, unsigned long hash, unsigned long offset);
