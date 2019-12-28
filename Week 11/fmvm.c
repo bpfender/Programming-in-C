@@ -41,11 +41,14 @@ void mvm_insert(mvm* m, char* key, char* data) {
     hash_t* cell = insertKey(m, key, hash);
 
     /* Add data entry to linked list */
+    insertData(cell, data);
+    m->num_keys++;
+}
+
+void insertData(hash_t* cell, char* data) {
     mvmcell* node = mvmcell_init(data);
     node->next = cell->head;
     cell->head = node;
-
-    m->num_keys++;
 }
 
 /* FIXME doesn't resize yet */

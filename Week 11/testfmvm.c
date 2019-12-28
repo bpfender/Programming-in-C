@@ -86,39 +86,7 @@ int main(void) {
 
     mvm_free(&m);
 
-    /* Insert key testing */
-    m = mvm_init();
-    table = m->hash_table;
-
-    bucket = insertKey(m, "test1", 1);
-    bucket = insertKey(m, "test2", 1);
-
-    assert(strcmp(table[1].key, "test1") == 0);
-    assert(table[1].distance == 0);
-    assert(strcmp(table[2].key, "test2") == 0);
-    assert(table[2].distance == 1);
-
-    bucket = insertKey(m, "test3", 2);
-    assert(strcmp(table[3].key, "test3") == 0);
-    assert(table[3].distance == 1);
-
-    bucket = insertKey(m, "test4", 3);
-    assert(strcmp(table[4].key, "test4") == 0);
-    assert(table[4].distance == 1);
-
-    bucket = insertKey(m, "test5", 3);
-    assert(strcmp(table[5].key, "test5") == 0);
-    assert(table[5].distance == 2);
-
-    bucket = insertKey(m, "test6", 2);
-    assert(strcmp(table[4].key, "test6") == 0);
-    assert(table[4].distance == 2);
-    assert(strcmp(table[6].key, "test4") == 0);
-    assert(table[6].distance == 3);
-
-    mvm_free(&m);
-
-    /* Further input key testing */
+    /* Input key testing */
     m = mvm_init();
     table = m->hash_table;
 
@@ -176,6 +144,55 @@ int main(void) {
     assert(table[4].distance == 3);
     assert(strcmp(table[5].key, "test_key_2") == 0);
     assert(table[5].distance == 4);
+
+    mvm_free(&m);
+
+    /* Insert key testing and search functionality */
+    m = mvm_init();
+    table = m->hash_table;
+
+    bucket = insertKey(m, "test1", 1);
+    insertData(bucket, "43");
+    bucket = insertKey(m, "test2", 1);
+    insertData(bucket, "17");
+
+    assert(strcmp(table[1].key, "test1") == 0);
+    assert(table[1].distance == 0);
+    assert(strcmp(table[2].key, "test2") == 0);
+    assert(table[2].distance == 1);
+
+    bucket = insertKey(m, "test3", 2);
+    insertData(bucket, "31");
+    assert(strcmp(table[3].key, "test3") == 0);
+    assert(table[3].distance == 1);
+
+    bucket = insertKey(m, "test4", 3);
+    insertData(bucket, "10");
+    assert(strcmp(table[4].key, "test4") == 0);
+    assert(table[4].distance == 1);
+
+    bucket = insertKey(m, "test5", 3);
+    insertData(bucket, "28");
+    assert(strcmp(table[5].key, "test5") == 0);
+    assert(table[5].distance == 2);
+
+    bucket = insertKey(m, "test6", 2);
+    insertData(bucket, "11");
+    insertData(bucket, "76");
+    assert(strcmp(table[4].key, "test6") == 0);
+    assert(table[4].distance == 2);
+    assert(strcmp(table[6].key, "test4") == 0);
+    assert(table[6].distance == 3);
+
+    assert(strcmp(table[1].head->data, "43") == 0);
+    assert(strcmp(table[2].head->data, "17") == 0);
+    assert(strcmp(table[3].head->data, "31") == 0);
+    assert(strcmp(table[4].head->data, "76") == 0);
+    assert(strcmp(table[5].head->data, "28") == 0);
+    assert(strcmp(table[6].head->data, "10") == 0);
+
+    /* Test that linked list works properly */
+    assert(strcmp(table[4].head->next->data, "11") == 0);
 
     mvm_free(&m);
 

@@ -66,6 +66,7 @@ void fillBucket(hash_t* bucket, char* key, unsigned long hash, unsigned long off
 void shiftBuckets(mvm* m, unsigned long index);
 unsigned long djb2Hash(char* s);
 hash_t* insertKey(mvm* m, char* key, unsigned long hash);
+void insertData(hash_t* cell, char* data);
 hash_t* findKey(mvm* m, char* key);
 void swapBuckets(hash_t* b1, hash_t* b2);
 hash_t* initHashTable(int size);
