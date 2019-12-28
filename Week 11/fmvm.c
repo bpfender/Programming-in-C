@@ -43,7 +43,7 @@ int mvm_size(mvm* m) {
 void mvm_insert(mvm* m, char* key, char* data) {
     hash_t* cell;
 
-    if (m->num_buckets / m->table_size > FILL_FACTOR) {
+    if (((float)m->num_buckets / m->table_size) > FILL_FACTOR) {
         expandHashTable(m);
     }
 
@@ -57,14 +57,20 @@ void expandHashTable(mvm* m) {
     int i;
     hash_t* bucket;
     hash_t* table = m->hash_table;
-    int size = m->table_size * HASH_FACTOR;
+    mvm* tmp;
 
-    mvm* tmp = mvm_initHelper(size);
+    int size = m->table_size * HASH_FACTOR;
+    while (!isPrime(size)) {
+        size++;
+    }
+
+    tmp = mvm_initHelper(size);
 
     for (i = 0; i < m->table_size; i++) {
         if (table[i].key) {
             bucket = insertKey(tmp, table[i].key, table[i].hash);
             bucket->head = table[i].head;
+            free(table[i].key);
         }
     }
 
@@ -72,6 +78,7 @@ void expandHashTable(mvm* m) {
 
     m->hash_table = tmp->hash_table;
     m->num_buckets = tmp->num_buckets;
+    m->table_size = size;
     free(tmp);
 }
 
@@ -374,4 +381,21 @@ void expandListBuffer(char** buffer, size_t size) {
         ON_ERROR("Error reallocating print buffer\n");
     }
     *buffer = tmp;
+}
+
+size_t isPrime(size_t candidate) {
+    size_t j;
+
+    if (candidate == 2) {
+        return 1;
+    }
+    if (candidate < 2 || candidate % 2 == 0) {
+        return 0;
+    }
+    for (j = 3; j <= candidate / 2; j += 2) {
+        if (candidate % j == 0) {
+            return 0;
+        }
+    }
+    return 1;
 }

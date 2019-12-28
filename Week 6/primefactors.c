@@ -16,7 +16,7 @@ typedef struct prime_list {
 } prime_list;
 
 void primeFactors(unsigned long n, unsigned long prime);
-unsigned long nextPrime(unsigned long prime);
+unsigned long me(unsigned long prime);
 unsigned long isPrime(unsigned long candidate);
 void test(void);
 

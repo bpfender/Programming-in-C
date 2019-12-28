@@ -386,6 +386,22 @@ int main(void) {
     assert(strstr(str, "[bird](tweet) "));
     assert(strstr(str, "[dog](bark) ") == NULL);
     assert(strstr(str, "[cat](meow) "));
+
+    mvm_insert(m, "frog", "ribbit");
+    mvm_insert(m, "frog", "croak");
+    mvm_insert(m, "dog", "bark");
+    mvm_insert(m, "eagle", "cacaw");
+    mvm_insert(m, "elephant", "toureu");
+    mvm_insert(m, "lion", "roaaar");
+    mvm_insert(m, "hippo", "baarp");
+    mvm_insert(m, "snake", "ssssss");
+    mvm_insert(m, "sheep", "baahh");
+    mvm_insert(m, "owl", "tuweet tuwoo");
+    mvm_insert(m, "cow", "moooo");
+
+    assert(m->table_size == 47);
+    assert(strcmp(findKey(m, "frog", djb2Hash("frog"))->head->next->data, "ribbit") == 0);
+
     assert(i == 0);
     free(str);
 
