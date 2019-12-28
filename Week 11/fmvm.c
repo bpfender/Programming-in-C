@@ -104,15 +104,15 @@ void shiftBuckets(mvm* m, unsigned long index) {
     }
 }
 
-hash_t* findKey(mvm* m, char* key) {
+hash_t* findKey(mvm* m, char* key, unsigned long hash) {
     hash_t* table = m->hash_table;
 
-    unsigned long index = djb2Hash(key) % m->table_size;
+    unsigned long index = hash % m->table_size;
     int offset = 0;
 
     /* Does this work with shortcircuit evaluation? */
     /* FIXME not 100% on offset calculation */
-    while (table[index].key && table[index].distance >= offset) {
+    while (table[index].key && offset <= table[index].distance) {
         if (!strcmp(table[index].key, key)) {
             return table + index;
         }
@@ -180,7 +180,7 @@ char* mvm_print(mvm* m) {
 }
 
 void mvm_delete(mvm* m, char* key) {
-    hash_t* bucket = findKey(m, key);
+    hash_t* bucket = findKey(m, key, djb2Hash(key));
     mvmcell* node;
 
     if (bucket) {
@@ -226,7 +226,7 @@ void clearBucket(hash_t* bucket) {
 }
 
 char* mvm_search(mvm* m, char* key) {
-    hash_t* bucket = findKey(m, key);
+    hash_t* bucket = findKey(m, key, djb2Hash(key));
     if (bucket) {
         return bucket->head->data;
     }
@@ -237,7 +237,7 @@ char** mvm_multisearch(mvm* m, char* key, int* n) {
     int size = MULTI_SEARCH_LIST;
     int curr_index = 0;
 
-    hash_t* bucket = findKey(m, key);
+    hash_t* bucket = findKey(m, key, djb2Hash(key));
     mvmcell* node = bucket->head;
 
     char** list = (char**)malloc(sizeof(char*) * MULTI_SEARCH_LIST);

@@ -147,7 +147,7 @@ int main(void) {
 
     mvm_free(&m);
 
-    /* Insert key testing and search functionality */
+    /* Insert key testing, data addition and search functionality */
     m = mvm_init();
     table = m->hash_table;
 
@@ -193,6 +193,28 @@ int main(void) {
 
     /* Test that linked list works properly */
     assert(strcmp(table[4].head->next->data, "11") == 0);
+
+    /* Testing search functionality */
+    /* FIXME do i need to add a bit more testing? */
+    assert(findKey(m, "test1", 1) == &table[1]);
+    assert(findKey(m, "test2", 1) == &table[2]);
+    assert(findKey(m, "test3", 2) == &table[3]);
+    assert(findKey(m, "test4", 3) == &table[6]);
+    assert(findKey(m, "test5", 3) == &table[5]);
+    assert(findKey(m, "test6", 2) == &table[4]);
+
+    assert(findKey(m, "invalid", 3) == NULL);
+    assert(findKey(m, "invalid", 8) == NULL);
+    assert(findKey(m, "invalid", 3) == NULL);
+    assert(findKey(m, "invalid", 7) == NULL);
+
+    /* Testing remove key */
+    bucket = insertKey(m, "test7", 7);
+    insertData(bucket, "7");
+
+    removeKey(m, 1);
+    /*printf("%s\n", table[1].key);
+    assert(strcmp(table[1].key, "test2")==0);*/
 
     mvm_free(&m);
 
