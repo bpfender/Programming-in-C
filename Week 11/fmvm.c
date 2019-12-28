@@ -201,28 +201,32 @@ void mvm_delete(mvm* m, char* key) {
 
 void removeKey(mvm* m, ptrdiff_t base) {
     hash_t* table = m->hash_table;
-    size_t dest = base;
-    size_t src = (base + 1) % m->table_size;
+    size_t curr = base;
+    size_t next = (curr + 1)% m->table_size;
 
+    free(table[curr].key);
     /* FIXME can this shift be made more efficient? */
-    while (table[src].key && table[src].distance != 0) {
-        table[dest] = table[src];
-        dest = (dest + 1) % m->table_size;
-        src = (src + 1) % m->table_size;
-        printf("%s ", table[dest].key);
-    }
-    printf("\n");
+    while (table[next].key && table[next].distance != 0) {
+        table[curr] = table[next];
+        table[curr].distance--;
 
-    clearBucket(&table[src]);
+        printf("%s ", table[curr].key);
+        printf("%s\n", table[curr].head->data);
+        curr = next;
+        next = (next + 1) % m->table_size;
+        
+    }
+
+    clearBucket(&table[curr]);
     m->num_buckets--;
 }
 
 /* FIXME does everything actually need to be zeroed? */
 void clearBucket(hash_t* bucket) {
-    free(bucket->key);
     bucket->key = NULL;
     bucket->distance = 0;
     bucket->hash = 0;
+    bucket->head = NULL;
 }
 
 char* mvm_search(mvm* m, char* key) {

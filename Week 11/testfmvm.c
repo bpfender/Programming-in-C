@@ -51,6 +51,7 @@ int main(void) {
     assert(table[0].head == NULL);
     assert(table[0].key == NULL);
 
+    free(table[1].key);
     clearBucket(&table[1]);
     assert(table[1].distance == 0);
     assert(table[1].hash == 0);
@@ -212,9 +213,42 @@ int main(void) {
     bucket = insertKey(m, "test7", 7);
     insertData(bucket, "7");
 
+    /* This shouldn't do naything */
+    removeKey(m, 0);
+
+    /* Remove key would only be called if linked list is empty */
+    mvmcell_unloadList(table[1].head);
     removeKey(m, 1);
-    /*printf("%s\n", table[1].key);
-    assert(strcmp(table[1].key, "test2")==0);*/
+
+    assert(strcmp(table[1].key, "test2") == 0);
+    assert(strcmp(table[1].head->data, "17") == 0);
+    assert(table[1].distance == 0);
+
+    assert(strcmp(table[2].key, "test3") == 0);
+    assert(strcmp(table[2].head->data, "31") == 0);
+    assert(table[2].distance == 0);
+
+    assert(strcmp(table[3].key, "test6") == 0);
+    assert(strcmp(table[3].head->data, "76") == 0);
+    assert(strcmp(table[3].head->next->data, "11") == 0);
+    assert(table[3].distance == 1);
+
+    assert(strcmp(table[4].key, "test5") == 0);
+    assert(strcmp(table[4].head->data, "28") == 0);
+    assert(table[4].distance == 1);
+
+    assert(strcmp(table[5].key, "test4") == 0);
+    assert(strcmp(table[5].head->data, "10") == 0);
+    assert(table[5].distance == 2);
+
+    assert(table[6].key == NULL);
+    assert(table[6].hash == 0);
+    assert(table[6].head == NULL);
+    assert(table[6].distance == 0);
+
+    assert(strcmp(table[7].key, "test7") == 0);
+    assert(strcmp(table[7].head->data, "7") == 0);
+    assert(table[7].distance == 0);
 
     mvm_free(&m);
 
