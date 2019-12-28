@@ -37,7 +37,8 @@ int mvm_size(mvm* m) {
 }
 
 void mvm_insert(mvm* m, char* key, char* data) {
-    hash_t* cell = insertKey(m, key);
+    unsigned long hash = djb2Hash(key);
+    hash_t* cell = insertKey(m, key, hash);
 
     /* Add data entry to linked list */
     mvmcell* node = mvmcell_init(data);
@@ -49,9 +50,8 @@ void mvm_insert(mvm* m, char* key, char* data) {
 
 /* FIXME doesn't resize yet */
 /* Returns location for data to be stored in hash table */
-hash_t* insertKey(mvm* m, char* key) {
+hash_t* insertKey(mvm* m, char* key, unsigned long hash) {
     hash_t* table = m->hash_table;
-    unsigned long hash = djb2Hash(key);
     unsigned long index = hash % m->table_size;
     int offset = 0;
     printf("INITIAL INDEX %li\n", index);
@@ -261,7 +261,6 @@ char** mvm_multisearch(mvm* m, char* key, int* n) {
 
 void mvm_free(mvm** p) {
     mvm* m = *p;
-
     unloadTable(m->hash_table, m->table_size);
     free(m);
 

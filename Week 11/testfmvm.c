@@ -10,6 +10,7 @@ int main(void) {
     mvm* m;
     mvmcell* node;
     hash_t* table;
+    hash_t* bucket;
 
     printf("Basic MVM Tests ... Start\n");
 
@@ -33,8 +34,150 @@ int main(void) {
     mvmcell_unloadNode(node);
 
     table = initHashTable(5);
-    fillBucket(table, "test_key", 1234, 0);
+    fillBucket(table, "test_key", 1234, 3);
+    assert(table[0].distance == 3);
+    assert(table[0].hash == 1234);
+    assert(table[0].head == NULL);
+    assert(strcmp(table[0].key, "test_key") == 0);
+
+    swapBuckets(&table[0], &table[1]);
+    assert(table[1].distance == 3);
+    assert(table[1].hash == 1234);
+    assert(table[1].head == NULL);
+    assert(strcmp(table[1].key, "test_key") == 0);
+
+    assert(table[0].distance == 0);
+    assert(table[0].hash == 0);
+    assert(table[0].head == NULL);
+    assert(table[0].key == NULL);
+
+    clearBucket(&table[1]);
+    assert(table[1].distance == 0);
+    assert(table[1].hash == 0);
+    assert(table[1].head == NULL);
+    assert(table[1].key == NULL);
+
     unloadTable(table, 5);
+
+    /* shift buckets testing */
+    m = mvm_init();
+    table = m->hash_table;
+
+    fillBucket(&table[0], "test1", 0, 1);
+    fillBucket(&table[1], "test2", 1, 1);
+    fillBucket(&table[2], "test3", 2, 1);
+    fillBucket(&table[3], "test4", 2, 2);
+
+    shiftBuckets(m, 2);
+    assert(strcmp(table[0].key, "test1") == 0);
+    assert(strcmp(table[1].key, "test2") == 0);
+    assert(strcmp(table[2].key, "test3") == 0);
+    assert(strcmp(table[3].key, "test4") == 0);
+    assert(strcmp(table[4].key, "test3") == 0);
+
+    assert(table[0].distance == 1);
+    assert(table[1].distance == 1);
+    assert(table[2].distance == 1);
+    assert(table[3].distance == 2);
+    assert(table[4].distance == 3);
+
+    /* To avoid double free */
+    table[2].key = NULL;
+
+    mvm_free(&m);
+
+    /* Insert key testing */
+    m = mvm_init();
+    table = m->hash_table;
+
+    bucket = insertKey(m, "test1", 1);
+    bucket = insertKey(m, "test2", 1);
+
+    assert(strcmp(table[1].key, "test1") == 0);
+    assert(table[1].distance == 0);
+    assert(strcmp(table[2].key, "test2") == 0);
+    assert(table[2].distance == 1);
+
+    bucket = insertKey(m, "test3", 2);
+    assert(strcmp(table[3].key, "test3") == 0);
+    assert(table[3].distance == 1);
+
+    bucket = insertKey(m, "test4", 3);
+    assert(strcmp(table[4].key, "test4") == 0);
+    assert(table[4].distance == 1);
+
+    bucket = insertKey(m, "test5", 3);
+    assert(strcmp(table[5].key, "test5") == 0);
+    assert(table[5].distance == 2);
+
+    bucket = insertKey(m, "test6", 2);
+    assert(strcmp(table[4].key, "test6") == 0);
+    assert(table[4].distance == 2);
+    assert(strcmp(table[6].key, "test4") == 0);
+    assert(table[6].distance == 3);
+
+    mvm_free(&m);
+
+    /* Further input key testing */
+    m = mvm_init();
+    table = m->hash_table;
+
+    /* Dummy hash value passed for testing */
+    bucket = insertKey(m, "test_key", 0);
+
+    assert(strcmp(table[0].key, "test_key") == 0);
+    assert(strcmp(bucket->key, "test_key") == 0);
+    assert(m->num_buckets == 1);
+
+    bucket = insertKey(m, "test_key", 0);
+    assert(strcmp(table[0].key, "test_key") == 0);
+    assert(strcmp(bucket->key, "test_key") == 0);
+    assert(m->num_buckets == 1);
+
+    bucket = insertKey(m, "test_key_2", 1);
+    assert(strcmp(table[1].key, "test_key_2") == 0);
+    assert(table[1].distance == 0);
+    assert(m->num_buckets == 2);
+
+    bucket = insertKey(m, "test_key_3", 0);
+    assert(strcmp(table[1].key, "test_key_3") == 0);
+    assert(table[1].distance == 1);
+    assert(strcmp(table[2].key, "test_key_2") == 0);
+    assert(table[2].distance == 1);
+
+    bucket = insertKey(m, "test_key_4", 0);
+    assert(strcmp(table[1].key, "test_key_3") == 0);
+    assert(table[1].distance == 1);
+    assert(strcmp(table[2].key, "test_key_4") == 0);
+    assert(table[2].distance == 2);
+    assert(strcmp(table[3].key, "test_key_2") == 0);
+    assert(table[3].distance == 2);
+
+    bucket = insertKey(m, "test_key_5", 1);
+    assert(strcmp(table[1].key, "test_key_3") == 0);
+    assert(table[1].distance == 1);
+    assert(strcmp(table[2].key, "test_key_4") == 0);
+    assert(table[2].distance == 2);
+    assert(strcmp(table[3].key, "test_key_2") == 0);
+    assert(table[3].distance == 2);
+    assert(strcmp(table[4].key, "test_key_5") == 0);
+    assert(table[4].distance == 3);
+
+    bucket = insertKey(m, "test_key_6", 0);
+    assert(strcmp(table[0].key, "test_key") == 0);
+    assert(table[0].distance == 0);
+    assert(strcmp(table[1].key, "test_key_3") == 0);
+    assert(table[1].distance == 1);
+    assert(strcmp(table[2].key, "test_key_4") == 0);
+    assert(table[2].distance == 2);
+    assert(strcmp(table[3].key, "test_key_6") == 0);
+    assert(table[3].distance == 3);
+    assert(strcmp(table[4].key, "test_key_5") == 0);
+    assert(table[4].distance == 3);
+    assert(strcmp(table[5].key, "test_key_2") == 0);
+    assert(table[5].distance == 4);
+
+    mvm_free(&m);
 
     /* TODO check all testing conditions from mvm.c are included as well */
     printf("Basic MVM Tests ... Stop\n");
