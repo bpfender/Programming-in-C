@@ -8,18 +8,20 @@
 */
 
 /* Error that can't be ignored */
-#define ON_ERROR(STR) fprintf(stderr, STR); exit(EXIT_FAILURE)
+#define ON_ERROR(STR)     \
+    fprintf(stderr, STR); \
+    exit(EXIT_FAILURE)
 
 struct mvmcell {
-   char* key;
-   char* data;
-   struct mvmcell* next;
+    char* key;
+    char* data;
+    struct mvmcell* next;
 };
 typedef struct mvmcell mvmcell;
 
 struct mvm {
-   mvmcell* head;
-   int numkeys;
+    mvmcell* head;
+    int numkeys;
 };
 typedef struct mvm mvm;
 

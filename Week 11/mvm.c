@@ -3,23 +3,27 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* TODO REDEFINE TO MORE SENSIBLE SIZE */
+/* Average word length in english is 4.7 chars. With mvm_print() returning 2 
+strings this can just be rounded to 10 */
 #define AVE_CHARS 10
+#define FRMT_CHARS strlen("[]() ")
+
+#define PRNT_STR_LEN AVE_CHARS + FRMT_CHARS
+#define MULTI_SEARCH_LEN 5
+/* Universal resizing factor */
 #define FACTOR 2
-#define FORMAT_LEN strlen("[]() ")
-#define MULTI_SEARCH_LIST 5
 
 /* ------ HELPER FUNCTION DECLARATIONS ------ */
 /* These functions do not need to be exposed to the user */
 mvmcell* mvm_findKey(mvmcell* head, char* key);
-mvmcell* mvmcell_build(char* key, char* data);
+mvmcell* mvmcell_init(char* key, char* data);
 mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key, mvm* m);
+void* allocHandler(void* ptr, size_t nmemb, size_t size);
 void mvmcell_unloadNode(mvmcell* node);
 void mvmcell_unloadList(mvmcell* node);
-void* allocHandler(void* ptr, size_t nmemb, size_t size);
 
 /* ------- FUNCTION BODIES ------ */
-/* Initialises mvm ADT with calloc to make sure everything is zeroed
+/* Initialises mvm ADT and zeros all values
  */
 mvm* mvm_init(void) {
     mvm* tmp = (mvm*)allocHandler(NULL, 1, sizeof(mvm));
@@ -39,7 +43,7 @@ int mvm_size(mvm* m) {
  * given an invalid input */
 void mvm_insert(mvm* m, char* key, char* data) {
     if (m && key && data) {
-        mvmcell* node = mvmcell_build(key, data);
+        mvmcell* node = mvmcell_init(key, data);
 
         node->next = m->head;
         m->head = node;
@@ -53,8 +57,7 @@ void mvm_insert(mvm* m, char* key, char* data) {
  */
 char* mvm_print(mvm* m) {
     if (m) {
-        /* FIXME more elegant initial sizing? */
-        size_t buffer_size = AVE_CHARS * m->numkeys;
+        size_t buffer_size = PRNT_STR_LEN * m->numkeys;
         char* buffer = (char*)allocHandler(NULL, buffer_size, sizeof(char));
 
         mvmcell* node = m->head;
@@ -65,7 +68,7 @@ char* mvm_print(mvm* m) {
         fit the buffer. If required, buffer is expanded and string is then added
         to the buffer. Loop continues to last node in linked list */
         while (node) {
-            next_index += strlen(node->key) + strlen(node->data) + FORMAT_LEN;
+            next_index += strlen(node->key) + strlen(node->data) + FRMT_CHARS;
 
             /* Check with "+ 1" to ensure there is space for NUll terminator if 
             this is the final appended string. Resize buffer if required */
@@ -109,7 +112,7 @@ char* mvm_search(mvm* m, char* key) {
 
 char** mvm_multisearch(mvm* m, char* key, int* n) {
     if (m && key && n) {
-        size_t size = MULTI_SEARCH_LIST;
+        size_t size = MULTI_SEARCH_LEN;
         char** list = (char**)allocHandler(NULL, size, sizeof(char*));
 
         mvmcell* node = m->head;
@@ -145,7 +148,7 @@ void mvm_free(mvm** p) {
 /* ------ HELPER FUNCTIONS ------ */
 /* Allocates memory for mvmcell and populates values.
  */
-mvmcell* mvmcell_build(char* key, char* data) {
+mvmcell* mvmcell_init(char* key, char* data) {
     mvmcell* node = (mvmcell*)allocHandler(NULL, 1, sizeof(mvmcell));
     node->key = (char*)allocHandler(NULL, strlen(key) + 1, sizeof(char));
     node->data = (char*)allocHandler(NULL, strlen(data) + 1, sizeof(char));
