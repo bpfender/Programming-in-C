@@ -48,6 +48,7 @@ typedef struct mvm {
     int num_keys;
     int num_buckets;
     int table_size;
+    int ave_len;
 } mvm;
 
 /* ------ MAIN MVM FUNCTIONS ------ */
@@ -93,3 +94,5 @@ void mvmcell_unloadList(mvmcell* node);
 void mvmcell_unloadNode(mvmcell* node);
 
 size_t isPrime(size_t candidate);
+
+void* allocHandler(void* ptr, size_t nmemb, size_t size);

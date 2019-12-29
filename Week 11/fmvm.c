@@ -7,7 +7,6 @@
 strings this can just be rounded to 10 */
 #define AVE_CHARS 10
 #define FRMT_CHARS strlen("[]() ")
-
 #define PRNT_STR_LEN AVE_CHARS + FRMT_CHARS
 #define MULTI_SEARCH_LEN 5
 /* Universal resizing factor */
@@ -22,7 +21,7 @@ strings this can just be rounded to 10 */
 /* ------ MAIN MVM FUNCTIONS ------ */
 /* Effectively written as a wrapper of mvm_initHelper() with size set to initial
  * hash table size, to allow the initHelper function to be reused for resizing
- * the table
+ * the table in expandHashTable().
  */
 mvm* mvm_init(void) {
     return mvm_initHelper(HASH_SIZE);
@@ -32,17 +31,84 @@ int mvm_size(mvm* m) {
     return m ? m->num_keys : 0;
 }
 
+/* Called to insert key-data pair into hash table. First checks the load factor
+ * of the table based on the buckets used (not the number of keys) and expands
+ * it if required. insertKey() is called which returns the hash table location
+ * where the data is to be stored. insertData() then adds the data value to that
+ * location. Requires valid input to do anything.
+ */
 void mvm_insert(mvm* m, char* key, char* data) {
     hash_t* cell;
 
-    if (((float)m->num_buckets / m->table_size) > FILL_FACTOR) {
-        expandHashTable(m);
+    if (m && key && data) {
+        if (m->num_buckets > (m->table_size * FILL_FACTOR)) {
+            expandHashTable(m);
+        }
+
+        /*FIXME add size limiter */
+        /* FIXME could add average char length calculator here */
+        cell = insertKey(m, key, djb2Hash(key));
+        insertData(cell, data);
+        m->num_keys++;
     }
+}
 
-    cell = insertKey(m, key, djb2Hash(key));
+/* https://en.wikipedia.org/wiki/Moving_average#Cumulative_moving_average */
+int updateAverage(int curr_av, int val, int n) {
+    return curr_av + (val - curr_av) / n;
+}
 
-    insertData(cell, data);
-    m->num_keys++;
+/* FIXME can this be broken down into functions a little bit more ? */
+char* mvm_print(mvm* m) {
+    int i;
+
+    size_t buffer_size = PRNT_STR_LEN * m->num_keys;
+    char* buffer = (char*)allocHandler(NULL, buffer_size, sizeof(char));
+
+    mvmcell* node;
+    hash_t* table = m->hash_table;
+    size_t curr_index = 0;
+    size_t next_index = 0;
+
+    for (i = 0; i < m->table_size; i++) {
+        if (table[i].key) {
+            node = table[i].head;
+
+            while (node) {
+                next_index += strlen(table[i].key) + strlen(node->data) + FRMT_CHARS;
+
+                /* Check with "+ 1" to ensure there is space for NUll terminator if this
+         * is the final appended string */
+                if (next_index + 1 >= buffer_size) {
+                    buffer_size = next_index * FACTOR;
+                    buffer = (char*)allocHandler(buffer, buffer_size, sizeof(char));
+                }
+
+                sprintf(buffer + curr_index, "[%s](%s) ", table[i].key, node->data);
+
+                curr_index = next_index;
+                node = node->next;
+            }
+        }
+    }
+    return buffer;
+}
+
+void mvm_delete(mvm* m, char* key) {
+    hash_t* bucket = findKey(m, key, djb2Hash(key));
+    mvmcell* node;
+
+    if (bucket) {
+        node = bucket->head;
+        bucket->head = node->next;
+        mvmcell_unloadNode(node);
+        m->num_keys--;
+
+        if (bucket->head == NULL) {
+            /* FIXME Not totally convinced by this indexing method */
+            removeKey(m, bucket - m->hash_table);
+        }
+    }
 }
 
 mvm* mvm_initHelper(size_t size) {
@@ -59,6 +125,7 @@ mvm* mvm_initHelper(size_t size) {
     return tmp;
 }
 
+/* FIXME requires expansion limiter */
 void expandHashTable(mvm* m) {
     int i;
     hash_t* bucket;
@@ -178,60 +245,6 @@ void swapBuckets(hash_t* b1, hash_t* b2) {
     tmp = *b1;
     *b1 = *b2;
     *b2 = tmp;
-}
-
-/* FIXME can this be broken down into functions a little bit more ? */
-char* mvm_print(mvm* m) {
-    int i;
-
-    size_t buffer_size = AVE_CHARS * m->num_keys;
-    char* buffer = initListBuffer(buffer_size);
-
-    mvmcell* node;
-    hash_t table;
-    size_t curr_index = 0;
-    size_t next_index = 0;
-
-    for (i = 0; i < m->table_size; i++) {
-        table = m->hash_table[i];
-        if (table.key) {
-            node = m->hash_table[i].head;
-
-            while (node) {
-                next_index += strlen(table.key) + strlen(node->data) + FRMT_CHARS;
-
-                /* Check with "+ 1" to ensure there is space for NUll terminator if this
-         * is the final appended string */
-                if (next_index + 1 >= buffer_size) {
-                    buffer_size = next_index * FACTOR;
-                    expandListBuffer(&buffer, buffer_size);
-                }
-
-                sprintf(buffer + curr_index, "[%s](%s) ", table.key, node->data);
-
-                curr_index = next_index;
-                node = node->next;
-            }
-        }
-    }
-    return buffer;
-}
-
-void mvm_delete(mvm* m, char* key) {
-    hash_t* bucket = findKey(m, key, djb2Hash(key));
-    mvmcell* node;
-
-    if (bucket) {
-        node = bucket->head;
-        bucket->head = node->next;
-        mvmcell_unloadNode(node);
-        m->num_keys--;
-
-        if (bucket->head == NULL) {
-            /* FIXME Not totally convinced by this indexing method */
-            removeKey(m, bucket - m->hash_table);
-        }
-    }
 }
 
 void removeKey(mvm* m, ptrdiff_t base) {
@@ -404,4 +417,16 @@ size_t isPrime(size_t candidate) {
         }
     }
     return 1;
+}
+
+/* Wrote a generic malloc/realloc function because the same structure was
+ * repeating itself multiple times and I wanted to play with void*. Requires
+ * ptr = NULL for initial malloc, and ptr value for resizing an existing block
+ */
+void* allocHandler(void* ptr, size_t nmemb, size_t size) {
+    void* tmp = realloc(ptr, nmemb * size);
+    if (!tmp) {
+        ON_ERROR("Memory allocation error\n");
+    }
+    return tmp;
 }
