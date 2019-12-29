@@ -362,8 +362,44 @@ int isPrime(int candidate) {
     return 1;
 }
 
+/* http://www.cse.yorku.ca/~oz/hash.html */
+unsigned long djb2Hash(char* s) {
+    size_t i;
+    unsigned long hash = DJB2_HASH;
+    for (i = 0; s[i] != '\0'; i++) {
+        hash += hash * DJB2_MAGIC ^ (unsigned long)s[i];
+    }
 
+    return hash;
+}
 
+/* ------ HELPER FUNCTIONS ------ */
+/* https://en.wikipedia.org/wiki/Moving_average#Cumulative_moving_average 
+ * https://stackoverflow.com/questions/2745074/fast-ceiling-of-an-integer-division-in-c-c
+ * Calculates the cumulative average as described by the Wikiedia link and
+ * returns a ceiled value.
+ */
+int updateAverage(int curr_av, int val, int n) {
+    return curr_av + ((val - curr_av) + (n - 1)) / n;
+}
+
+/* Helper function that traverses linked list stored in hash table bucket and 
+ * adds it to the print buffer
+ */
+void printList(char** buffer, size_t* curr, hash_t* bucket) {
+    mvmcell* node = bucket->head;
+
+    while (node) {
+        sprintf(*buffer + *curr, "[%s](%s) ", bucket->key, node->data);
+
+        *curr += strlen(bucket->key) + strlen(node->data) + FRMT_CHARS;
+        node = node->next;
+    }
+}
+
+/* ------ INITIALISATION/ALLOC FUNCTIONS ----- */
+/* Defined to allow a new mvm to be allocated when table is resized 
+ */
 mvm* mvm_initHelper(size_t size) {
     mvm* tmp = (mvm*)allocHandler(NULL, 1, sizeof(mvm));
 
@@ -376,18 +412,40 @@ mvm* mvm_initHelper(size_t size) {
     return tmp;
 }
 
-/* FIXME use murmur instead */
-/* http://www.cse.yorku.ca/~oz/hash.html */
-unsigned long djb2Hash(char* s) {
-    size_t i;
-    unsigned long hash = DJB2_HASH;
-    for (i = 0; s[i] != '\0'; i++) {
-        hash += hash * DJB2_MAGIC ^ (unsigned long)s[i];
+/* Initialises an empty hash table 
+ */
+hash_t* initHashTable(int size) {
+    hash_t* tmp = (hash_t*)calloc(size, sizeof(hash_t));
+    if (!tmp) {
+        ON_ERROR("Error allocating hash table\n");
     }
-
-    return hash;
+    return tmp;
 }
 
+/* Initialises linked list node with data
+ */
+mvmcell* mvmcell_init(char* data) {
+    mvmcell* node = (mvmcell*)allocHandler(NULL, 1, sizeof(mvmcell));
+    node->data = (char*)allocHandler(NULL, strlen(data)+1, sizeof(char));
+    strcpy(node->data, data);
+
+    return node;
+}
+
+/* Wrote a generic malloc/realloc function because the same structure was
+ * repeating itself multiple times and I wanted to play with void*. Requires
+ * ptr = NULL for initial malloc, and ptr value for resizing an existing block
+ */
+void* allocHandler(void* ptr, size_t nmemb, size_t size) {
+    void* tmp = realloc(ptr, nmemb * size);
+    if (!tmp) {
+        ON_ERROR("Memory allocation error\n");
+    }
+    return tmp;
+}
+
+/* ------ UNLOAD FUNCTIONS ------ */
+/* PAsses through table and frees and non-null entries */
 void unloadTable(hash_t* table, size_t size) {
     size_t i;
 
@@ -413,83 +471,4 @@ void mvmcell_unloadList(mvmcell* node) {
 void mvmcell_unloadNode(mvmcell* node) {
     free(node->data);
     free(node);
-}
-
-/* ------ HELPER FUNCTIONS ------ */
-/* Interface does not need to be exposed to the user */
-
-hash_t* initHashTable(int size) {
-    hash_t* tmp = (hash_t*)calloc(size, sizeof(hash_t));
-    if (!tmp) {
-        ON_ERROR("Error allocating hash table\n");
-    }
-    return tmp;
-}
-
-mvmcell* mvmcell_init(char* data) {
-    mvmcell* node = (mvmcell*)malloc(sizeof(mvmcell));
-    if (!node) {
-        ON_ERROR("Error allocating cell\n");
-    }
-
-    node->data = (char*)malloc(sizeof(char) * (strlen(data) + 1));
-    if (!node->data) {
-        ON_ERROR("Error allocating cell data\n");
-    }
-    strcpy(node->data, data);
-
-    return node;
-}
-
-/* FIXME this could probably just be concotenated into expand buffer */
-char* initListBuffer(size_t size) {
-    /* FIXME is there a more clever way to initialise the buff size? */
-    char* tmp = (char*)malloc(sizeof(char) * size);
-    if (!tmp) {
-        ON_ERROR("Error allocating print buffer\n");
-    }
-    return tmp;
-}
-
-void expandListBuffer(char** buffer, size_t size) {
-    char* tmp = (char*)realloc(*buffer, sizeof(char) * size);
-    if (!tmp) {
-        ON_ERROR("Error reallocating print buffer\n");
-    }
-    *buffer = tmp;
-}
-
-/* Wrote a generic malloc/realloc function because the same structure was
- * repeating itself multiple times and I wanted to play with void*. Requires
- * ptr = NULL for initial malloc, and ptr value for resizing an existing block
- */
-void* allocHandler(void* ptr, size_t nmemb, size_t size) {
-    void* tmp = realloc(ptr, nmemb * size);
-    if (!tmp) {
-        ON_ERROR("Memory allocation error\n");
-    }
-    return tmp;
-}
-
-/* https://en.wikipedia.org/wiki/Moving_average#Cumulative_moving_average 
- * https://stackoverflow.com/questions/2745074/fast-ceiling-of-an-integer-division-in-c-c
- * Calculates the cumulative average as described by the Wikiedia link and
- * returns a ceiled value.
- */
-int updateAverage(int curr_av, int val, int n) {
-    return curr_av + ((val - curr_av) + (n - 1)) / n;
-}
-
-/* Helper function that traverses linked list stored in hash table bucket and 
- * adds it to the print buffer
- */
-void printList(char** buffer, size_t* curr, hash_t* bucket) {
-    mvmcell* node = bucket->head;
-
-    while (node) {
-        sprintf(*buffer + *curr, "[%s](%s) ", bucket->key, node->data);
-
-        *curr += strlen(bucket->key) + strlen(node->data) + FRMT_CHARS;
-        node = node->next;
-    }
 }

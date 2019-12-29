@@ -85,18 +85,17 @@ int nextTableSize(int n);
 int isPrime(int candidate);
 unsigned long djb2Hash(char* s);
 
+/* ------ HELPER FUNCTIONS ------- */
+int updateAverage(int curr_av, int val, int n);
+void printList(char** buffer, size_t* curr, hash_t* bucket);
 
+/* ------ INITIALISATION/ALLOC FUNCTIONS ------- */
 mvm* mvm_initHelper(size_t size);
-mvmcell* mvmcell_init(char* data);
 hash_t* initHashTable(int size);
-char* initListBuffer(size_t size);
-void expandListBuffer(char** buffer, size_t size);
+mvmcell* mvmcell_init(char* data);
+void* allocHandler(void* ptr, size_t nmemb, size_t size);
 
+/* ------ UNLOAD FUNCTIONS ------ */
 void unloadTable(hash_t* table, size_t size);
 void mvmcell_unloadList(mvmcell* node);
 void mvmcell_unloadNode(mvmcell* node);
-
-void printList(char** buffer, size_t* curr, hash_t* bucket);
-
-void* allocHandler(void* ptr, size_t nmemb, size_t size);
-int updateAverage(int curr_av, int val, int n);
