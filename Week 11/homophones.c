@@ -11,6 +11,7 @@
 #define BUFF_SIZE 50
 #define BUFF_FACT 4
 
+/* Input argument constants for -n specifier not-present and present */
 #define MIN_ARG_COUNT 2
 #define MIN_ARG_N_COUNT 4
 
