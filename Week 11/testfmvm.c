@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include "fmvm.h"
 
 int main(void) {
@@ -182,7 +181,6 @@ int main(void) {
     assert(strcmp(table[5].key, "test5") == 0);
     assert(table[5].distance == 2);
 
-
     bucket = insertKey(m, "test6", 2);
     insertData(bucket, "11");
     insertData(bucket, "76");
@@ -190,7 +188,7 @@ int main(void) {
     assert(table[4].distance == 2);
     assert(strcmp(table[6].key, "test4") == 0);
     assert(table[6].distance == 3);
-    
+
     bucket = insertKey(m, "test7", 7);
     insertData(bucket, "7");
     bucket = insertKey(m, "test8", HASH_SIZE - 1);
@@ -200,11 +198,11 @@ int main(void) {
     insertData(bucket, "9");
 
     assert(strcmp(table[7].key, "test7") == 0);
-    assert(table[7].distance==0);
+    assert(table[7].distance == 0);
     assert(strcmp(table[HASH_SIZE - 1].key, "test8") == 0);
-    assert(table[HASH_SIZE-1].distance==0);
+    assert(table[HASH_SIZE - 1].distance == 0);
     assert(strcmp(table[0].key, "test9") == 0);
-    assert(table[0].distance==1);
+    assert(table[0].distance == 1);
 
     assert(strcmp(table[1].head->data, "43") == 0);
     assert(strcmp(table[2].head->data, "17") == 0);
@@ -214,7 +212,7 @@ int main(void) {
     assert(strcmp(table[6].head->data, "10") == 0);
 
     assert(strcmp(table[7].head->data, "7") == 0);
-    assert(strcmp(table[HASH_SIZE-1].head->data, "8") == 0);
+    assert(strcmp(table[HASH_SIZE - 1].head->data, "8") == 0);
     assert(strcmp(table[0].head->data, "9") == 0);
 
     /* Test that linked list works properly */
@@ -228,7 +226,7 @@ int main(void) {
     assert(findKey(m, "test4", 3) == &table[6]);
     assert(findKey(m, "test5", 3) == &table[5]);
     assert(findKey(m, "test6", 2) == &table[4]);
-    assert(findKey(m, "test9", HASH_SIZE-1) == &table[0]);
+    assert(findKey(m, "test9", HASH_SIZE - 1) == &table[0]);
 
     assert(findKey(m, "invalid", 3) == NULL);
     assert(findKey(m, "invalid", 8) == NULL);
@@ -236,7 +234,7 @@ int main(void) {
     assert(findKey(m, "invalid", 7) == NULL);
 
     /* Testing remove key */
-    
+
     /* This shouldn't do naything */
     removeKey(m, 8);
 
@@ -274,16 +272,16 @@ int main(void) {
     assert(strcmp(table[7].head->data, "7") == 0);
     assert(table[7].distance == 0);
 
-    mvmcell_unloadList(table[HASH_SIZE-1].head);
-    removeKey(m, HASH_SIZE-1);
+    mvmcell_unloadList(table[HASH_SIZE - 1].head);
+    removeKey(m, HASH_SIZE - 1);
 
     assert(table[0].key == NULL);
     assert(table[0].hash == 0);
     assert(table[0].head == NULL);
     assert(table[0].distance == 0);
-    assert(strcmp(table[HASH_SIZE-1].key, "test9") == 0);
-    assert(strcmp(table[HASH_SIZE-1].head->data, "9") == 0);
-    assert(table[HASH_SIZE-1].distance == 0);
+    assert(strcmp(table[HASH_SIZE - 1].key, "test9") == 0);
+    assert(strcmp(table[HASH_SIZE - 1].head->data, "9") == 0);
+    assert(table[HASH_SIZE - 1].distance == 0);
 
     mvm_free(&m);
 

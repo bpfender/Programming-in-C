@@ -10,6 +10,10 @@
    POssible that i'm destroying all the performance gains of caching through linked list
    Would be very interested to compare against performance of red black as have no idea about overhead
 
+https://softwareengineering.stackexchange.com/questions/49550/which-hashing-algorithm-is-best-for-uniqueness-and-speed/145633#145633
+https://andre.arko.net/2017/08/24/robin-hood-hashing/
+https://programming.guide/robin-hood-hashing.html
+https://tessil.github.io/2016/08/29/benchmark-hopscotch-map.html
 
    O(1) insertion
    O(n) search
@@ -46,6 +50,7 @@ typedef struct mvm {
     int table_size;
 } mvm;
 
+/* ------ MAIN MVM FUNCTIONS ------ */
 mvm* mvm_init(void);
 /* Number of key/value pairs stored */
 int mvm_size(mvm* m);
@@ -62,11 +67,10 @@ char** mvm_multisearch(mvm* m, char* key, int* n);
 /* Free & set p to NULL */
 void mvm_free(mvm** p);
 
-void expandHashTable(mvm* m);
-mvm* mvm_initHelper(size_t size);
-size_t isPrime(size_t candidate);
+/* ------ HELPER FUNCTIONS FOR MVM FUNCTIONALITY ------ */
 
-void unloadTable(hash_t* table, size_t size);
+void expandHashTable(mvm* m);
+
 void fillBucket(hash_t* bucket, char* key, unsigned long hash, unsigned long offset);
 void shiftBuckets(mvm* m, unsigned long index);
 unsigned long djb2Hash(char* s);
@@ -74,11 +78,18 @@ hash_t* insertKey(mvm* m, char* key, unsigned long hash);
 void insertData(hash_t* cell, char* data);
 hash_t* findKey(mvm* m, char* key, unsigned long hash);
 void swapBuckets(hash_t* b1, hash_t* b2);
-hash_t* initHashTable(int size);
+
+mvm* mvm_initHelper(size_t size);
 mvmcell* mvmcell_init(char* data);
+hash_t* initHashTable(int size);
 char* initListBuffer(size_t size);
 void expandListBuffer(char** buffer, size_t size);
+
 void removeKey(mvm* m, ptrdiff_t base);
 void clearBucket(hash_t* bucket);
+
+void unloadTable(hash_t* table, size_t size);
 void mvmcell_unloadList(mvmcell* node);
 void mvmcell_unloadNode(mvmcell* node);
+
+size_t isPrime(size_t candidate);

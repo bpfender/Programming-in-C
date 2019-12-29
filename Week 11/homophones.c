@@ -16,7 +16,7 @@
 #define MIN_ARG_N_COUNT 4
 
 /* Mainly defined for a shorter version of unsigned int. However, also allows
- * buffer MAX length to be changed easily */
+ * buffer MAX to be changed easily */
 typedef unsigned int line_t;
 /* Macro defines maximum value of line_t type */
 #define LINE_T_MAX (line_t) ~0

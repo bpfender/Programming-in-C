@@ -3,12 +3,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define AVE_CHARS 6 /*FIXME could actually functionise this now */
-#define MULTI_SEARCH_LIST 2
-#define FACTOR 2
-#define FORMAT_LEN strlen("[]() ")
+/* Average word length in english is 4.7 chars. With mvm_print() returning 2 
+strings this can just be rounded to 10 */
+#define AVE_CHARS 10
+#define FRMT_CHARS strlen("[]() ")
 
-/* FIXME no resizing of hash table implemented yet */
+#define PRNT_STR_LEN AVE_CHARS + FRMT_CHARS
+#define MULTI_SEARCH_LEN 5
+/* Universal resizing factor */
+#define FACTOR 2
 
 /* djb2 Hash constants, defined based on reference below
  * http://www.cse.yorku.ca/~oz/hash.html
@@ -16,24 +19,13 @@
 #define DJB2_HASH 5381
 #define DJB2_MAGIC 33
 
-#define LIST_LEN 10
-
+/* ------ MAIN MVM FUNCTIONS ------ */
+/* Effectively written as a wrapper of mvm_initHelper() with size set to initial
+ * hash table size, to allow the initHelper function to be reused for resizing
+ * the table
+ */
 mvm* mvm_init(void) {
     return mvm_initHelper(HASH_SIZE);
-}
-
-mvm* mvm_initHelper(size_t size) {
-    mvm* tmp = (mvm*)malloc(sizeof(mvm));
-    if (!tmp) {
-        ON_ERROR("Error allocating memory for MVM\n");
-    }
-
-    tmp->hash_table = initHashTable(size);
-    tmp->table_size = size;
-    tmp->num_keys = 0;
-    tmp->num_buckets = 0;
-
-    return tmp;
 }
 
 int mvm_size(mvm* m) {
@@ -51,6 +43,20 @@ void mvm_insert(mvm* m, char* key, char* data) {
 
     insertData(cell, data);
     m->num_keys++;
+}
+
+mvm* mvm_initHelper(size_t size) {
+    mvm* tmp = (mvm*)malloc(sizeof(mvm));
+    if (!tmp) {
+        ON_ERROR("Error allocating memory for MVM\n");
+    }
+
+    tmp->hash_table = initHashTable(size);
+    tmp->table_size = size;
+    tmp->num_keys = 0;
+    tmp->num_buckets = 0;
+
+    return tmp;
 }
 
 void expandHashTable(mvm* m) {
@@ -192,7 +198,7 @@ char* mvm_print(mvm* m) {
             node = m->hash_table[i].head;
 
             while (node) {
-                next_index += strlen(table.key) + strlen(node->data) + FORMAT_LEN;
+                next_index += strlen(table.key) + strlen(node->data) + FRMT_CHARS;
 
                 /* Check with "+ 1" to ensure there is space for NUll terminator if this
          * is the final appended string */
@@ -264,13 +270,13 @@ char* mvm_search(mvm* m, char* key) {
 }
 
 char** mvm_multisearch(mvm* m, char* key, int* n) {
-    int size = MULTI_SEARCH_LIST;
+    int size = MULTI_SEARCH_LEN;
     int curr_index = 0;
 
     hash_t* bucket = findKey(m, key, djb2Hash(key));
     mvmcell* node = bucket->head;
 
-    char** list = (char**)malloc(sizeof(char*) * MULTI_SEARCH_LIST);
+    char** list = (char**)malloc(sizeof(char*) * MULTI_SEARCH_LEN);
     if (!list) {
         ON_ERROR("Error allocating multi-search list\n");
     }
