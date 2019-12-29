@@ -5,9 +5,6 @@
 #include <string.h>
 #include "mvm.h"
 
-/* FIXME capitalisation of all words and dictionary */
-/* FIXME default N value of 3 */
-
 #define DICTIONARY "./cmudict.txt"
 
 /* Constants for getLine() function buffer */
@@ -44,11 +41,19 @@ int main(int argc, char* argv[]) {
     int n, i;
     mvm *map1, *map2;
 
-    test();
+    /*test();*/
 
-    if (argc >= MIN_ARG_N_COUNT && !strcmp(argv[1], "-n")) {
-        n = atoi(argv[2]);
-        i = 3;
+    if (argc >= MIN_ARG_N_COUNT && strstr(argv[1], "-n")) {
+        if (strlen(argv[1]) == strlen("-n")) {
+            n = atoi(argv[2]);
+            i = 3;
+        } else {
+            printf(
+                "INPUT ERROR\n"
+                "-n specifier must be seperated with a space e.g.:\n"
+                "   ./homophones -n 2 PROGRAM...\n");
+            return 1;
+        }
     } else if (argc >= MIN_ARG_COUNT) {
         n = 3;
         i = 1;
@@ -81,7 +86,8 @@ int main(int argc, char* argv[]) {
 /* Loads dictionary file into map1 and map2. Map1 uses the word as the key and
  * and the phenome as the data, map2 is the other way round. "n" specifies the
  * number of phenomes to be stored. Requires initiliased mvm types. Function
- * assumes dictionary is formatted correctly i.e. capitalisation etc.
+ * assumes dictionary is formatted correctly i.e. capitalisation etc. If n > 
+ * number of phenomes of a word, results are undefined.
  */
 void loadDictionary(mvm* map1, mvm* map2, int n) {
     FILE* file = openFile(DICTIONARY);
@@ -184,8 +190,8 @@ char* parseWord(char* line, line_t len) {
 
 /* Reads from buffer in place. Counts back from end of string to "n" desired
  * phenomes. If n > than the number of phenomes, all the phenomes of the word
- * read into the dictionary. Returns pointer to beginning of phenome string 
- * stored in the line buffer.
+ * read into the dictionary. This leads to undefined results. Returns pointer 
+ * to beginning of phenome string stored in the line buffer.
  */
 char* parsePhenome(char* line, line_t len, int n) {
     line_t i;
