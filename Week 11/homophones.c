@@ -1,34 +1,42 @@
 #include <assert.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "mvm.h"
 
-/* FIXME size_t types? */
 /* FIXME capitalisation of all words and dictionary */
 /* FIXME default N value of 3 */
-/* FIXME handling number of phenomes */
-/* FIXME what other edge cases might there be? */
 
 #define DICTIONARY "./cmudict.txt"
-/* FIXME CHECK THAT THESE ARE SENSIBLE VALUES */
+
 /* Constants for getLine() function buffer */
-#define BUFF_SIZE 2
+#define BUFF_SIZE 50
 #define BUFF_FACT 4
+
+#define MIN_ARG_COUNT 2
+#define MIN_ARG_N_COUNT 4
+
+/* Mainly defined for a shorter version of unsigned int. However, also allows
+ * buffer MAX length to be changed easily */
+typedef unsigned int line_t;
+/* Macro defines maximum value of line_t type */
+#define LINE_T_MAX (line_t) ~0
 
 /* ------ LOADING AND SEARCHING FUNCTIONS ------ */
 void loadDictionary(mvm* map1, mvm* map2, int n);
 void printRhymes(mvm* map1, mvm* map2, char* word);
+void toUpperString(char* s);
 
 /* ------ LINE HANDLING/PARSING FUNCTIONS ------ */
-void truncateLineEnd(char* buffer, size_t* len);
-char* parseWord(char* line, size_t len);
-char* parsePhenome(char* line, size_t len, int n);
+void truncateLineEnd(char* buffer, line_t* len);
+char* parseWord(char* line, line_t len);
+char* parsePhenome(char* line, line_t len, int n);
 
 /* ------ FILE HANDLING FUNCTIONS ------ */
 FILE* openFile(char* filename);
-size_t getLine(char** buffer, size_t* size, FILE* file);
-char* bufferAllocHandler(char* buffer, size_t size);
+line_t getLine(char** buffer, line_t* size, FILE* file);
+char* bufferAllocHandler(char* buffer, line_t size);
 
 void test(void);
 
@@ -38,14 +46,19 @@ int main(int argc, char* argv[]) {
 
     test();
 
-    if (argc > 3 && !strcmp(argv[1], "-n")) {
+    if (argc >= MIN_ARG_N_COUNT && !strcmp(argv[1], "-n")) {
         n = atoi(argv[2]);
         i = 3;
-    } else if (argc > 1) {
+    } else if (argc >= MIN_ARG_COUNT) {
         n = 3;
         i = 1;
     } else {
-        printf("Incorrect usage...\n");
+        printf(
+            "INPUT ERROR\n"
+            "Usage with phenome count specifier e.g.:\n"
+            "   ./homophones -n 2 CHRISTMAS ...\n"
+            "Usage with (-n default 3) e.g.:\n"
+            "   ./homophones CHRISTMAS PROGRAM ...\n");
         return 1;
     }
 
@@ -54,6 +67,7 @@ int main(int argc, char* argv[]) {
     loadDictionary(map1, map2, n);
 
     for (; i < argc; i++) {
+        toUpperString(argv[i]);
         printRhymes(map1, map2, argv[i]);
     }
 
@@ -66,19 +80,20 @@ int main(int argc, char* argv[]) {
 /* ------ LOADING AND SEARCHING FUNCTIONS ------ */
 /* Loads dictionary file into map1 and map2. Map1 uses the word as the key and
  * and the phenome as the data, map2 is the other way round. "n" specifies the
- * number of phenomes to be stored. Requires initiliased mvm types.
+ * number of phenomes to be stored. Requires initiliased mvm types. Function
+ * assumes dictionary is formatted correctly i.e. capitalisation etc.
  */
 void loadDictionary(mvm* map1, mvm* map2, int n) {
     FILE* file = openFile(DICTIONARY);
     char* buffer = NULL;
-    size_t size;
-    size_t len;
+    line_t size;
+    line_t len;
     char *word, *phenome;
 
-    /* While returns raw line. Line endings are removed (not strictly necesarry
-    but could save some headaches for extensibility e.g. searching for user-
-    specified phenome) and the word and phenome sub-strings identified. These 
-    are then added to map1 and map2.*/
+    /* while() returns raw line. Line endings are removed (not strictly 
+    necesarry but could save some headaches for extensibility e.g. searching for
+    user-specified phenome) and the word and phenome sub-strings identified. 
+    These are then added to map1 and map2.*/
     while ((len = getLine(&buffer, &size, file))) {
         truncateLineEnd(buffer, &len);
 
@@ -123,14 +138,23 @@ void printRhymes(mvm* map1, mvm* map2, char* word) {
     free(rhymes);
 }
 
+/* Capitalises input words to match dictionary formatting 
+ */
+void toUpperString(char* s) {
+    int i;
+    for (i = 0; s[i] != '\0'; i++) {
+        s[i] = toupper(s[i]);
+    }
+}
+
 /* ------ LINE HANDLING/PARSING FUNCTIONS ------ */
 /* Truncates line endings from lines. Can handle LF or CRLF. Uses short-circuit
  * evaluation to avoid reading outside array indices by checking for zero-length
  * strings and ending type. Does nothing to string if line ends aren't
  * found.
  */
-void truncateLineEnd(char* buffer, size_t* len) {
-    size_t size = *len;
+void truncateLineEnd(char* buffer, line_t* len) {
+    line_t size = *len;
 
     if (size && buffer[size - 1] == '\n') {
         if (size >= 2 && buffer[size - 2] == '\r') {
@@ -147,8 +171,8 @@ void truncateLineEnd(char* buffer, size_t* len) {
  * Replaces '#' in dictionary format string with '\0' so that string functions
  * will work on first half of the buffer properly.
  */
-char* parseWord(char* line, size_t len) {
-    size_t i;
+char* parseWord(char* line, line_t len) {
+    line_t i;
     for (i = 0; i < len; i++) {
         if (line[i] == '#') {
             line[i] = '\0';
@@ -163,8 +187,8 @@ char* parseWord(char* line, size_t len) {
  * read into the dictionary. Returns pointer to beginning of phenome string 
  * stored in the line buffer.
  */
-char* parsePhenome(char* line, size_t len, int n) {
-    size_t i;
+char* parsePhenome(char* line, line_t len, int n) {
+    line_t i;
     int count = 0;
 
     for (i = len - 1; i != 0; i--) {
@@ -192,7 +216,7 @@ FILE* openFile(char* filename) {
 /* Handles malloc and reallocing buffer. On the initial call buffer should be 
  * passed as NULL. For resizing, the existing pointer should be passed.
  */
-char* bufferAllocHandler(char* buffer, size_t size) {
+char* bufferAllocHandler(char* buffer, line_t size) {
     char* tmp = (char*)realloc(buffer, sizeof(char) * size);
     if (!tmp) {
         if (!buffer) {
@@ -209,8 +233,8 @@ char* bufferAllocHandler(char* buffer, size_t size) {
  * including \n or 0 on file end or error. Must be passed initialised buffer or
  * NULL value ptr
  */
-size_t getLine(char** buffer, size_t* size, FILE* file) {
-    size_t i = 0;
+line_t getLine(char** buffer, line_t* size, FILE* file) {
+    line_t i = 0;
     long int file_pos = ftell(file);
 
     /* If buffer has not been initialised, buffer is allocated and size is set */
@@ -233,8 +257,17 @@ size_t getLine(char** buffer, size_t* size, FILE* file) {
         }
 
         /* If fgets stopped reading and last char wasn't \n of eof, buffer was 
-        filled and needs to be expanded */
-        *size *= BUFF_FACT;
+        filled and needs to be expanded. Conditions below expand buffer up to
+        maximum size of LINE_T_MAX, at which point the function will fail */
+        if (*size == LINE_T_MAX) {
+            ON_ERROR("Line buffer length exceeded. Exiting...\n");
+        }
+
+        if (LINE_T_MAX / BUFF_FACT <= *size) {
+            *size = LINE_T_MAX;
+        } else {
+            *size *= BUFF_FACT;
+        }
         *buffer = bufferAllocHandler(*buffer, *size);
     }
     /* Returns 0 on eof or error. This should be the only case where 0 can be
@@ -243,19 +276,18 @@ size_t getLine(char** buffer, size_t* size, FILE* file) {
 }
 
 void test(void) {
-    /*char* buffer = NULL;
-    size_t buffer_size;
-    size_t line_len;
-    FILE* file;*/
-
     char str[50];
-    size_t str_len;
+    line_t str_len;
 
-    /*mvm* map1 = mvm_init();
+    mvm* map1 = mvm_init();
     mvm* map2 = mvm_init();
-*/
-    printf("Test start...\n");
 
+    FILE* file;
+    char* buffer = NULL;
+    line_t buffer_size;
+    line_t line_len;
+
+    printf("Test start...\n");
     /* ------ LINE HANDLING/PARSING FUNCTIONS TESTING ------ */
     /* Truncate on \r\n */
     strcpy(str, "This is a testing line\r\n");
@@ -317,26 +349,37 @@ void test(void) {
     assert(strcmp(str, "This is not a dictionary string") == 0);
 
     /* ------ FILE HANDLING FUNCTIONS ------ */
-    /* file = openFile("cmudict.txt");
+    file = openFile("cmudict.txt");
     line_len = getLine(&buffer, &buffer_size, file);
 
-    truncateLineEnd(buffer, &line_len);
-    printf("%s\n", buffer);
-    assert(strcmp(buffer, "STANO#S T AA1 N OW0") == 0);
+    assert(strcmp(buffer, "STANO#S T AA1 N OW0\r\n") == 0);
+    assert(line_len == 21);
 
+    truncateLineEnd(buffer, &line_len);
+    assert(strcmp(buffer, "STANO#S T AA1 N OW0") == 0);
+    assert(line_len == 19);
+
+    /* Test of parseword and parsephenome on buffer */
     assert(strcmp(parseWord(buffer, line_len), "STANO") == 0);
     assert(strcmp(parsePhenome(buffer, line_len, 3), "AA1 N OW0") == 0);
 
     fclose(file);
     free(buffer);
 
-    loadDictionary(map1, map2, 7);
-    printf("%s\n", mvm_search(map1, "BOY"));
-
-    printRhymes(map1, map2, "BLAHBLAH");
+    /* Testing loading */
+    loadDictionary(map1, map2, 2);
+    assert(strcmp((map1->head->key), "CRUX") == 0);
+    assert(strcmp((map1->head->data), "K S") == 0);
+    assert(strcmp((map2->head->key), "K S") == 0);
+    assert(strcmp((map2->head->data), "CRUX") == 0);
 
     mvm_free(&map1);
     mvm_free(&map2);
-    */
+
+    /* Testing input capitalisation */
+    strcpy(str, "boy");
+    toUpperString(str);
+    assert(strcmp(str, "BOY") == 0);
+
     printf("Test End\n");
 }

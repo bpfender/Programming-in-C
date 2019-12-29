@@ -4,7 +4,7 @@ SFLAGS = -g3 -fsanitize=undefined -fsanitize=address
 TESTBASE = homophones
 INCS = mvm.h
 SOURCES =  $(TESTBASE).c mvm.c
-EXECS = $(TESTBASE) $(TESTBASE)_d $(TESTBASE)_s homophone
+EXECS = $(TESTBASE) $(TESTBASE)_d $(TESTBASE)_s homophones
 CC = clang
 
 run: $(TESTBASE)
