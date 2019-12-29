@@ -71,9 +71,9 @@ void mvm_free(mvm** p);
 /* ------ HELPER FUNCTIONS FOR MVM FUNCTIONALITY ------ */
 /* ------ HASH TABLE FUNCTIONS ------ */
 hash_t* insertKey(mvm* m, char* key, unsigned long hash);
-void insertData(hash_t* cell, char* data);
+void insertData(hash_t* bucket, char* data);
 hash_t* findKey(mvm* m, char* key, unsigned long hash);
-void removeKey(mvm* m, ptrdiff_t base);
+void removeKey(mvm* m, int base);
 
 void fillBucket(hash_t* bucket, char* key, unsigned long hash, unsigned long offset);
 void shiftBuckets(mvm* m, unsigned long index);

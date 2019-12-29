@@ -91,6 +91,8 @@ void mvm_delete(mvm* m, char* key) {
             m->num_keys--;
 
             if (bucket->head == NULL) {
+                /* ptr arithmetic of bucket - m->hash_table results in bucket 
+                index. This is needed for proper shifting in removeKey() */
                 removeKey(m, bucket - m->hash_table);
             }
         }
@@ -182,8 +184,8 @@ hash_t* insertKey(mvm* m, char* key, unsigned long hash) {
             return table + index;
         }
 
-        /* FIXME not 100% sure on the offset here */
-        /* FIXME can we skip this evaluation on the first go? */
+        /* Strictly this evaluation is surplus when offset is 0, but code is
+        neater like this. However order of evaluation has to stay like this */
         if (offset > table[index].offset) {
             shiftBuckets(m, index);
             fillBucket(table + index, key, hash, offset);
@@ -196,13 +198,18 @@ hash_t* insertKey(mvm* m, char* key, unsigned long hash) {
     }
 }
 
-
-void insertData(hash_t* cell, char* data) {
+/* Helper function to add data entry to head of the linked list of the
+ * corresponding bucket in hash table */
+void insertData(hash_t* bucket, char* data) {
     mvmcell* node = mvmcell_init(data);
-    node->next = cell->head;
-    cell->head = node;
+    node->next = bucket->head;
+    bucket->head = node;
 }
 
+/* Searches for key in hash table, starting at hash % m->table_size. Probes
+ * according to Robin Hood scheme, until equivalent offset is greater than found
+ * offset or empty cell is found. Returns ptr to key bucket.
+ */
 hash_t* findKey(mvm* m, char* key, unsigned long hash) {
     hash_t* table = m->hash_table;
 
@@ -220,13 +227,17 @@ hash_t* findKey(mvm* m, char* key, unsigned long hash) {
     return NULL;
 }
 
-void removeKey(mvm* m, ptrdiff_t base) {
+/* Called when all data entries have been removed from hash table bucket.
+ * Requires key to be freed (as the only malloced item) and buckets to be
+ * shifted down the table until an empty cell or offset 0 cell is reached.
+ * Clears the last bucket shifted from so it is free for insertion again.
+ */
+void removeKey(mvm* m, int base) {
     hash_t* table = m->hash_table;
     size_t curr = base;
     size_t next = (curr + 1) % m->table_size;
 
     free(table[curr].key);
-    /* FIXME can this shift be made more efficient? */
     while (table[next].key && table[next].offset != 0) {
         table[curr] = table[next];
         table[curr].offset--;
@@ -234,25 +245,25 @@ void removeKey(mvm* m, ptrdiff_t base) {
         curr = next;
         next = (next + 1) % m->table_size;
     }
-
     clearBucket(&table[curr]);
     m->num_buckets--;
 }
 
-
+/* Populates bucket with values and allocates memory for key
+ */
 void fillBucket(hash_t* bucket, char* key, unsigned long hash, unsigned long offset) {
-    bucket->key = (char*)malloc(sizeof(char) * (strlen(key) + 1));
-    if (!bucket->key) {
-        ON_ERROR("Error allocating memory for key\n");
-    }
+    bucket->key = (char*)allocHandler(NULL, strlen(key)+1, sizeof(char));
     strcpy(bucket->key, key);
 
     bucket->hash = hash;
     bucket->offset = offset;
-    bucket->head = NULL; /*FIXME this shouldn;t really need to be modified */
+    bucket->head = NULL;
 }
 
-
+/* Shifts bucket up the table. Swaps buckets out when table offset is greater 
+ * than effective offset in current bucket (a la Robin Hood), and then the 
+ * swapped bucket gets shifted up the table, until an empty cell is reached.
+ */
 void shiftBuckets(mvm* m, unsigned long index) {
     hash_t* table = m->hash_table;
     hash_t tmp = table[index];
@@ -271,8 +282,8 @@ void shiftBuckets(mvm* m, unsigned long index) {
     }
 }
 
-
-
+/* Helper function to swap out hash table buckets
+ */
 void swapBuckets(hash_t* b1, hash_t* b2) {
     hash_t tmp;
     tmp = *b1;
@@ -280,7 +291,9 @@ void swapBuckets(hash_t* b1, hash_t* b2) {
     *b2 = tmp;
 }
 
-/* FIXME does everything actually need to be zeroed? */
+/* Zeros values in bucket. Only really needs key and head to be set to NULL to
+ * work properly, but does all values for completeness
+ */
 void clearBucket(hash_t* bucket) {
     bucket->key = NULL;
     bucket->offset = 0;

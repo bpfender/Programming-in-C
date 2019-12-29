@@ -426,6 +426,7 @@ int main(void) {
     mvm_free(&m);
 
     /*TODO all the NULL testing cases */
+    /*TODO prime functions */
 
     printf("Basic MVM Tests ... Stop\n");
     return 0;
