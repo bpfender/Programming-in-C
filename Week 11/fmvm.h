@@ -75,13 +75,14 @@ void insertData(hash_t* bucket, char* data);
 hash_t* findKey(mvm* m, char* key, unsigned long hash);
 void removeKey(mvm* m, int base);
 
-void fillBucket(hash_t* bucket, char* key, unsigned long hash, unsigned long offset);
+void fillBucket(hash_t* bucket, char* key, unsigned long hash, int offset);
 void shiftBuckets(mvm* m, unsigned long index);
 void swapBuckets(hash_t* b1, hash_t* b2);
 void clearBucket(hash_t* bucket);
 
 void expandHashTable(mvm* m);
-size_t isPrime(size_t candidate);
+int nextTableSize(int n);
+int isPrime(int candidate);
 unsigned long djb2Hash(char* s);
 
 

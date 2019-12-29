@@ -1,4 +1,5 @@
 #include "fmvm.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,7 +47,7 @@ void mvm_insert(mvm* m, char* key, char* data) {
         cell = insertKey(m, key, djb2Hash(key));
         insertData(cell, data);
         m->num_keys++;
-
+        /* FIXME make neater */
         m->ave_len = updateAverage(m->ave_len, strlen(key) + strlen(data), m->num_keys);
     }
 }
@@ -115,7 +116,6 @@ char* mvm_search(mvm* m, char* key) {
     return NULL;
 }
 
-
 /* Returns list of char* to data corresponding to a key. On invalid input NULL
  * is returned. If the key is not found, an empty list is returned and n is set
  * to zero.
@@ -156,7 +156,6 @@ void mvm_free(mvm** p) {
 
     *p = NULL;
 }
-
 
 /* ------- HELPER FUNCTIONS FOR MVM FUNCTIONALITY ------ */
 /* ------- HASH TABLE FUNCTIONS ------ */
@@ -251,8 +250,8 @@ void removeKey(mvm* m, int base) {
 
 /* Populates bucket with values and allocates memory for key
  */
-void fillBucket(hash_t* bucket, char* key, unsigned long hash, unsigned long offset) {
-    bucket->key = (char*)allocHandler(NULL, strlen(key)+1, sizeof(char));
+void fillBucket(hash_t* bucket, char* key, unsigned long hash, int offset) {
+    bucket->key = (char*)allocHandler(NULL, strlen(key) + 1, sizeof(char));
     strcpy(bucket->key, key);
 
     bucket->hash = hash;
@@ -303,16 +302,12 @@ void clearBucket(hash_t* bucket) {
 
 /* FIXME requires expansion limiter */
 void expandHashTable(mvm* m) {
-    int i;
-    hash_t* bucket;
-    hash_t* table = m->hash_table;
     mvm* tmp;
+    hash_t* table = m->hash_table;
+    hash_t* bucket;
+    int i;
 
-    int size = m->table_size * HASH_FACTOR;
-    while (!isPrime(size)) {
-        size++;
-    }
-
+    int size = nextTableSize(m->table_size);
     tmp = mvm_initHelper(size);
 
     for (i = 0; i < m->table_size; i++) {
@@ -332,24 +327,40 @@ void expandHashTable(mvm* m) {
     free(tmp);
 }
 
+/* Calculates next table size. If HASH_FACTOR is even, +1 is added to result
+ * of multiplcation to make it odd (prime table sizes will only ever be odd). If
+ * HASH_FACTOR is odd, no +1 will be added. Will break for initial size 2, but
+ * that would be silly.
+ */
+int nextTableSize(int n) {
+    int size = n * HASH_FACTOR + !(HASH_FACTOR % 2);
+    /* =2 skips over even numbers */
+    while (!isPrime(size)) {
+        size += 2;
+    }
+    return size;
+}
 
-size_t isPrime(size_t candidate) {
-    size_t j;
+/* https://en.wikipedia.org/wiki/Primality_test
+ * Could be optimised further but likley not the limiting factor during hash
+ * table resizing, especially given that sizes aren't likely to get that huge
+ */
+int isPrime(int candidate) {
+    int j;
 
     if (candidate == 2) {
         return 1;
     }
-    if (candidate < 2 || candidate % 2 == 0) {
+    if (candidate % 2 == 0 || candidate < 2) {
         return 0;
     }
-    for (j = 3; j <= candidate / 2; j += 2) {
+    for (j = 3; j <= (int)sqrt(candidate); j += 2) {
         if (candidate % j == 0) {
             return 0;
         }
     }
     return 1;
 }
-
 
 
 
@@ -376,11 +387,6 @@ unsigned long djb2Hash(char* s) {
 
     return hash;
 }
-
-
-
-
-
 
 void unloadTable(hash_t* table, size_t size) {
     size_t i;
@@ -411,8 +417,6 @@ void mvmcell_unloadNode(mvmcell* node) {
 
 /* ------ HELPER FUNCTIONS ------ */
 /* Interface does not need to be exposed to the user */
-
-
 
 hash_t* initHashTable(int size) {
     hash_t* tmp = (hash_t*)calloc(size, sizeof(hash_t));
