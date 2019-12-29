@@ -95,4 +95,8 @@ void mvmcell_unloadNode(mvmcell* node);
 
 size_t isPrime(size_t candidate);
 
+void traverseListPrinter(char** buffer, size_t* curr, hash_t* bucket);
+
 void* allocHandler(void* ptr, size_t nmemb, size_t size);
+int updateAverage(int curr_av, int val, int n); 
+

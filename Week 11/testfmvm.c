@@ -285,6 +285,18 @@ int main(void) {
 
     mvm_free(&m);
 
+    /* Average testing */
+    /* Update average should always round up to the nearest whole number */
+    i = 0;
+    i = updateAverage(i, 2, 1);
+    assert(i == 2);
+    i = updateAverage(i, 3, 2);
+    assert(i == 3);
+    i = updateAverage(i, 3, 3);
+    assert(i == 3);
+    i = updateAverage(i, 4, 4);
+    assert(i == 4);
+
     /* MORE Testing */
     m = mvm_init();
     assert(m != NULL);
@@ -302,12 +314,16 @@ int main(void) {
         assert(i == 0);
     }
 
+    printf("%d\n", m->ave_len);
+
     str = mvm_print(m);
     assert(strstr(str, "[frog](croak) "));
     assert(strstr(str, "[horse](neigh) "));
     assert(strstr(str, "[bird](tweet) "));
     assert(strstr(str, "[dog](bark) "));
     assert(strstr(str, "[cat](meow) "));
+    
+    printf("%s\n", str);    
     free(str);
 
     assert(mvm_search(m, "fox") == NULL);
