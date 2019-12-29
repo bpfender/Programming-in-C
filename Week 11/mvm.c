@@ -18,9 +18,9 @@ strings this can just be rounded to 10 */
 mvmcell* mvm_findKey(mvmcell* head, char* key);
 mvmcell* mvmcell_init(char* key, char* data);
 mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key, mvm* m);
-void* allocHandler(void* ptr, size_t nmemb, size_t size);
-void mvmcell_unloadNode(mvmcell* node);
 void mvmcell_unloadList(mvmcell* node);
+void mvmcell_unloadNode(mvmcell* node);
+void* allocHandler(void* ptr, size_t nmemb, size_t size);
 
 /* ------- FUNCTION BODIES ------ */
 /* Initialises mvm ADT and zeros all values
@@ -53,7 +53,9 @@ void mvm_insert(mvm* m, char* key, char* data) {
 
 /* Writes string into buffer that is dynamically resized as required. Would have
  * liked to use strncat() for easier buffer resizing but I believe this is a GNU
- * only extension 
+ * only extension. Buffer is initially sized based on average word lengths and
+ * ()[] string, though string lengths will of course vary depending on the data
+ * stored. 
  */
 char* mvm_print(mvm* m) {
     if (m) {
@@ -78,11 +80,9 @@ char* mvm_print(mvm* m) {
             }
 
             sprintf(buffer + curr_index, "[%s](%s) ", node->key, node->data);
-
             curr_index = next_index;
             node = node->next;
         }
-
         return buffer;
     }
     return NULL;
@@ -110,6 +110,9 @@ char* mvm_search(mvm* m, char* key) {
     return NULL;
 }
 
+/* Uses mvm_search() to find all keys in the list sequentially. Strictly, n
+ * doesn't have to be passed initialised.
+ */
 char** mvm_multisearch(mvm* m, char* key, int* n) {
     if (m && key && n) {
         size_t size = MULTI_SEARCH_LEN;
@@ -124,13 +127,10 @@ char** mvm_multisearch(mvm* m, char* key, int* n) {
                 list = (char**)allocHandler(list, size, sizeof(char*));
             }
 
-            list[i] = node->data;
-            i++;
-
-            /* Move to next node so mvm_findKey() doesn't return same node */
+            list[i++] = node->data;
+            /* Move to next node so mvm_findKey() doesn't return same again */
             node = node->next;
         }
-
         *n = i;
         return list;
     }
@@ -146,20 +146,6 @@ void mvm_free(mvm** p) {
 }
 
 /* ------ HELPER FUNCTIONS ------ */
-/* Allocates memory for mvmcell and populates values.
- */
-mvmcell* mvmcell_init(char* key, char* data) {
-    mvmcell* node = (mvmcell*)allocHandler(NULL, 1, sizeof(mvmcell));
-    node->key = (char*)allocHandler(NULL, strlen(key) + 1, sizeof(char));
-    node->data = (char*)allocHandler(NULL, strlen(data) + 1, sizeof(char));
-
-    strcpy(node->key, key);
-    strcpy(node->data, data);
-    /* FIXME should next be NULLed to avoid any issues? */
-
-    return node;
-}
-
 /* Returns pointer to mvmcell node where key is found. If the key doesn't exist
  * returns NULL. Pointing to the node, allows continue searching in the
  * multi-search function
@@ -176,10 +162,25 @@ mvmcell* mvm_findKey(mvmcell* head, char* key) {
     return NULL;
 }
 
+/* Allocates memory for mvmcell that will be added to LL and populates values.
+ * next ptr doesn't have to be zeroed because elements are always added to head
+ * of mvm list, which is initialised with NULL.
+ */
+mvmcell* mvmcell_init(char* key, char* data) {
+    mvmcell* node = (mvmcell*)allocHandler(NULL, 1, sizeof(mvmcell));
+    
+    node->key = (char*)allocHandler(NULL, strlen(key) + 1, sizeof(char));
+    node->data = (char*)allocHandler(NULL, strlen(data) + 1, sizeof(char));
+    strcpy(node->key, key);
+    strcpy(node->data, data);
+
+    return node;
+}
+
 /* Recursive helper function to delete element from linked list. Currently just
  * deletes the first item found to conform to testing in "testmvm.c". Function
  * returns address of next node to previous call, in turn removing the specified
- * node 
+ * node. 
  */
 mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key, mvm* m) {
     mvmcell* tmp;
@@ -218,7 +219,7 @@ void mvmcell_unloadNode(mvmcell* node) {
 
 /* Wrote a generic malloc/realloc function because the same structure was
  * repeating itself multiple times and I wanted to play with void*. Requires
- * ptr = NULL for initial malloc, and ptr value for resizing
+ * ptr = NULL for initial malloc, and ptr value for resizing an existing block
  */
 void* allocHandler(void* ptr, size_t nmemb, size_t size) {
     void* tmp = realloc(ptr, nmemb * size);
