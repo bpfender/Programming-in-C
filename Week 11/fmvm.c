@@ -58,24 +58,14 @@ void mvm_insert(mvm* m, char* key, char* data) {
  */
 char* mvm_print(mvm* m) {
     if (m) {
-        int i;
-        hash_t* table = m->hash_table;
-        mvmcell* node;
-
-        /* Allocate string buffer based on average char count and format string */
         size_t size = (m->ave_len + FRMT_CHARS) * m->num_keys + 1;
         char* buffer = (char*)allocHandler(NULL, size, sizeof(char));
         size_t curr = 0;
+        int i;
 
         for (i = 0; i < m->table_size; i++) {
-            if (table[i].key) {
-                node = table[i].head;
-                while (node) {
-                    sprintf(buffer + curr, "[%s](%s) ", table[i].key, node->data);
-
-                    curr += strlen(table[i].key) + strlen(node->data) + FRMT_CHARS;
-                    node = node->next;
-                }
+            if (m->hash_table[i].key) {
+                printList(&buffer, &curr, &m->hash_table[i]);
             }
         }
         return buffer;
@@ -83,54 +73,219 @@ char* mvm_print(mvm* m) {
     return NULL;
 }
 
-void traverseListPrinter(char** buffer, size_t* curr, hash_t* bucket) {
-    mvmcell* node;
-
-    node = bucket->head;
-    while (node) {
-        sprintf(*buffer + *curr, "[%s](%s) ", bucket->key, node->data);
-
-        *curr += strlen(bucket->key) + strlen(node->data) + FRMT_CHARS;
-        node = node->next;
-    }
-}
-
 /* Removes data corresponding to a key from the mvm struct. findKey() is called
  * to return the hash_table entry that the key is stored in. The data is removed
  * from the head of the linked list. If the list still has entries the function
  * returns. If the list is empty, the key also has to be removed from the hash
- * table by calling removeKey(). If 
+ * table by calling removeKey(). Invalid input does nothing.
  */
 void mvm_delete(mvm* m, char* key) {
-    hash_t* bucket = findKey(m, key, djb2Hash(key));
-    mvmcell* node;
+    if (m && key) {
+        hash_t* bucket = findKey(m, key, djb2Hash(key));
+        mvmcell* node;
 
-    if (bucket) {
-        node = bucket->head;
-        bucket->head = node->next;
-        mvmcell_unloadNode(node);
-        m->num_keys--;
+        if (bucket) {
+            node = bucket->head;
+            bucket->head = node->next;
+            mvmcell_unloadNode(node);
+            m->num_keys--;
 
-        if (bucket->head == NULL) {
-            /* FIXME Not totally convinced by this indexing method */
-            removeKey(m, bucket - m->hash_table);
+            if (bucket->head == NULL) {
+                removeKey(m, bucket - m->hash_table);
+            }
         }
     }
 }
 
-mvm* mvm_initHelper(size_t size) {
-    mvm* tmp = (mvm*)malloc(sizeof(mvm));
-    if (!tmp) {
-        ON_ERROR("Error allocating memory for MVM\n");
+/* Just call findKey() which provides ptr to a bucket with the corresponding
+ * key. mvm_search() then returns the head of the linked list associated with
+ * that bucket. If the key isn't found or on invalid input, NULL is returned. As
+ * before, return value just points to data in mvm, rather than copying it into
+ * seperately allocated memory.
+ */
+char* mvm_search(mvm* m, char* key) {
+    if (m && key) {
+        hash_t* bucket = findKey(m, key, djb2Hash(key));
+        if (bucket) {
+            return bucket->head->data;
+        }
+    }
+    return NULL;
+}
+
+
+/* Returns list of char* to data corresponding to a key. On invalid input NULL
+ * is returned. If the key is not found, an empty list is returned and n is set
+ * to zero.
+ */
+char** mvm_multisearch(mvm* m, char* key, int* n) {
+    if (m && key && n) {
+        int size = MULTI_SEARCH_LEN;
+        char** list = (char**)allocHandler(NULL, size, sizeof(char*));
+
+        hash_t* bucket = findKey(m, key, djb2Hash(key));
+        /* If key isn't found, node is set to NULL */
+        mvmcell* node = bucket ? bucket->head : NULL;
+        int i = 0;
+
+        while (node) {
+            if (i >= size) {
+                size *= FACTOR;
+                list = (char**)allocHandler(list, size, sizeof(char*));
+            }
+
+            list[i++] = node->data;
+            node = node->next;
+        }
+
+        *n = i;
+        return list;
+    }
+    *n = 0;
+    return NULL;
+}
+
+/* Frees mvm struct by freeing hash table followed by struct itself. 
+ */
+void mvm_free(mvm** p) {
+    mvm* m = *p;
+    unloadTable(m->hash_table, m->table_size);
+    free(m);
+
+    *p = NULL;
+}
+
+
+/* ------- HELPER FUNCTIONS FOR MVM FUNCTIONALITY ------ */
+/* ------- HASH TABLE FUNCTIONS ------ */
+/* Given a key, this function returns the location in the hash table that it
+ * should be stored. Takes hash as value to make resizing quicker, as the value
+ * can be passed directly from the value stored rather than being recalculated.
+ * Probing starts at hash%table size and shifts according to Robin Hood hashing
+ * scheme. If the key already exists, the hash_t* can simply be returned. On an
+ * empty cell, the bucket first has to be filled, and on linear probing, entries
+ * may have to be shifted in the table before the bucket is filled.
+ */
+hash_t* insertKey(mvm* m, char* key, unsigned long hash) {
+    hash_t* table = m->hash_table;
+    unsigned long index = hash % m->table_size;
+    int offset = 0;
+
+    for (;;) {
+        if (!table[index].key) {
+            fillBucket(table + index, key, hash, offset);
+            m->num_buckets++;
+            return table + index;
+        }
+
+        if (!strcmp(table[index].key, key)) {
+            return table + index;
+        }
+
+        /* FIXME not 100% sure on the offset here */
+        /* FIXME can we skip this evaluation on the first go? */
+        if (offset > table[index].offset) {
+            shiftBuckets(m, index);
+            fillBucket(table + index, key, hash, offset);
+            m->num_buckets++;
+            return table + index;
+        }
+
+        offset++;
+        index = (index + 1) % m->table_size;
+    }
+}
+
+
+void insertData(hash_t* cell, char* data) {
+    mvmcell* node = mvmcell_init(data);
+    node->next = cell->head;
+    cell->head = node;
+}
+
+hash_t* findKey(mvm* m, char* key, unsigned long hash) {
+    hash_t* table = m->hash_table;
+
+    unsigned long index = hash % m->table_size;
+    int offset = 0;
+
+    while (table[index].key && offset <= table[index].offset) {
+        if (!strcmp(table[index].key, key)) {
+            return table + index;
+        }
+
+        offset++;
+        index = (index + 1) % m->table_size;
+    }
+    return NULL;
+}
+
+void removeKey(mvm* m, ptrdiff_t base) {
+    hash_t* table = m->hash_table;
+    size_t curr = base;
+    size_t next = (curr + 1) % m->table_size;
+
+    free(table[curr].key);
+    /* FIXME can this shift be made more efficient? */
+    while (table[next].key && table[next].offset != 0) {
+        table[curr] = table[next];
+        table[curr].offset--;
+
+        curr = next;
+        next = (next + 1) % m->table_size;
     }
 
-    tmp->hash_table = initHashTable(size);
-    tmp->table_size = size;
-    tmp->num_keys = 0;
-    tmp->num_buckets = 0;
-    tmp->ave_len = 0;
+    clearBucket(&table[curr]);
+    m->num_buckets--;
+}
 
-    return tmp;
+
+void fillBucket(hash_t* bucket, char* key, unsigned long hash, unsigned long offset) {
+    bucket->key = (char*)malloc(sizeof(char) * (strlen(key) + 1));
+    if (!bucket->key) {
+        ON_ERROR("Error allocating memory for key\n");
+    }
+    strcpy(bucket->key, key);
+
+    bucket->hash = hash;
+    bucket->offset = offset;
+    bucket->head = NULL; /*FIXME this shouldn;t really need to be modified */
+}
+
+
+void shiftBuckets(mvm* m, unsigned long index) {
+    hash_t* table = m->hash_table;
+    hash_t tmp = table[index];
+
+    for (;;) {
+        index = (index + 1) % m->table_size;
+        tmp.offset++;
+
+        if (!table[index].key) {
+            table[index] = tmp;
+            return;
+        }
+        if (tmp.offset > table[index].offset) {
+            swapBuckets(&tmp, table + index);
+        }
+    }
+}
+
+
+
+void swapBuckets(hash_t* b1, hash_t* b2) {
+    hash_t tmp;
+    tmp = *b1;
+    *b1 = *b2;
+    *b2 = tmp;
+}
+
+/* FIXME does everything actually need to be zeroed? */
+void clearBucket(hash_t* bucket) {
+    bucket->key = NULL;
+    bucket->offset = 0;
+    bucket->hash = 0;
+    bucket->head = NULL;
 }
 
 /* FIXME requires expansion limiter */
@@ -164,169 +319,55 @@ void expandHashTable(mvm* m) {
     free(tmp);
 }
 
-void insertData(hash_t* cell, char* data) {
-    mvmcell* node = mvmcell_init(data);
-    node->next = cell->head;
-    cell->head = node;
-}
 
-/* FIXME doesn't resize yet */
-/* Returns location for data to be stored in hash table */
-hash_t* insertKey(mvm* m, char* key, unsigned long hash) {
-    hash_t* table = m->hash_table;
-    unsigned long index = hash % m->table_size;
-    int offset = 0;
+size_t isPrime(size_t candidate) {
+    size_t j;
 
-    for (;;) {
-        if (!table[index].key) {
-            fillBucket(table + index, key, hash, offset);
-            m->num_buckets++;
-            return table + index;
-        }
-
-        if (!strcmp(table[index].key, key)) {
-            return table + index;
-        }
-
-        /* FIXME not 100% sure on the offset here */
-        /* FIXME can we skip this evaluation on the first go? */
-        if (offset > table[index].distance) {
-            shiftBuckets(m, index);
-            fillBucket(table + index, key, hash, offset);
-            m->num_buckets++;
-            return table + index;
-        }
-
-        offset++;
-        index = (index + 1) % m->table_size;
+    if (candidate == 2) {
+        return 1;
     }
-}
-
-void shiftBuckets(mvm* m, unsigned long index) {
-    hash_t* table = m->hash_table;
-    hash_t tmp = table[index];
-
-    for (;;) {
-        index = (index + 1) % m->table_size;
-        tmp.distance++;
-
-        if (!table[index].key) {
-            table[index] = tmp;
-            return;
-        }
-        if (tmp.distance > table[index].distance) {
-            swapBuckets(&tmp, table + index);
+    if (candidate < 2 || candidate % 2 == 0) {
+        return 0;
+    }
+    for (j = 3; j <= candidate / 2; j += 2) {
+        if (candidate % j == 0) {
+            return 0;
         }
     }
+    return 1;
 }
 
-hash_t* findKey(mvm* m, char* key, unsigned long hash) {
-    hash_t* table = m->hash_table;
 
-    unsigned long index = hash % m->table_size;
-    int offset = 0;
 
-    while (table[index].key && offset <= table[index].distance) {
-        if (!strcmp(table[index].key, key)) {
-            return table + index;
-        }
 
-        offset++;
-        index = (index + 1) % m->table_size;
-    }
-    return NULL;
+mvm* mvm_initHelper(size_t size) {
+    mvm* tmp = (mvm*)allocHandler(NULL, 1, sizeof(mvm));
+
+    tmp->hash_table = initHashTable(size);
+    tmp->table_size = size;
+    tmp->num_keys = 0;
+    tmp->num_buckets = 0;
+    tmp->ave_len = 0;
+
+    return tmp;
 }
 
-void fillBucket(hash_t* bucket, char* key, unsigned long hash, unsigned long offset) {
-    bucket->key = (char*)malloc(sizeof(char) * (strlen(key) + 1));
-    if (!bucket->key) {
-        ON_ERROR("Error allocating memory for key\n");
-    }
-    strcpy(bucket->key, key);
-
-    bucket->hash = hash;
-    bucket->distance = offset;
-    bucket->head = NULL; /*FIXME this shouldn;t really need to be modified */
-}
-
-void swapBuckets(hash_t* b1, hash_t* b2) {
-    hash_t tmp;
-    tmp = *b1;
-    *b1 = *b2;
-    *b2 = tmp;
-}
-
-void removeKey(mvm* m, ptrdiff_t base) {
-    hash_t* table = m->hash_table;
-    size_t curr = base;
-    size_t next = (curr + 1) % m->table_size;
-
-    free(table[curr].key);
-    /* FIXME can this shift be made more efficient? */
-    while (table[next].key && table[next].distance != 0) {
-        table[curr] = table[next];
-        table[curr].distance--;
-
-        curr = next;
-        next = (next + 1) % m->table_size;
+/* FIXME use murmur instead */
+/* http://www.cse.yorku.ca/~oz/hash.html */
+unsigned long djb2Hash(char* s) {
+    size_t i;
+    unsigned long hash = DJB2_HASH;
+    for (i = 0; s[i] != '\0'; i++) {
+        hash += hash * DJB2_MAGIC ^ (unsigned long)s[i];
     }
 
-    clearBucket(&table[curr]);
-    m->num_buckets--;
+    return hash;
 }
 
-/* FIXME does everything actually need to be zeroed? */
-void clearBucket(hash_t* bucket) {
-    bucket->key = NULL;
-    bucket->distance = 0;
-    bucket->hash = 0;
-    bucket->head = NULL;
-}
 
-char* mvm_search(mvm* m, char* key) {
-    hash_t* bucket = findKey(m, key, djb2Hash(key));
-    if (bucket) {
-        return bucket->head->data;
-    }
-    return NULL;
-}
 
-char** mvm_multisearch(mvm* m, char* key, int* n) {
-    int size = MULTI_SEARCH_LEN;
-    int curr_index = 0;
 
-    hash_t* bucket = findKey(m, key, djb2Hash(key));
-    mvmcell* node = bucket->head;
 
-    char** list = (char**)malloc(sizeof(char*) * MULTI_SEARCH_LEN);
-    if (!list) {
-        ON_ERROR("Error allocating multi-search list\n");
-    }
-
-    while (node) {
-        *(list + curr_index) = node->data;
-        curr_index++;
-
-        if (curr_index >= size) {
-            size *= FACTOR;
-            list = (char**)realloc(list, sizeof(char*) * size);
-            /*FIXME no error checking yet */
-        }
-
-        node = node->next;
-    }
-
-    *n = curr_index;
-    return list;
-}
-
-void mvm_free(mvm** p) {
-    mvm* m = *p;
-    unloadTable(m->hash_table, m->table_size);
-    free(m);
-
-    *p = NULL;
-}
 
 void unloadTable(hash_t* table, size_t size) {
     size_t i;
@@ -358,17 +399,7 @@ void mvmcell_unloadNode(mvmcell* node) {
 /* ------ HELPER FUNCTIONS ------ */
 /* Interface does not need to be exposed to the user */
 
-/* FIXME use murmur instead */
-/* http://www.cse.yorku.ca/~oz/hash.html */
-unsigned long djb2Hash(char* s) {
-    size_t i;
-    unsigned long hash = DJB2_HASH;
-    for (i = 0; s[i] != '\0'; i++) {
-        hash += hash * DJB2_MAGIC ^ (unsigned long)s[i];
-    }
 
-    return hash;
-}
 
 hash_t* initHashTable(int size) {
     hash_t* tmp = (hash_t*)calloc(size, sizeof(hash_t));
@@ -411,23 +442,6 @@ void expandListBuffer(char** buffer, size_t size) {
     *buffer = tmp;
 }
 
-size_t isPrime(size_t candidate) {
-    size_t j;
-
-    if (candidate == 2) {
-        return 1;
-    }
-    if (candidate < 2 || candidate % 2 == 0) {
-        return 0;
-    }
-    for (j = 3; j <= candidate / 2; j += 2) {
-        if (candidate % j == 0) {
-            return 0;
-        }
-    }
-    return 1;
-}
-
 /* Wrote a generic malloc/realloc function because the same structure was
  * repeating itself multiple times and I wanted to play with void*. Requires
  * ptr = NULL for initial malloc, and ptr value for resizing an existing block
@@ -447,4 +461,18 @@ void* allocHandler(void* ptr, size_t nmemb, size_t size) {
  */
 int updateAverage(int curr_av, int val, int n) {
     return curr_av + ((val - curr_av) + (n - 1)) / n;
+}
+
+/* Helper function that traverses linked list stored in hash table bucket and 
+ * adds it to the print buffer
+ */
+void printList(char** buffer, size_t* curr, hash_t* bucket) {
+    mvmcell* node = bucket->head;
+
+    while (node) {
+        sprintf(*buffer + *curr, "[%s](%s) ", bucket->key, node->data);
+
+        *curr += strlen(bucket->key) + strlen(node->data) + FRMT_CHARS;
+        node = node->next;
+    }
 }

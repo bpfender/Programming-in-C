@@ -115,11 +115,11 @@ char* mvm_search(mvm* m, char* key) {
  */
 char** mvm_multisearch(mvm* m, char* key, int* n) {
     if (m && key && n) {
-        size_t size = MULTI_SEARCH_LEN;
+        int size = MULTI_SEARCH_LEN;
         char** list = (char**)allocHandler(NULL, size, sizeof(char*));
 
         mvmcell* node = m->head;
-        size_t i = 0;
+        int i = 0;
 
         while ((node = mvm_findKey(node, key))) {
             if (i >= size) {
@@ -134,6 +134,7 @@ char** mvm_multisearch(mvm* m, char* key, int* n) {
         *n = i;
         return list;
     }
+    *n = 0;
     return NULL;
 }
 

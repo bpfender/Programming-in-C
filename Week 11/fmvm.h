@@ -38,7 +38,7 @@ typedef struct mvmcell {
 typedef struct hash_t {
     char* key;
     mvmcell* head;
-    int distance;
+    int offset;
     unsigned long hash;
 } hash_t;
 
@@ -69,16 +69,21 @@ char** mvm_multisearch(mvm* m, char* key, int* n);
 void mvm_free(mvm** p);
 
 /* ------ HELPER FUNCTIONS FOR MVM FUNCTIONALITY ------ */
-
-void expandHashTable(mvm* m);
-
-void fillBucket(hash_t* bucket, char* key, unsigned long hash, unsigned long offset);
-void shiftBuckets(mvm* m, unsigned long index);
-unsigned long djb2Hash(char* s);
+/* ------ HASH TABLE FUNCTIONS ------ */
 hash_t* insertKey(mvm* m, char* key, unsigned long hash);
 void insertData(hash_t* cell, char* data);
 hash_t* findKey(mvm* m, char* key, unsigned long hash);
+void removeKey(mvm* m, ptrdiff_t base);
+
+void fillBucket(hash_t* bucket, char* key, unsigned long hash, unsigned long offset);
+void shiftBuckets(mvm* m, unsigned long index);
 void swapBuckets(hash_t* b1, hash_t* b2);
+void clearBucket(hash_t* bucket);
+
+void expandHashTable(mvm* m);
+size_t isPrime(size_t candidate);
+unsigned long djb2Hash(char* s);
+
 
 mvm* mvm_initHelper(size_t size);
 mvmcell* mvmcell_init(char* data);
@@ -86,17 +91,11 @@ hash_t* initHashTable(int size);
 char* initListBuffer(size_t size);
 void expandListBuffer(char** buffer, size_t size);
 
-void removeKey(mvm* m, ptrdiff_t base);
-void clearBucket(hash_t* bucket);
-
 void unloadTable(hash_t* table, size_t size);
 void mvmcell_unloadList(mvmcell* node);
 void mvmcell_unloadNode(mvmcell* node);
 
-size_t isPrime(size_t candidate);
-
-void traverseListPrinter(char** buffer, size_t* curr, hash_t* bucket);
+void printList(char** buffer, size_t* curr, hash_t* bucket);
 
 void* allocHandler(void* ptr, size_t nmemb, size_t size);
-int updateAverage(int curr_av, int val, int n); 
-
+int updateAverage(int curr_av, int val, int n);

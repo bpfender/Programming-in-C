@@ -25,7 +25,7 @@ int main(void) {
 
     assert(m->hash_table[0].key == NULL);
     assert(m->hash_table[0].hash == 0);
-    assert(m->hash_table[0].distance == 0);
+    assert(m->hash_table[0].offset == 0);
     assert(m->hash_table[0].head == NULL);
 
     assert(mvm_size(m) == 0);
@@ -39,25 +39,25 @@ int main(void) {
 
     table = initHashTable(5);
     fillBucket(table, "test_key", 1234, 3);
-    assert(table[0].distance == 3);
+    assert(table[0].offset == 3);
     assert(table[0].hash == 1234);
     assert(table[0].head == NULL);
     assert(strcmp(table[0].key, "test_key") == 0);
 
     swapBuckets(&table[0], &table[1]);
-    assert(table[1].distance == 3);
+    assert(table[1].offset == 3);
     assert(table[1].hash == 1234);
     assert(table[1].head == NULL);
     assert(strcmp(table[1].key, "test_key") == 0);
 
-    assert(table[0].distance == 0);
+    assert(table[0].offset == 0);
     assert(table[0].hash == 0);
     assert(table[0].head == NULL);
     assert(table[0].key == NULL);
 
     free(table[1].key);
     clearBucket(&table[1]);
-    assert(table[1].distance == 0);
+    assert(table[1].offset == 0);
     assert(table[1].hash == 0);
     assert(table[1].head == NULL);
     assert(table[1].key == NULL);
@@ -80,11 +80,11 @@ int main(void) {
     assert(strcmp(table[3].key, "test4") == 0);
     assert(strcmp(table[4].key, "test3") == 0);
 
-    assert(table[0].distance == 1);
-    assert(table[1].distance == 1);
-    assert(table[2].distance == 1);
-    assert(table[3].distance == 2);
-    assert(table[4].distance == 3);
+    assert(table[0].offset == 1);
+    assert(table[1].offset == 1);
+    assert(table[2].offset == 1);
+    assert(table[3].offset == 2);
+    assert(table[4].offset == 3);
 
     /* To avoid double free */
     table[2].key = NULL;
@@ -109,46 +109,46 @@ int main(void) {
 
     bucket = insertKey(m, "test_key_2", 1);
     assert(strcmp(table[1].key, "test_key_2") == 0);
-    assert(table[1].distance == 0);
+    assert(table[1].offset == 0);
     assert(m->num_buckets == 2);
 
     bucket = insertKey(m, "test_key_3", 0);
     assert(strcmp(table[1].key, "test_key_3") == 0);
-    assert(table[1].distance == 1);
+    assert(table[1].offset == 1);
     assert(strcmp(table[2].key, "test_key_2") == 0);
-    assert(table[2].distance == 1);
+    assert(table[2].offset == 1);
 
     bucket = insertKey(m, "test_key_4", 0);
     assert(strcmp(table[1].key, "test_key_3") == 0);
-    assert(table[1].distance == 1);
+    assert(table[1].offset == 1);
     assert(strcmp(table[2].key, "test_key_4") == 0);
-    assert(table[2].distance == 2);
+    assert(table[2].offset == 2);
     assert(strcmp(table[3].key, "test_key_2") == 0);
-    assert(table[3].distance == 2);
+    assert(table[3].offset == 2);
 
     bucket = insertKey(m, "test_key_5", 1);
     assert(strcmp(table[1].key, "test_key_3") == 0);
-    assert(table[1].distance == 1);
+    assert(table[1].offset == 1);
     assert(strcmp(table[2].key, "test_key_4") == 0);
-    assert(table[2].distance == 2);
+    assert(table[2].offset == 2);
     assert(strcmp(table[3].key, "test_key_2") == 0);
-    assert(table[3].distance == 2);
+    assert(table[3].offset == 2);
     assert(strcmp(table[4].key, "test_key_5") == 0);
-    assert(table[4].distance == 3);
+    assert(table[4].offset == 3);
 
     bucket = insertKey(m, "test_key_6", 0);
     assert(strcmp(table[0].key, "test_key") == 0);
-    assert(table[0].distance == 0);
+    assert(table[0].offset == 0);
     assert(strcmp(table[1].key, "test_key_3") == 0);
-    assert(table[1].distance == 1);
+    assert(table[1].offset == 1);
     assert(strcmp(table[2].key, "test_key_4") == 0);
-    assert(table[2].distance == 2);
+    assert(table[2].offset == 2);
     assert(strcmp(table[3].key, "test_key_6") == 0);
-    assert(table[3].distance == 3);
+    assert(table[3].offset == 3);
     assert(strcmp(table[4].key, "test_key_5") == 0);
-    assert(table[4].distance == 3);
+    assert(table[4].offset == 3);
     assert(strcmp(table[5].key, "test_key_2") == 0);
-    assert(table[5].distance == 4);
+    assert(table[5].offset == 4);
 
     mvm_free(&m);
 
@@ -162,32 +162,32 @@ int main(void) {
     insertData(bucket, "17");
 
     assert(strcmp(table[1].key, "test1") == 0);
-    assert(table[1].distance == 0);
+    assert(table[1].offset == 0);
     assert(strcmp(table[2].key, "test2") == 0);
-    assert(table[2].distance == 1);
+    assert(table[2].offset == 1);
 
     bucket = insertKey(m, "test3", 2);
     insertData(bucket, "31");
     assert(strcmp(table[3].key, "test3") == 0);
-    assert(table[3].distance == 1);
+    assert(table[3].offset == 1);
 
     bucket = insertKey(m, "test4", 3);
     insertData(bucket, "10");
     assert(strcmp(table[4].key, "test4") == 0);
-    assert(table[4].distance == 1);
+    assert(table[4].offset == 1);
 
     bucket = insertKey(m, "test5", 3);
     insertData(bucket, "28");
     assert(strcmp(table[5].key, "test5") == 0);
-    assert(table[5].distance == 2);
+    assert(table[5].offset == 2);
 
     bucket = insertKey(m, "test6", 2);
     insertData(bucket, "11");
     insertData(bucket, "76");
     assert(strcmp(table[4].key, "test6") == 0);
-    assert(table[4].distance == 2);
+    assert(table[4].offset == 2);
     assert(strcmp(table[6].key, "test4") == 0);
-    assert(table[6].distance == 3);
+    assert(table[6].offset == 3);
 
     bucket = insertKey(m, "test7", 7);
     insertData(bucket, "7");
@@ -198,11 +198,11 @@ int main(void) {
     insertData(bucket, "9");
 
     assert(strcmp(table[7].key, "test7") == 0);
-    assert(table[7].distance == 0);
+    assert(table[7].offset == 0);
     assert(strcmp(table[HASH_SIZE - 1].key, "test8") == 0);
-    assert(table[HASH_SIZE - 1].distance == 0);
+    assert(table[HASH_SIZE - 1].offset == 0);
     assert(strcmp(table[0].key, "test9") == 0);
-    assert(table[0].distance == 1);
+    assert(table[0].offset == 1);
 
     assert(strcmp(table[1].head->data, "43") == 0);
     assert(strcmp(table[2].head->data, "17") == 0);
@@ -244,33 +244,33 @@ int main(void) {
 
     assert(strcmp(table[1].key, "test2") == 0);
     assert(strcmp(table[1].head->data, "17") == 0);
-    assert(table[1].distance == 0);
+    assert(table[1].offset == 0);
 
     assert(strcmp(table[2].key, "test3") == 0);
     assert(strcmp(table[2].head->data, "31") == 0);
-    assert(table[2].distance == 0);
+    assert(table[2].offset == 0);
 
     assert(strcmp(table[3].key, "test6") == 0);
     assert(strcmp(table[3].head->data, "76") == 0);
     assert(strcmp(table[3].head->next->data, "11") == 0);
-    assert(table[3].distance == 1);
+    assert(table[3].offset == 1);
 
     assert(strcmp(table[4].key, "test5") == 0);
     assert(strcmp(table[4].head->data, "28") == 0);
-    assert(table[4].distance == 1);
+    assert(table[4].offset == 1);
 
     assert(strcmp(table[5].key, "test4") == 0);
     assert(strcmp(table[5].head->data, "10") == 0);
-    assert(table[5].distance == 2);
+    assert(table[5].offset == 2);
 
     assert(table[6].key == NULL);
     assert(table[6].hash == 0);
     assert(table[6].head == NULL);
-    assert(table[6].distance == 0);
+    assert(table[6].offset == 0);
 
     assert(strcmp(table[7].key, "test7") == 0);
     assert(strcmp(table[7].head->data, "7") == 0);
-    assert(table[7].distance == 0);
+    assert(table[7].offset == 0);
 
     mvmcell_unloadList(table[HASH_SIZE - 1].head);
     removeKey(m, HASH_SIZE - 1);
@@ -278,10 +278,10 @@ int main(void) {
     assert(table[0].key == NULL);
     assert(table[0].hash == 0);
     assert(table[0].head == NULL);
-    assert(table[0].distance == 0);
+    assert(table[0].offset == 0);
     assert(strcmp(table[HASH_SIZE - 1].key, "test9") == 0);
     assert(strcmp(table[HASH_SIZE - 1].head->data, "9") == 0);
-    assert(table[HASH_SIZE - 1].distance == 0);
+    assert(table[HASH_SIZE - 1].offset == 0);
 
     mvm_free(&m);
 
@@ -322,8 +322,8 @@ int main(void) {
     assert(strstr(str, "[bird](tweet) "));
     assert(strstr(str, "[dog](bark) "));
     assert(strstr(str, "[cat](meow) "));
-    
-    printf("%s\n", str);    
+
+    printf("%s\n", str);
     free(str);
 
     assert(mvm_search(m, "fox") == NULL);
@@ -369,6 +369,10 @@ int main(void) {
     assert(strcmp(str, "ribbit") == 0);
 
     /* Multisearching */
+    av = mvm_multisearch(m, "lion", &i);
+    assert(i == 0);
+    free(av);
+
     av = mvm_multisearch(m, "cat", &i);
     assert(i == 1);
     i = strcmp(av[0], "meow");
