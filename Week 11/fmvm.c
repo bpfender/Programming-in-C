@@ -47,7 +47,7 @@ void mvm_insert(mvm* m, char* key, char* data) {
         m->num_keys++;
 
         char_count = strlen(key) + strlen(data);
-        m->ave_len = updateAverage(m->ave_len, char_count, m->num_keys);
+        m->ave_len = cumulAverage(m->ave_len, char_count, m->num_keys);
     }
 }
 
@@ -83,12 +83,18 @@ void mvm_delete(mvm* m, char* key) {
     if (m && key) {
         hash_t* bucket = findKey(m, key, djb2Hash(key));
         mvmcell* node;
+        int val;
 
         if (bucket) {
             node = bucket->head;
             bucket->head = node->next;
-            mvmcell_unloadNode(node);
+
+            /* Update average */
             m->num_keys--;
+            val = strlen(key) + strlen(node->data);
+            m->ave_len = removAverage(m->ave_len, val, m->num_keys);
+
+            mvmcell_unloadNode(node);
 
             if (bucket->head == NULL) {
                 /* ptr arithmetic of bucket - m->hash_table results in bucket 
@@ -299,7 +305,6 @@ void clearBucket(hash_t* bucket) {
     bucket->head = NULL;
 }
 
-
 void expandHashTable(mvm* m) {
     mvm* tmp;
     hash_t* table = m->hash_table;
@@ -379,8 +384,13 @@ unsigned long djb2Hash(char* s) {
  * Calculates the cumulative average as described by the Wikiedia link and
  * returns a ceiled value.
  */
-int updateAverage(int curr_av, int val, int n) {
+int cumulAverage(int curr_av, int val, int n) {
     return curr_av + ((val - curr_av) + (n - 1)) / n;
+}
+
+/* Updates average when removing values */
+int removAverage(int curr_av, int val, int n) {
+    return n ? curr_av + (curr_av - val) / n : 0;
 }
 
 /* Helper function that traverses linked list stored in hash table bucket and 

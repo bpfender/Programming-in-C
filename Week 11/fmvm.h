@@ -1,24 +1,49 @@
 /* Multi-Value Map ADT : via Linked List
    Both key & data are strings (char*) 
    Multiple Keys may be stored
-   FIXME explain the approach taken BLOOM FILTER, SKIP LIST, DAWG, vs. Hashing vs. Trie different option available
-   New data is inserted at the front of the list:
-   Hashing seems to make the most sense simply sa it's fairly robust regardless of the
-   data fed to it. Succinct tries, radix trees, DAWGs etc all seem to require some prior
-   knowledge about the data that will be fed to the problem. ALso we're only matching whole words, there's no need to find prefixes or the like
-   Considered perfect hashing but don't know application of MVM, robin hood as general option, (PROVIDE REFS)   
-   POssible that i'm destroying all the performance gains of caching through linked list
-   Would be very interested to compare against performance of red black as have no idea about overhead
-
-https://softwareengineering.stackexchange.com/questions/49550/which-hashing-algorithm-is-best-for-uniqueness-and-speed/145633#145633
-https://andre.arko.net/2017/08/24/robin-hood-hashing/
-https://programming.guide/robin-hood-hashing.html
-https://tessil.github.io/2016/08/29/benchmark-hopscotch-map.html
-
-   O(1) insertion
-   O(n) search
-   O(n) deletion
 */
+
+/* I explore quite a few methods for approaching the speedup of fmvm, looking at
+ * skip lists, DAWGS, (succinct tries), red-black trees, bloom filters and a few
+ * others. Ideally I would have like to try a few different approaches to see the
+ * benefits and disadvantages of each. However, each of these appeared to require
+ * some prior knowledge about the type of data being fed to the structure.
+ * 
+ * Looking for a more general solution and after a bit of reserach I came to the
+ * conclusion that hashing might be and effective way of structuring sets (i.e. 
+ * the MVM can store multiple datas per key) in a generally applicable way, I 
+ * came to the conclusion that a combined approach of open addressing (unique 
+ * key-values) and closed addressing (identical key value i.e. multiple datas) 
+ * in a hash table might be an effective appraoch.
+ * 
+ * Reseraching different approaches for open addressing, I was looking for an 
+ * approach that would provide good performance in most situations. I eventually
+ * settled on Robin Hood hashing for the open addressing scheme. In particular,
+ * this method was appealing due to the caching benefits of the initial key
+ * lookup, with collisions stored close to their original location.
+ * 
+ * There is still some room for improvement. I'm slightly concerned that there is
+ * quite a lot of overhead in generating the hash table and it would be
+ * interesting to compare the speed of different operations to other data
+ * structures. I would also consider updating the hash to murmur2 as this appears
+ * to deal better with a wider range of data.
+ * 
+ * On the whole, this method appears to offer very fast lookup with additional
+ * overhead associated with building the table. It's likely that the performance
+ * gains for this relatively small dictionary aren't massive, but that performance
+ * increases likely improve with the size of the dataset.
+ * 
+ * References used during work:
+ * 
+ * https://softwareengineering.stackexchange.com/questions/49550/which-hashing-algorithm-is-best-for-uniqueness-and-speed/145633#145633
+ * https://andre.arko.net/2017/08/24/robin-hood-hashing/
+ * https://programming.guide/robin-hood-hashing.html
+ * https://tessil.github.io/2016/08/29/benchmark-hopscotch-map.html
+ * http://stevehanov.ca/blog/?id=120
+ * http://stevehanov.ca/blog/?id=119
+ * 
+ */
+
 #ifndef FMVM_H
 #define FMVM_H
 
@@ -89,7 +114,8 @@ char isPrime(int candidate);
 unsigned long djb2Hash(char* s);
 
 /* ------ HELPER FUNCTIONS ------- */
-int updateAverage(int curr_av, int val, int n);
+int cumulAverage(int curr_av, int val, int n);
+int removAverage(int curr_av, int val, int n);
 void printList(char** buffer, size_t* curr, hash_t* bucket);
 
 /* ------ INITIALISATION/ALLOC FUNCTIONS ------- */

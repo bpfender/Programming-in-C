@@ -294,14 +294,19 @@ int main(void) {
     /* Average testing */
     /* Update average should always round up to the nearest whole number */
     i = 0;
-    i = updateAverage(i, 2, 1);
+    i = cumulAverage(i, 2, 1);
     assert(i == 2);
-    i = updateAverage(i, 3, 2);
+    i = cumulAverage(i, 3, 2);
     assert(i == 3);
-    i = updateAverage(i, 3, 3);
+    i = cumulAverage(i, 3, 3);
     assert(i == 3);
-    i = updateAverage(i, 4, 4);
+    i = cumulAverage(i, 4, 4);
     assert(i == 4);
+
+    i = removAverage(i, 4, 3);
+    assert(i == 4);
+    i = removAverage(i, 8, 2);
+    assert(i == 2);
 
     /* MORE Testing */
     /* Initialising hash table with small size for resize testing later */
