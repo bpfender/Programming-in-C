@@ -204,6 +204,7 @@ int main(void) {
     bucket = insertKey(m, "test9", HASH_SIZE - 1);
     insertData(bucket, "9");
 
+    /* Testing wraparound of insertion */
     assert(strcmp(table[7].key, "test7") == 0);
     assert(table[7].offset == 0);
     assert(strcmp(table[HASH_SIZE - 1].key, "test8") == 0);
@@ -232,6 +233,8 @@ int main(void) {
     assert(findKey(m, "test4", 3) == &table[6]);
     assert(findKey(m, "test5", 3) == &table[5]);
     assert(findKey(m, "test6", 2) == &table[4]);
+
+    /* Testing wraparound of serach */
     assert(findKey(m, "test9", HASH_SIZE - 1) == &table[0]);
 
     assert(findKey(m, "invalid", 3) == NULL);
@@ -277,6 +280,7 @@ int main(void) {
     assert(strcmp(table[7].head->data, "7") == 0);
     assert(table[7].offset == 0);
 
+    /* Testing wraparound of removal */
     mvmcell_unloadList(table[HASH_SIZE - 1].head);
     removeKey(m, HASH_SIZE - 1);
 
