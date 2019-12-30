@@ -18,6 +18,14 @@ int main(void) {
 
     printf("Basic MVM Tests ... Start\n");
 
+    assert(isPrime(2) == 1);
+    assert(isPrime(50021) == 1);
+    assert(isPrime(26) == 0);
+    assert(isPrime(35) == 0);
+
+    assert(nextTableSize(11) == 47);
+    assert(nextTableSize(50021) == 200087);
+
     m = mvm_init();
     assert(m->table_size == HASH_SIZE);
     assert(m->num_keys == 0);
@@ -219,7 +227,6 @@ int main(void) {
     assert(strcmp(table[4].head->next->data, "11") == 0);
 
     /* Testing search functionality */
-    /* FIXME do i need to add a bit more testing? */
     assert(findKey(m, "test1", 1) == &table[1]);
     assert(findKey(m, "test2", 1) == &table[2]);
     assert(findKey(m, "test3", 2) == &table[3]);
@@ -234,7 +241,6 @@ int main(void) {
     assert(findKey(m, "invalid", 7) == NULL);
 
     /* Testing remove key */
-
     /* This shouldn't do naything */
     removeKey(m, 8);
 
@@ -298,7 +304,8 @@ int main(void) {
     assert(i == 4);
 
     /* MORE Testing */
-    m = mvm_init();
+    /* Initialising hash table with small size for resize testing later */
+    m = mvm_initHelper(11);
     assert(m != NULL);
     assert(mvm_size(m) == 0);
 
@@ -314,8 +321,6 @@ int main(void) {
         assert(i == 0);
     }
 
-    printf("%d\n", m->ave_len);
-
     str = mvm_print(m);
     assert(strstr(str, "[frog](croak) "));
     assert(strstr(str, "[horse](neigh) "));
@@ -323,7 +328,6 @@ int main(void) {
     assert(strstr(str, "[dog](bark) "));
     assert(strstr(str, "[cat](meow) "));
 
-    printf("%s\n", str);
     free(str);
 
     assert(mvm_search(m, "fox") == NULL);
@@ -419,14 +423,26 @@ int main(void) {
 
     assert(m->table_size == 47);
     assert(strcmp(findKey(m, "frog", djb2Hash("frog"))->head->next->data, "ribbit") == 0);
-
     assert(i == 0);
     free(str);
 
-    mvm_free(&m);
+    /* Weird NULL delete() edge cases */
+    mvm_delete(m, "");
+    assert(mvm_size(m) == 14);
+    mvm_delete(m, NULL);
+    assert(mvm_size(m) == 14);
+    mvm_delete(NULL, "frog");
+    assert(mvm_size(m) == 14);
+    mvm_delete(m, "bird");
+    assert(mvm_size(m) == 13);
+    str = mvm_print(m);
+    assert(strstr(str, "[bird](tweet) ") == NULL);
+    free(str);
 
-    /*TODO all the NULL testing cases */
-    /*TODO prime functions */
+    /* Freeing */
+    mvm_free(&m);
+    assert(m == NULL);
+    assert(mvm_size(m) == 0);
 
     printf("Basic MVM Tests ... Stop\n");
     return 0;

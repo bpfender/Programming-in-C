@@ -1,12 +1,11 @@
 #include "fmvm.h"
+#include <limits.h>
 #include <math.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #define FRMT_CHARS strlen("[]() ")
 #define MULTI_SEARCH_LEN 5
-/* Universal resizing factor */
 #define FACTOR 2
 
 /* djb2 Hash constants, defined based on reference below
@@ -36,19 +35,19 @@ int mvm_size(mvm* m) {
  */
 void mvm_insert(mvm* m, char* key, char* data) {
     hash_t* cell;
+    int char_count;
 
     if (m && key && data) {
         if (m->num_buckets > (m->table_size * FILL_FACTOR)) {
             expandHashTable(m);
         }
 
-        /*FIXME add size limiter */
-        /* FIXME could add average char length calculator here */
         cell = insertKey(m, key, djb2Hash(key));
         insertData(cell, data);
         m->num_keys++;
-        /* FIXME make neater */
-        m->ave_len = updateAverage(m->ave_len, strlen(key) + strlen(data), m->num_keys);
+
+        char_count = strlen(key) + strlen(data);
+        m->ave_len = updateAverage(m->ave_len, char_count, m->num_keys);
     }
 }
 
@@ -300,7 +299,7 @@ void clearBucket(hash_t* bucket) {
     bucket->head = NULL;
 }
 
-/* FIXME requires expansion limiter */
+
 void expandHashTable(mvm* m) {
     mvm* tmp;
     hash_t* table = m->hash_table;
@@ -334,7 +333,8 @@ void expandHashTable(mvm* m) {
  */
 int nextTableSize(int n) {
     int size = n * HASH_FACTOR + !(HASH_FACTOR % 2);
-    /* =2 skips over even numbers */
+
+    /* +2 skips over even numbers */
     while (!isPrime(size)) {
         size += 2;
     }
@@ -345,7 +345,7 @@ int nextTableSize(int n) {
  * Could be optimised further but likley not the limiting factor during hash
  * table resizing, especially given that sizes aren't likely to get that huge
  */
-int isPrime(int candidate) {
+char isPrime(int candidate) {
     int j;
 
     if (candidate == 2) {
@@ -400,7 +400,7 @@ void printList(char** buffer, size_t* curr, hash_t* bucket) {
 /* ------ INITIALISATION/ALLOC FUNCTIONS ----- */
 /* Defined to allow a new mvm to be allocated when table is resized 
  */
-mvm* mvm_initHelper(size_t size) {
+mvm* mvm_initHelper(int size) {
     mvm* tmp = (mvm*)allocHandler(NULL, 1, sizeof(mvm));
 
     tmp->hash_table = initHashTable(size);
@@ -426,7 +426,7 @@ hash_t* initHashTable(int size) {
  */
 mvmcell* mvmcell_init(char* data) {
     mvmcell* node = (mvmcell*)allocHandler(NULL, 1, sizeof(mvmcell));
-    node->data = (char*)allocHandler(NULL, strlen(data)+1, sizeof(char));
+    node->data = (char*)allocHandler(NULL, strlen(data) + 1, sizeof(char));
     strcpy(node->data, data);
 
     return node;
@@ -446,8 +446,8 @@ void* allocHandler(void* ptr, size_t nmemb, size_t size) {
 
 /* ------ UNLOAD FUNCTIONS ------ */
 /* PAsses through table and frees and non-null entries */
-void unloadTable(hash_t* table, size_t size) {
-    size_t i;
+void unloadTable(hash_t* table, int size) {
+    int i;
 
     for (i = 0; i < size; i++) {
         if (table[i].key) {

@@ -19,13 +19,15 @@ https://tessil.github.io/2016/08/29/benchmark-hopscotch-map.html
    O(n) search
    O(n) deletion
 */
-#include <stddef.h>
+#ifndef FMVM_H
+#define FMVM_H
 
-#define HASH_SIZE 11
+#include <stdlib.h>
+
+#define HASH_SIZE 50021
 #define HASH_FACTOR 4
 #define FILL_FACTOR 0.7
 
-/* Error that can't be ignored */
 #define ON_ERROR(STR)     \
     fprintf(stderr, STR); \
     exit(EXIT_FAILURE)
@@ -42,7 +44,6 @@ typedef struct hash_t {
     unsigned long hash;
 } hash_t;
 
-/* FIXME types int vs size_t */
 typedef struct mvm {
     hash_t* hash_table;
     int num_keys;
@@ -68,6 +69,8 @@ char** mvm_multisearch(mvm* m, char* key, int* n);
 /* Free & set p to NULL */
 void mvm_free(mvm** p);
 
+/* Functions below are only declared here so that they can accessed by 
+testfmvm. Wasn't sure how else to achieve this. */
 /* ------ HELPER FUNCTIONS FOR MVM FUNCTIONALITY ------ */
 /* ------ HASH TABLE FUNCTIONS ------ */
 hash_t* insertKey(mvm* m, char* key, unsigned long hash);
@@ -82,7 +85,7 @@ void clearBucket(hash_t* bucket);
 
 void expandHashTable(mvm* m);
 int nextTableSize(int n);
-int isPrime(int candidate);
+char isPrime(int candidate);
 unsigned long djb2Hash(char* s);
 
 /* ------ HELPER FUNCTIONS ------- */
@@ -90,12 +93,14 @@ int updateAverage(int curr_av, int val, int n);
 void printList(char** buffer, size_t* curr, hash_t* bucket);
 
 /* ------ INITIALISATION/ALLOC FUNCTIONS ------- */
-mvm* mvm_initHelper(size_t size);
+mvm* mvm_initHelper(int size);
 hash_t* initHashTable(int size);
 mvmcell* mvmcell_init(char* data);
 void* allocHandler(void* ptr, size_t nmemb, size_t size);
 
 /* ------ UNLOAD FUNCTIONS ------ */
-void unloadTable(hash_t* table, size_t size);
+void unloadTable(hash_t* table, int size);
 void mvmcell_unloadList(mvmcell* node);
 void mvmcell_unloadNode(mvmcell* node);
+
+#endif
