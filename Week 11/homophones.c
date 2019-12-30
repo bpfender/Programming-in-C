@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "mvm.h"
+#include "fmvm.h"
 
 #define DICTIONARY "./cmudict.txt"
 
@@ -107,7 +107,7 @@ void loadDictionary(mvm* map1, mvm* map2, int n) {
         word = parseWord(buffer, len);
         phenome = parsePhenome(buffer, len, n);
         if (!(word && phenome)) {
-            printf("Dictionary format error: line %d", map1->numkeys + 1);
+            printf("Dictionary format error: line %d", mvm_size(map1) + 1);
             exit(1);
         }
 
@@ -372,13 +372,6 @@ void test(void) {
 
     fclose(file);
     free(buffer);
-
-    /* Testing loading */
-    loadDictionary(map1, map2, 2);
-    assert(strcmp((map1->head->key), "CRUX") == 0);
-    assert(strcmp((map1->head->data), "K S") == 0);
-    assert(strcmp((map2->head->key), "K S") == 0);
-    assert(strcmp((map2->head->data), "CRUX") == 0);
 
     mvm_free(&map1);
     mvm_free(&map2);
