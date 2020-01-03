@@ -9,9 +9,7 @@ int main(void) {
     char* pos = tst_line;
     line_t len;
     int i;
-
-    prog_t program;
-    initProgQueue(&program);
+    prog_t* program;
 
     printf("Testing start...\n");
 
@@ -23,12 +21,11 @@ int main(void) {
     }
     printf("\n");
 
-    loadFile(&program, "./Files/test6.nal");
-    for (i = 0; i < program.len; i++) {
-        printf("%s\n", program.token[i].attrib);
+    program = tokenizeFile("./Files/test1.nal");
+    for (i = 0; i < program->len; i++) {
+        printf("%s\n", program->token[i].attrib);
     }
-
-    freeProgQueue(&program);
+    freeProgQueue(program);
 
     printf("Testing end...\n");
 
