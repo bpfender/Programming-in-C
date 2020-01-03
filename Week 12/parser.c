@@ -29,6 +29,12 @@ typedef enum type_t { FILE_,
 typedef enum bool_t { FALSE,
                       TRUE } bool_t;
 
+typedef struct pos_t {
+    int line;
+    int col;
+    long file_pos;
+} pos_t;
+
 typedef struct token_t {
     type_t type;
     char attrib[50];
@@ -36,7 +42,7 @@ typedef struct token_t {
     int col;
 } token_t;
 
-void buildToken(token_t* token, char* word);
+void buildToken(token_t* token, char* word, int line, int col);
 
 /* Token identification functions */
 type_t tokenType(char* word);
@@ -58,7 +64,7 @@ bool_t isSTRCON(char* word);
 bool_t isNUMCON(char* word);
 bool_t isBRACKET(char* word);
 bool_t isSECTION(char* word);
-bool_t isStrUpper(char* var);
+bool_t isStrUpper(char* word);
 
 void test(void);
 
@@ -67,8 +73,13 @@ int main(void) {
     return 0;
 }
 
-void buildToken(token_t* token, char* word) {
-    switch (tokenType(word)) {
+void buildToken(token_t* token, char* word, int line, int col) {
+    token->type = tokenType(word);
+    strcpy(token->attrib, word);
+    token->line = line;
+    token->col = col;
+
+    switch (token->type) {
         case FILE_:
         case ABORT:
         case IN2STR:
@@ -201,7 +212,7 @@ bool_t isRND(char* word) {
 
 bool_t isSTRVAR(char* word) {
     if (word[0] == '$') {
-        if (isStrUpper(word + 1)) {
+        if (isStrUpper(word)) {
             return TRUE;
         }
     }
@@ -210,7 +221,7 @@ bool_t isSTRVAR(char* word) {
 
 bool_t isNUMVAR(char* word) {
     if (word[0] == '%') {
-        if (isStrUpper(word + 1)) {
+        if (isStrUpper(word)) {
             return TRUE;
         }
     }
@@ -258,10 +269,11 @@ bool_t isSECTION(char* word) {
     return FALSE;
 }
 
-bool_t isStrUpper(char* var) {
+/* FIXME Error handling of invalid variable name */
+bool_t isStrUpper(char* word) {
     int i;
-    for (i = 0; var[i] != '\0'; i++) {
-        if (!isupper(var[i])) {
+    for (i = 1; word[i] != '\0'; i++) {
+        if (!isupper(word[i])) {
             return FALSE;
         }
     }
