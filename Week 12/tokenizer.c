@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* FIXME need to check these terminators */
 #define LINE_SIZE 50
 #define FACTOR 2
 #define WHITESPACE " \t\n\v\f\r"
@@ -16,6 +17,8 @@
 #define ON_ERROR(STR)     \
     fprintf(stderr, STR); \
     exit(EXIT_FAILURE)
+
+/* FIXME tokenizer has no lexical analysis on errors yet */
 
 FILE* openFile(char* filename) {
     FILE* file = fopen(filename, "r");
@@ -390,4 +393,69 @@ bool_t isStrUpper(char* word) {
         }
     }
     return TRUE;
+}
+
+void printInstr(type_t instr) {
+    switch (instr) {
+        case FILE_:
+            printf("FILE");
+            break;
+        case ABORT:
+            printf("ABORT");
+            break;
+        case IN2STR:
+            printf("IN2STR");
+            break;
+        case INNUM:
+            printf("INNUM");
+            break;
+        case IFEQUAL:
+            printf("IFEQUAL");
+            break;
+        case IFGREATER:
+            printf("IFGREATER");
+            break;
+        case INC:
+            printf("INC");
+            break;
+        case SET:
+            printf("SET");
+            break;
+        case JUMP:
+            printf("JUMP");
+            break;
+        case PRINT:
+            printf("PRINT");
+            break;
+        case PRINTN:
+            printf("PRINTN");
+            break;
+        case RND:
+            printf("RND");
+            break;
+        case STRVAR:
+            printf("STRVAR");
+            break;
+        case NUMVAR:
+            printf("NUMVAR");
+            break;
+        case STRCON:
+            printf("STRCON");
+            break;
+        case NUMCON:
+            printf("NUMCON");
+            break;
+        case BRACKET:
+            printf("BRACK");
+            break;
+        case SECTION:
+            printf("SECT");
+            break;
+        case COMMA:
+            printf("COMM");
+            break;
+        case ERROR:
+            printf("ERR");
+            break;
+    }
 }

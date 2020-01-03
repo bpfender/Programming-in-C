@@ -1,6 +1,22 @@
 #ifndef PARSER_H
 #define PARSER_H
 
+#include "tokenizer.h"
+
+#define ROT5 5
+#define ROT13 13
+#define ALPHA 26
+#define DIGIT 10
+
+void rot18(char* s);
+void getSTRCON(char* word);
+
+void prog(prog_t* program);
+void instr(prog_t* program);
+void file(prog_t* program);
+
+void handleError(void);
+
 /*    switch (token->type) {
         case FILE_:
         case ABORT:

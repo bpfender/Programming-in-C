@@ -23,7 +23,8 @@ int main(void) {
 
     program = tokenizeFile("./Files/test1.nal");
     for (i = 0; i < program->len; i++) {
-        printf("%s\n", program->token[i].attrib);
+        printInstr(program->token[i].type);
+        printf(" %s\n", program->token[i].attrib);
     }
     freeProgQueue(program);
 

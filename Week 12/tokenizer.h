@@ -2,7 +2,6 @@
 #define TOKENIZER_H
 
 #include <stdio.h>
-#include "parser.h"
 
 /*FIXME better alternative for INSTR_FILE */
 typedef enum type_t { FILE_,
@@ -78,6 +77,8 @@ bool_t isBRACKET(char* word);
 bool_t isSECTION(char* word);
 bool_t isCOMMA(char* word);
 bool_t isStrUpper(char* word);
+
+void printInstr(type_t instr);
 
 prog_t* tokenizeFile(char* filename);
 
