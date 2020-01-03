@@ -1,107 +1,67 @@
+#include "parser.h"
 #include <assert.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-#define MAX_TOKEN_LEN 50
+#define PROG_LENGTH 500
+#define FACTOR 2
 
-/*FIXME better alternative for INSTR_FILE */
-typedef enum type_t { FILE_,
-                      ABORT,
-                      IN2STR,
-                      INNUM,
-                      IFEQUAL,
-                      IFGREATER,
-                      INC,
-                      SET,
-                      JUMP,
-                      PRINT,
-                      PRINTN,
-                      RND,
-                      STRVAR,
-                      NUMVAR,
-                      STRCON,
-                      NUMCON,
-                      BRACKET,
-                      SECTION,
-                      ERROR } type_t;
+/* FIXME move these decalarations to general error file */
+#define ON_ERROR(STR)     \
+    fprintf(stderr, STR); \
+    exit(EXIT_FAILURE)
 
-typedef enum bool_t { FALSE,
-                      TRUE } bool_t;
+void initProgQueue(prog_t* program) {
+    program->token = (token_t*)malloc(sizeof(token_t) * PROG_LENGTH);
+    if (!program->token) {
+        ON_ERROR("Error allocating memory for program queue\n");
+    }
 
-typedef struct pos_t {
-    int line;
-    int col;
-    long file_pos;
-} pos_t;
-
-typedef struct token_t {
-    type_t type;
-    char attrib[50];
-    int line;
-    int col;
-} token_t;
-
-void buildToken(token_t* token, char* word, int line, int col);
-
-/* Token identification functions */
-type_t tokenType(char* word);
-bool_t isFILE(char* word);
-bool_t isABORT(char* word);
-bool_t isIN2STR(char* word);
-bool_t isINNUM(char* word);
-bool_t isIFEQUAL(char* word);
-bool_t isGREATER(char* word);
-bool_t isINC(char* word);
-bool_t isSET(char* word);
-bool_t isJUMP(char* word);
-bool_t isPRINT(char* word);
-bool_t isPRINTN(char* word);
-bool_t isRND(char* word);
-bool_t isSTRVAR(char* word);
-bool_t isNUMVAR(char* word);
-bool_t isSTRCON(char* word);
-bool_t isNUMCON(char* word);
-bool_t isBRACKET(char* word);
-bool_t isSECTION(char* word);
-bool_t isStrUpper(char* word);
-
-void test(void);
-
-int main(void) {
-    test();
-    return 0;
+    program->size = PROG_LENGTH;
+    program->pos = 0;
 }
 
-void buildToken(token_t* token, char* word, int line, int col) {
-    token->type = tokenType(word);
-    strcpy(token->attrib, word);
-    token->line = line;
-    token->col = col;
-
-    switch (token->type) {
-        case FILE_:
-        case ABORT:
-        case IN2STR:
-        case INNUM:
-        case IFEQUAL:
-        case IFGREATER:
-        case INC:
-        case SET:
-        case JUMP:
-        case PRINT:
-        case PRINTN:
-        case RND:
-        case STRVAR:
-        case NUMVAR:
-        case STRCON:
-        case NUMCON:
-        case BRACKET:
-        case SECTION:
-        case ERROR:
-        default:
-            break;
+void enqueueToken(prog_t* program, char* attrib, int len, int line, int word) {
+    int i = program->pos;
+    if (i >= program->size) {
+        expandProgQueue(program);
     }
+
+    buildToken(program->token + i, attrib, len, line, word);
+    program->pos++;
+    program->len++;
+}
+
+void buildToken(token_t* token, char* attrib, int len, int line, int word) {
+    char* str = (char*)malloc(sizeof(char) * (len + 1));
+    if (!str) {
+        ON_ERROR("Error allocating space of token attribute\n");
+    }
+    memcpy(str, attrib, sizeof(char) * len);
+    str[len] = '\0';
+
+    token->attrib = str;
+    token->type = tokenType(token->attrib);
+    token->line = line;
+    token->word = word;
+}
+
+void expandProgQueue(prog_t* program) {
+    program->size *= FACTOR;
+    program->token = (token_t*)realloc(program->token, program->size);
+    if (!program->token) {
+        ON_ERROR("Error resizing program queue\n");
+    }
+}
+
+void freeProgQueue(prog_t* program) {
+    int i;
+    for (i = 0; i < program->len; i++) {
+        free(program->token[i].attrib);
+    }
+    free(program->token);
 }
 
 type_t tokenType(char* word) {
@@ -269,6 +229,10 @@ bool_t isSECTION(char* word) {
     return FALSE;
 }
 
+bool_t isCOMMA(char* word) {
+    return strcmp(word, ",") ? FALSE : TRUE;
+}
+
 /* FIXME Error handling of invalid variable name */
 bool_t isStrUpper(char* word) {
     int i;
@@ -278,7 +242,4 @@ bool_t isStrUpper(char* word) {
         }
     }
     return TRUE;
-}
-
-void test(void) {
 }
