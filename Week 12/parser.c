@@ -17,10 +17,10 @@
     fprintf(stderr, STR); \
     exit(EXIT_FAILURE)
 
-#define ERROR()                                                        \
-    {                                                                  \
-        fprintf(stderr, "Error in %s, line %d\n", __FILE__, __LINE__); \
-        exit(2);                                                       \
+#define ERROR(TOKEN)                                                                                         \
+    {                                                                                                        \
+        fprintf(stderr, "Error code line %d\n Program line %d word %d", __LINE__, TOKEN->line, TOKEN->word); \
+        exit(2);                                                                                             \
     }
 
 void parseFile(char* filename) {
@@ -37,7 +37,7 @@ void prog(prog_t* program) {
     if (!strcmp(token->attrib, "{")) {
         instr(program);
     } else {
-        ERROR();
+        ERROR(token);
     }
 }
 
@@ -67,7 +67,7 @@ void instr(prog_t* program) {
             inc(program);
             break;
         case SET:
-            ERROR();
+            ERROR(token);
             break;
         case JUMP:
             jump(program);
@@ -89,7 +89,7 @@ void instr(prog_t* program) {
             if (!strcmp(token->attrib, "}")) {
                 break;
             }
-            ERROR();
+            ERROR(token);
             break;
         case STRCON:
         case NUMCON:
@@ -97,23 +97,29 @@ void instr(prog_t* program) {
         case COMMA:
         case ERROR:
         default:
-            ERROR();
+            ERROR(token);
             break;
     }
 }
 
+/* FIXME super dirty filenmae hack */
 void file(prog_t* program) {
+    char filename[500] = "./Files/";
     prog_t* next_program;
 
     token_t* token = dequeueToken(program);
 
     if (token->type == STRCON) {
         getSTRCON(token->attrib);
-        next_program = tokenizeFile(token->attrib);
+        strcat(filename, token->attrib);
+        next_program = tokenizeFile(filename);
+
         prog(next_program);
+        freeProgQueue(next_program);
+
         instr(program);
     } else {
-        ERROR();
+        ERROR(token);
     }
 }
 
@@ -123,7 +129,7 @@ void prog_abort(prog_t* program) {
     if (token->type == BRACKET && !strcmp(token->attrib, "}")) {
         instr(program);
     } else {
-        ERROR();
+        ERROR(token);
     }
 }
 
@@ -132,7 +138,7 @@ void in2str(prog_t* program) {
         instr(program);
 
     } else {
-        ERROR();
+        ERROR(peekToken(program, 0));
     }
 }
 
@@ -141,48 +147,53 @@ void innum(prog_t* program) {
         instr(program);
 
     } else {
-        ERROR();
+        ERROR(peekToken(program, 0));
     }
 }
 
 /* FIXME ifequal and ifgreater are identical */
 /* QUESTION Does this need two sets of instr for {} */
 void ifequal(prog_t* program) {
-    token_t* token;
-    if (parseBrackets(program, STRVAR, INC_ARGS) ||
-        parseBrackets(program, NUMVAR, INC_ARGS) ||
-        parseBrackets(program, STRCON, INC_ARGS) ||
-        parseBrackets(program, NUMCON, INC_ARGS)) {
+    token_t* token = peekToken(program, 0);
+    if (parseBrackets(program, STRVAR, IFCOND_ARGS) ||
+        parseBrackets(program, NUMVAR, IFCOND_ARGS) ||
+        parseBrackets(program, STRCON, IFCOND_ARGS) ||
+        parseBrackets(program, NUMCON, IFCOND_ARGS)) {
         token = dequeueToken(program);
 
         /* Could just reuse prog(); */
         if (!strcmp(token->attrib, "{")) {
             instr(program);
+            return;
         } else {
-            ERROR();
+            ERROR(token);
+            return;
         }
 
     } else {
-        ERROR();
+        ERROR(token);
+        return;
     }
 }
 
 void ifgreater(prog_t* program) {
-    token_t* token;
-    if (parseBrackets(program, STRVAR, INC_ARGS) ||
-        parseBrackets(program, NUMVAR, INC_ARGS) ||
-        parseBrackets(program, STRCON, INC_ARGS) ||
-        parseBrackets(program, NUMCON, INC_ARGS)) {
+    token_t* token = peekToken(program, 0);
+    if (parseBrackets(program, STRVAR, IFCOND_ARGS) ||
+        parseBrackets(program, NUMVAR, IFCOND_ARGS) ||
+        parseBrackets(program, STRCON, IFCOND_ARGS) ||
+        parseBrackets(program, NUMCON, IFCOND_ARGS)) {
         token = dequeueToken(program);
 
         if (!strcmp(token->attrib, "{")) {
             instr(program);
+            return;
         } else {
-            ERROR();
+            ERROR(token);
+            return;
         }
 
     } else {
-        ERROR();
+        ERROR(token);
     }
 }
 
@@ -191,7 +202,7 @@ void inc(prog_t* program) {
         instr(program);
 
     } else {
-        ERROR();
+        ERROR(peekToken(program, 0));
     }
 }
 
@@ -201,7 +212,7 @@ void jump(prog_t* program) {
     if (token->type == NUMCON) {
         instr(program);
     } else {
-        ERROR();
+        ERROR(token);
     }
 }
 
@@ -212,7 +223,7 @@ void print(prog_t* program) {
         token->type == STRCON || token->type == NUMCON) {
         instr(program);
     } else {
-        ERROR();
+        ERROR(token);
     }
 }
 
@@ -221,7 +232,7 @@ void rnd(prog_t* program) {
         instr(program);
 
     } else {
-        ERROR();
+        ERROR(peekToken(program, 0));
     }
 }
 
@@ -237,7 +248,7 @@ void var(prog_t* program, type_t var) {
                     return;
                 }
             }
-            ERROR();
+            ERROR(token);
             break;
         case NUMVAR:
             if (token->type == SET) {
@@ -247,10 +258,10 @@ void var(prog_t* program, type_t var) {
                     return;
                 }
             }
-            ERROR();
+            ERROR(token);
             break;
         default:
-            ERROR();
+            ERROR(token);
             break;
     }
 }
@@ -259,8 +270,7 @@ void var(prog_t* program, type_t var) {
 bool_t parseBrackets(prog_t* program, type_t arg, int n) {
     int i;
     token_t* token = dequeueToken(program);
-
-    if (!strcmp(token->attrib, "(")) {
+    if (strcmp(token->attrib, "(")) {
         return FALSE;
     }
     for (i = 0; i < n - 1; i++) {
@@ -278,7 +288,7 @@ bool_t parseBrackets(prog_t* program, type_t arg, int n) {
         return FALSE;
     }
     token = dequeueToken(program);
-    if (!strcmp(token->attrib, ")")) {
+    if (strcmp(token->attrib, ")")) {
         return FALSE;
     }
     return TRUE;

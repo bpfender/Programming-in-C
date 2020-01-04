@@ -24,7 +24,8 @@ FILE* openFile(char* filename) {
     FILE* file = fopen(filename, "r");
 
     if (!file) {
-        ON_ERROR("Cannot open dictionary file\n");
+        fprintf(stderr, "%s\n", filename);
+        ON_ERROR("Cannot open file\n");
     }
     return file;
 }
@@ -41,7 +42,7 @@ token_t* dequeueToken(prog_t* program) {
     return token;
 }
 
-token_t* peekAhead(prog_t* program, int dist) {
+token_t* peekToken(prog_t* program, int dist) {
     if (program->pos + dist >= program->len) {
         return NULL;
     }
@@ -60,7 +61,6 @@ prog_t* tokenizeFile(char* filename) {
 
     while ((line_len = getLine(&buffer, &size, file))) {
         truncateLineEnd(buffer, &line_len);
-
         pos = buffer;
         line++;
         word = 0;
@@ -288,11 +288,14 @@ type_t tokenType(char* word) {
     if (isSECTION(word)) {
         return SECTION;
     }
+    if (isCOMMA(word)) {
+        return COMMA;
+    }
     return ERROR;
 }
 
 bool_t isFILE(char* word) {
-    return strcmp(word, "ABORT") ? FALSE : TRUE;
+    return strcmp(word, "FILE") ? FALSE : TRUE;
 }
 
 bool_t isABORT(char* word) {
