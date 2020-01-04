@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include "parser.h"
 #include "tokenizer.h"
 
 int main(void) {
@@ -27,6 +28,9 @@ int main(void) {
         printf(" %s\n", program->token[i].attrib);
     }
     freeProgQueue(program);
+
+    printf("PARSE TEST\n");
+    parseFile("./Files/test1.nal");
 
     printf("Testing end...\n");
 
