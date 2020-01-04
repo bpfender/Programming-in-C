@@ -48,7 +48,6 @@ token_t* peekAhead(prog_t* program, int dist) {
     return program->token + (program->pos + dist);
 }
 
-
 prog_t* tokenizeFile(char* filename) {
     prog_t* program = initProgQueue();
     FILE* file = openFile(filename);
@@ -194,13 +193,12 @@ prog_t* initProgQueue(void) {
 }
 
 void enqueueToken(prog_t* program, char* attrib, int len, int line, int word) {
-    int i = program->pos;
+    int i = program->len;
     if (i >= program->size) {
         expandProgQueue(program);
     }
 
     buildToken(program->token + i, attrib, len, line, word);
-    program->pos++;
     program->len++;
 }
 

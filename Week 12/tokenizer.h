@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 
+/* FIXME add bracket open /close options etc. */
 /*FIXME better alternative for INSTR_FILE */
 typedef enum type_t { FILE_,
                       ABORT,

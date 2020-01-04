@@ -5,6 +5,7 @@
 #include <string.h>
 
 /* FIXME need a gettoken function for bounds checking */
+/* FIXME functionise bracket handling */
 
 #define RND_ARGS 1
 #define IFCOND_ARGS 2
@@ -16,14 +17,27 @@
     fprintf(stderr, STR); \
     exit(EXIT_FAILURE)
 
-void prog(prog_t* program) {
-    token_t* token = program->token;
+#define ERROR()                                                        \
+    {                                                                  \
+        fprintf(stderr, "Error in %s, line %d\n", __FILE__, __LINE__); \
+        exit(2);                                                       \
+    }
 
-    if (token->type == BRACKET && !strcmp(token->attrib, "{")) {
-        program->pos++;
+void parseFile(char* filename) {
+    prog_t* program = tokenizeFile(filename);
+
+    prog(program);
+    printf("Parsed ok\n");
+    freeProgQueue(program);
+}
+
+void prog(prog_t* program) {
+    token_t* token = dequeueToken(program);
+
+    if (!strcmp(token->attrib, "{")) {
         instr(program);
     } else {
-        handleError();
+        ERROR();
     }
 }
 
@@ -36,25 +50,54 @@ void instr(prog_t* program) {
             break;
         case ABORT:
             prog_abort(program);
+            break;
         case IN2STR:
+            in2str(program);
+            break;
         case INNUM:
+            innum(program);
+            break;
         case IFEQUAL:
+            ifequal(program);
+            break;
         case IFGREATER:
+            ifgreater(program);
+            break;
         case INC:
+            inc(program);
+            break;
         case SET:
+            ERROR();
+            break;
         case JUMP:
+            jump(program);
+            break;
         case PRINT:
+            print(program);
+            break;
         case PRINTN:
+            print(program);
+            break;
         case RND:
+            rnd(program);
+            break;
         case STRVAR:
         case NUMVAR:
+            var(program, token->type);
+            break;
+        case SECTION:
+            if (!strcmp(token->attrib, "}")) {
+                break;
+            }
+            ERROR();
+            break;
         case STRCON:
         case NUMCON:
         case BRACKET:
-        case SECTION:
         case COMMA:
         case ERROR:
         default:
+            ERROR();
             break;
     }
 }
@@ -70,7 +113,7 @@ void file(prog_t* program) {
         prog(next_program);
         instr(program);
     } else {
-        handleError();
+        ERROR();
     }
 }
 
@@ -80,28 +123,76 @@ void prog_abort(prog_t* program) {
     if (token->type == BRACKET && !strcmp(token->attrib, "}")) {
         instr(program);
     } else {
-        handleError();
+        ERROR();
     }
 }
 
 void in2str(prog_t* program) {
-    
+    if (parseBrackets(program, STRVAR, IN2STR_ARGS)) {
+        instr(program);
 
+    } else {
+        ERROR();
+    }
 }
 
 void innum(prog_t* program) {
+    if (parseBrackets(program, NUMVAR, INNUM_ARGS)) {
+        instr(program);
+
+    } else {
+        ERROR();
+    }
 }
 
+/* FIXME ifequal and ifgreater are identical */
+/* QUESTION Does this need two sets of instr for {} */
 void ifequal(prog_t* program) {
-    token_t* token = dequeueToken(program);
+    token_t* token;
+    if (parseBrackets(program, STRVAR, INC_ARGS) ||
+        parseBrackets(program, NUMVAR, INC_ARGS) ||
+        parseBrackets(program, STRCON, INC_ARGS) ||
+        parseBrackets(program, NUMCON, INC_ARGS)) {
+        token = dequeueToken(program);
+
+        /* Could just reuse prog(); */
+        if (!strcmp(token->attrib, "{")) {
+            instr(program);
+        } else {
+            ERROR();
+        }
+
+    } else {
+        ERROR();
+    }
 }
 
 void ifgreater(prog_t* program) {
-    
+    token_t* token;
+    if (parseBrackets(program, STRVAR, INC_ARGS) ||
+        parseBrackets(program, NUMVAR, INC_ARGS) ||
+        parseBrackets(program, STRCON, INC_ARGS) ||
+        parseBrackets(program, NUMCON, INC_ARGS)) {
+        token = dequeueToken(program);
+
+        if (!strcmp(token->attrib, "{")) {
+            instr(program);
+        } else {
+            ERROR();
+        }
+
+    } else {
+        ERROR();
+    }
 }
 
 void inc(prog_t* program) {
+    if (parseBrackets(program, NUMVAR, INC_ARGS)) {
+        instr(program);
 
+    } else {
+        ERROR();
+    }
 }
 
 void jump(prog_t* program) {
@@ -110,7 +201,7 @@ void jump(prog_t* program) {
     if (token->type == NUMCON) {
         instr(program);
     } else {
-        handleError();
+        ERROR();
     }
 }
 
@@ -121,26 +212,76 @@ void print(prog_t* program) {
         token->type == STRCON || token->type == NUMCON) {
         instr(program);
     } else {
-        handleError();
+        ERROR();
     }
 }
 
 void rnd(prog_t* program) {
+    if (parseBrackets(program, NUMVAR, RND_ARGS)) {
+        instr(program);
 
+    } else {
+        ERROR();
+    }
 }
 
-void var(prog_t* program) {
+void var(prog_t* program, type_t var) {
     token_t* token = dequeueToken(program);
 
-    if (token->type == SET) {
+    switch (var) {
+        case STRVAR:
+            if (token->type == SET) {
+                token = dequeueToken(program);
+                if (token->type == STRCON || token->type == STRVAR) {
+                    instr(program);
+                    return;
+                }
+            }
+            ERROR();
+            break;
+        case NUMVAR:
+            if (token->type == SET) {
+                token = dequeueToken(program);
+                if (token->type == NUMVAR || token->type == NUMCON) {
+                    instr(program);
+                    return;
+                }
+            }
+            ERROR();
+            break;
+        default:
+            ERROR();
+            break;
+    }
+}
+
+/* FIXME this is horribly written at the moment */
+bool_t parseBrackets(prog_t* program, type_t arg, int n) {
+    int i;
+    token_t* token = dequeueToken(program);
+
+    if (!strcmp(token->attrib, "(")) {
+        return FALSE;
+    }
+    for (i = 0; i < n - 1; i++) {
         token = dequeueToken(program);
-        if (token->type == STRCON || token->type == STRVAR ||
-            token->type == NUMCON || token->type == STRCON) {
-            instr(program);
-            return;
+        if (token->type != arg) {
+            return FALSE;
+        }
+        token = dequeueToken(program);
+        if (token->type != COMMA) {
+            return FALSE;
         }
     }
-    handleError();
+    token = dequeueToken(program);
+    if (token->type != arg) {
+        return FALSE;
+    }
+    token = dequeueToken(program);
+    if (!strcmp(token->attrib, ")")) {
+        return FALSE;
+    }
+    return TRUE;
 }
 
 void handleError(void) {

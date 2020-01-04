@@ -11,9 +11,22 @@
 void rot18(char* s);
 void getSTRCON(char* word);
 
+void parseFile(char* filename);
+
 void prog(prog_t* program);
 void instr(prog_t* program);
 void file(prog_t* program);
+void prog_abort(prog_t* program);
+void in2str(prog_t* program);
+void innum(prog_t* program);
+void ifequal(prog_t* program);
+void ifgreater(prog_t* program);
+void inc(prog_t* program);
+void jump(prog_t* program);
+void print(prog_t* program);
+void rnd(prog_t* program);
+void var(prog_t* program, type_t var);
+bool_t parseBrackets(prog_t* program, type_t arg, int n);
 
 void handleError(void);
 
