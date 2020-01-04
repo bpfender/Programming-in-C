@@ -23,7 +23,8 @@ typedef enum type_t { FILE_,
                       BRACKET,
                       SECTION,
                       COMMA,
-                      ERROR } type_t;
+                      ERROR
+} type_t;
 
 typedef enum bool_t { FALSE,
                       TRUE } bool_t;
@@ -50,6 +51,8 @@ typedef struct prog_t {
 typedef unsigned int line_t;
 
 prog_t* initProgQueue(void);
+token_t* dequeueToken(prog_t* program);
+token_t* peekToken(prog_t* program, int dist);
 void enqueueToken(prog_t* program, char* attrib, int len, int line, int word);
 void buildToken(token_t* token, char* attrib, int len, int line, int word);
 void expandProgQueue(prog_t* program);

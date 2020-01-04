@@ -4,11 +4,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define SIMPLE_BRACKET 3
+/* FIXME need a gettoken function for bounds checking */
 
-/* Can this be defined with pos++ too */
-#define CURR_TOKEN(program) \
-    &(program->token[program->pos]);
+#define RND_ARGS 1
+#define IFCOND_ARGS 2
+#define IN2STR_ARGS 2
+#define INNUM_ARGS 1
+#define INC_ARGS 1
 
 #define ON_ERROR(STR)     \
     fprintf(stderr, STR); \
@@ -26,15 +28,14 @@ void prog(prog_t* program) {
 }
 
 void instr(prog_t* program) {
-    token_t* token = CURR_TOKEN(program);
-    program->pos++;
+    token_t* token = dequeueToken(program);
 
     switch (token->type) {
         case FILE_:
             file(program);
             break;
         case ABORT:
-            abort(program);
+            prog_abort(program);
         case IN2STR:
         case INNUM:
         case IFEQUAL:
@@ -61,8 +62,7 @@ void instr(prog_t* program) {
 void file(prog_t* program) {
     prog_t* next_program;
 
-    token_t* token = CURR_TOKEN(program);
-    program->pos++;
+    token_t* token = dequeueToken(program);
 
     if (token->type == STRCON) {
         getSTRCON(token->attrib);
@@ -74,9 +74,8 @@ void file(prog_t* program) {
     }
 }
 
-void abort(prog_t* program) {
-    token_t* token = CURR_TOKEN(program);
-    program->pos++;
+void prog_abort(prog_t* program) {
+    token_t* token = dequeueToken(program);
 
     if (token->type == BRACKET && !strcmp(token->attrib, "}")) {
         instr(program);
@@ -86,24 +85,27 @@ void abort(prog_t* program) {
 }
 
 void in2str(prog_t* program) {
-    token_t* token = CURR_TOKEN(program);
-    program->pos++;
+    
+
 }
 
-void innum(prog_t* program) {}
-void ifequal(prog_t* program) {}
-void ifgreater(prog_t* program) {}
+void innum(prog_t* program) {
+}
+
+void ifequal(prog_t* program) {
+    token_t* token = dequeueToken(program);
+}
+
+void ifgreater(prog_t* program) {
+    
+}
 
 void inc(prog_t* program) {
-    token_t* token = CURR_TOKEN(program);
-    program->pos++;
+
 }
 
-void set(prog_t* program) {}
-
 void jump(prog_t* program) {
-    token_t* token = CURR_TOKEN(program);
-    program->pos++;
+    token_t* token = dequeueToken(program);
 
     if (token->type == NUMCON) {
         instr(program);
@@ -113,8 +115,7 @@ void jump(prog_t* program) {
 }
 
 void print(prog_t* program) {
-    token_t* token = CURR_TOKEN(program);
-    program->pos++;
+    token_t* token = dequeueToken(program);
 
     if (token->type == STRVAR || token->type == NUMVAR ||
         token->type == STRCON || token->type == NUMCON) {
@@ -125,29 +126,25 @@ void print(prog_t* program) {
 }
 
 void rnd(prog_t* program) {
-    token_t* token = CURR_TOKEN(program);
-    program->pos++;
+
 }
-void var(prog_t* program) {}
+
+void var(prog_t* program) {
+    token_t* token = dequeueToken(program);
+
+    if (token->type == SET) {
+        token = dequeueToken(program);
+        if (token->type == STRCON || token->type == STRVAR ||
+            token->type == NUMCON || token->type == STRCON) {
+            instr(program);
+            return;
+        }
+    }
+    handleError();
+}
 
 void handleError(void) {
     ON_ERROR("PANIC ERROR\n");
-}
-
-bool_t checkSingleBracket(prog_t* program, type_t* instr) {
-    int i;
-    token_t* token[SIMPLE_BRACKET];
-    for (i = 0; i < SIMPLE_BRACKET; i++) {
-        token[i] = CURR_TOKEN(program);
-        program->pos++;
-    }
-
-    if (!strcmp(token[0]->attrib, "(") &&
-        token[1]->type == instr &&
-        !strcmp(token[2]->attrib, ")")) {
-        return TRUE;
-    }
-    return FALSE;
 }
 
 /* decode strconsts in place */

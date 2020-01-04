@@ -29,6 +29,26 @@ FILE* openFile(char* filename) {
     return file;
 }
 
+token_t* dequeueToken(prog_t* program) {
+    token_t* token;
+
+    if (program->pos >= program->len) {
+        return NULL;
+    }
+
+    token = program->token + program->pos;
+    program->pos++;
+    return token;
+}
+
+token_t* peekAhead(prog_t* program, int dist) {
+    if (program->pos + dist >= program->len) {
+        return NULL;
+    }
+    return program->token + (program->pos + dist);
+}
+
+
 prog_t* tokenizeFile(char* filename) {
     prog_t* program = initProgQueue();
     FILE* file = openFile(filename);
