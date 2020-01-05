@@ -1,0 +1,159 @@
+#include "mvmedit.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+/* Average word length in english is 4.7 chars. With mvm_print() returning 2 
+strings this can just be rounded to 10 */
+#define AVE_CHARS 10
+#define FRMT_CHARS strlen("[]() ")
+
+#define PRNT_STR_LEN AVE_CHARS + FRMT_CHARS
+#define MULTI_SEARCH_LEN 5
+/* Universal resizing factor */
+#define FACTOR 2
+
+/* ------ HELPER FUNCTION DECLARATIONS ------ */
+/* These functions do not need to be exposed to the user */
+mvmcell* mvm_findKey(mvmcell* head, char* key);
+mvmcell* mvmcell_init(char* key, char* data);
+mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key, mvm* m);
+void mvmcell_unloadList(mvmcell* node);
+void mvmcell_unloadNode(mvmcell* node);
+void* allocHandler(void* ptr, size_t nmemb, size_t size);
+
+/* ------- FUNCTION BODIES ------ */
+/* Initialises mvm ADT and zeros all values
+ */
+mvm* mvm_init(void) {
+    mvm* tmp = (mvm*)allocHandler(NULL, 1, sizeof(mvm));
+    tmp->head = NULL;
+    tmp->numkeys = 0;
+
+    return tmp;
+}
+
+/* Returns 0 if m is null, or the "numkeys" value stored in m 
+ */
+int mvm_size(mvm* m) {
+    return m ? m->numkeys : 0;
+}
+
+/* Insert element at head of linked list stored in mvm ADT. Does nothing when
+ * given an invalid input */
+void mvm_insert(mvm* m, char* key, char* data) {
+    if (m && key) {
+        mvmcell* node = mvmcell_init(key, data);
+
+        node->next = m->head;
+        m->head = node;
+        m->numkeys++;
+    }
+}
+
+
+/* A little unclear from the spec if this is supposed to copy. Based on the fact
+ * the testing code doesn't free this, I assumed that it is just supposed to
+ * point to the data stored in the MVM. Returns NULL if the key is not found
+ */
+char* mvm_search(mvm* m, char* key) {
+    if (m && key) {
+        mvmcell* node = mvm_findKey(m->head, key);
+        return node ? node->data : NULL;
+    }
+    return NULL;
+}
+
+void mvm_free(mvm** p) {
+    mvm* m = *p;
+
+    mvmcell_unloadList(m->head);
+    free(m);
+    *p = NULL;
+}
+
+/* ------ HELPER FUNCTIONS ------ */
+/* Returns pointer to mvmcell node where key is found. If the key doesn't exist
+ * returns NULL. Pointing to the node, allows continue searching in the
+ * multi-search function
+ */
+mvmcell* mvm_findKey(mvmcell* head, char* key) {
+    mvmcell* node = head;
+
+    while (node) {
+        if (!strcmp(node->key, key)) {
+            return node;
+        }
+        node = node->next;
+    }
+    return NULL;
+}
+
+/* Allocates memory for mvmcell that will be added to LL and populates values.
+ * next ptr doesn't have to be zeroed because elements are always added to head
+ * of mvm list, which is initialised with NULL.
+ */
+mvmcell* mvmcell_init(char* key, char* data) {
+    mvmcell* node = (mvmcell*)allocHandler(NULL, 1, sizeof(mvmcell));
+    
+    node->key = (char*)allocHandler(NULL, strlen(key) + 1, sizeof(char));
+strcpy(node->key, key);
+
+    node->data = (char*)allocHandler(NULL, strlen(data) + 1, sizeof(char));
+    
+    strcpy(node->data, data);
+
+    return node;
+}
+
+/* Recursive helper function to delete element from linked list. Currently just
+ * deletes the first item found to conform to testing in "testmvm.c". Function
+ * returns address of next node to previous call, in turn removing the specified
+ * node. 
+ */
+mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key, mvm* m) {
+    mvmcell* tmp;
+
+    if (!node) {
+        return NULL;
+    } else if (!strcmp(node->key, key)) {
+        tmp = node->next;
+        mvmcell_unloadNode(node);
+        m->numkeys--;
+        return tmp;
+    } else {
+        node->next = mvmcell_deleteHelper(node->next, key, m);
+        return node;
+    }
+}
+
+/* Recursive function to unload linked list. Still not completely sure if it's
+ * better to do this recursively or with a loop?
+ */
+void mvmcell_unloadList(mvmcell* node) {
+    if (!node) {
+        return;
+    }
+    mvmcell_unloadList(node->next);
+    mvmcell_unloadNode(node);
+}
+
+/* Unload node helper that frees all parts of the mvmcell LL node
+ */
+void mvmcell_unloadNode(mvmcell* node) {
+    free(node->data);
+    free(node->key);
+    free(node);
+}
+
+/* Wrote a generic malloc/realloc function because the same structure was
+ * repeating itself multiple times and I wanted to play with void*. Requires
+ * ptr = NULL for initial malloc, and ptr value for resizing an existing block
+ */
+void* allocHandler(void* ptr, size_t nmemb, size_t size) {
+    void* tmp = realloc(ptr, nmemb * size);
+    if (!tmp) {
+        ON_ERROR("Memory allocation error\n");
+    }
+    return tmp;
+}
