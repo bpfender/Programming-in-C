@@ -51,15 +51,13 @@ void mvm_insert(mvm* m, char* key, char* data) {
     }
 }
 
-
 /* A little unclear from the spec if this is supposed to copy. Based on the fact
  * the testing code doesn't free this, I assumed that it is just supposed to
  * point to the data stored in the MVM. Returns NULL if the key is not found
  */
-char* mvm_search(mvm* m, char* key) {
+mvmcell* mvm_search(mvm* m, char* key) {
     if (m && key) {
-        mvmcell* node = mvm_findKey(m->head, key);
-        return node ? node->data : NULL;
+        return mvm_findKey(m->head, key);
     }
     return NULL;
 }
@@ -95,13 +93,16 @@ mvmcell* mvm_findKey(mvmcell* head, char* key) {
  */
 mvmcell* mvmcell_init(char* key, char* data) {
     mvmcell* node = (mvmcell*)allocHandler(NULL, 1, sizeof(mvmcell));
-    
-    node->key = (char*)allocHandler(NULL, strlen(key) + 1, sizeof(char));
-strcpy(node->key, key);
 
-    node->data = (char*)allocHandler(NULL, strlen(data) + 1, sizeof(char));
-    
-    strcpy(node->data, data);
+    node->key = (char*)allocHandler(NULL, strlen(key) + 1, sizeof(char));
+    strcpy(node->key, key);
+
+    if (data) {
+        node->data = (char*)allocHandler(NULL, strlen(data) + 1, sizeof(char));
+        strcpy(node->data, data);
+    } else {
+        node->data = NULL;
+    }
 
     return node;
 }
@@ -141,7 +142,9 @@ void mvmcell_unloadList(mvmcell* node) {
 /* Unload node helper that frees all parts of the mvmcell LL node
  */
 void mvmcell_unloadNode(mvmcell* node) {
-    free(node->data);
+    if (node->data) {
+        free(node->data);
+    }
     free(node->key);
     free(node);
 }
@@ -156,4 +159,42 @@ void* allocHandler(void* ptr, size_t nmemb, size_t size) {
         ON_ERROR("Memory allocation error\n");
     }
     return tmp;
+}
+
+
+/* Writes string into buffer that is dynamically resized as required. Would have
+ * liked to use strncat() for easier buffer resizing but I believe this is a GNU
+ * only extension. Buffer is initially sized based on average word lengths and
+ * ()[] string, though string lengths will of course vary depending on the data
+ * stored. 
+ */
+char* mvm_print(mvm* m) {
+    if (m) {
+        size_t buffer_size = PRNT_STR_LEN * m->numkeys;
+        char* buffer = (char*)allocHandler(NULL, buffer_size, sizeof(char));
+
+        mvmcell* node = m->head;
+        size_t curr_index = 0;
+        size_t next_index = 0;
+
+        /* Loop first checks length of string to be appended to ensure it can 
+        fit the buffer. If required, buffer is expanded and string is then added
+        to the buffer. Loop continues to last node in linked list */
+        while (node) {
+            next_index += strlen(node->key) + strlen(node->data) + FRMT_CHARS;
+
+            /* Check with "+ 1" to ensure there is space for NUll terminator if 
+            this is the final appended string. Resize buffer if required */
+            if (next_index + 1 >= buffer_size) {
+                buffer_size = next_index * FACTOR;
+                buffer = (char*)allocHandler(buffer, buffer_size, sizeof(char));
+            }
+
+            sprintf(buffer + curr_index, "[%s](%s) ", node->key, node->data);
+            curr_index = next_index;
+            node = node->next;
+        }
+        return buffer;
+    }
+    return NULL;
 }

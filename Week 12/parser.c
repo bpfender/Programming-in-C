@@ -25,11 +25,19 @@
     }
 
 void parseFile(char* filename) {
-    prog_t* program = tokenizeFile(filename);
+    char* p;
     symbol_t* symbols = initSymbolTable();
+    prog_t* program = tokenizeFile(filename, symbols);
+    
 
     prog(program, symbols);
     printf("Parsed ok\n");
+    p =mvm_print(symbols->files);
+    printf("%s\n", p);
+    free(p);
+    p=mvm_print(symbols->vars);
+    printf("%s\n", p);
+    free(p);
     freeProgQueue(program);
     freeSymbolTable(symbols);
 }
@@ -118,7 +126,7 @@ void file(prog_t* program, symbol_t* symbols) {
 
         if (!getFilename(symbols, filename)) {
             addFilename(symbols, filename);
-            next_program = tokenizeFile(filename);
+            next_program = tokenizeFile(filename, symbols);
 
             prog(next_program, symbols);
             freeProgQueue(next_program);

@@ -30,13 +30,11 @@ mvm* mvm_init(void);
 int mvm_size(mvm* m);
 /* Insert one key/value pair */
 void mvm_insert(mvm* m, char* key, char* data);
-/* Store list as a string "[key](value) [key](value) " etc.  */
-char* mvm_print(mvm* m);
 /* Remove one key/value */
 void mvm_delete(mvm* m, char* key);
 /* Return the corresponding value for a key */
-char* mvm_search(mvm* m, char* key);
-/* Return *argv[] list of pointers to all values stored with key, n is the number of values */
-char** mvm_multisearch(mvm* m, char* key, int* n);
+mvmcell* mvm_search(mvm* m, char* key);
 /* Free & set p to NULL */
 void mvm_free(mvm** p);
+
+char* mvm_print(mvm* m);

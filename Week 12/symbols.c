@@ -1,8 +1,7 @@
-
-
 #include "symbols.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 symbol_t* initSymbolTable(void) {
     symbol_t* tmp = (symbol_t*)malloc(sizeof(symbol_t));
@@ -15,28 +14,34 @@ symbol_t* initSymbolTable(void) {
     return tmp;
 }
 
-char* getVariable(symbol_t* symbols, char* var) {
+mvmcell* getVariable(symbol_t* symbols, char* var) {
     return mvm_search(symbols->vars, var);
 }
 
-void deleteVariable(symbol_t* symbols, char* var) {
-    mvm_delete(symbols->vars, var);
+mvmcell* updateVariable(symbol_t* symbols, char* var, char* val) {
+    mvmcell* cell = mvm_search(symbols->vars, var);
+    if (cell) {
+        /* Ok to call free on nulled data? */
+        free(cell->data);
+        cell->data = (char*)malloc(sizeof(char) * (strlen(val) + 1));
+        if (!cell->data) {
+            ON_ERROR("Error allocating var\n");
+        }
+        return cell;
+    }
+    return NULL;
 }
 
 /* FIXME This is not pretty at the moment */
-void addVariable(symbol_t* symbols, char* var, char* val) {
-    deleteVariable(symbols, var);
-
-    mvm_insert(symbols->vars, var, val);
+void addVariable(symbol_t* symbols, char* var) {
+    if (!mvm_search(symbols->vars, var)) {
+        mvm_insert(symbols->vars, var, "TEST");
+    }
 }
 
 /* FIXME filename handling is not fantastic */
-char* getFilename(symbol_t* symbols, char* filename) {
+mvmcell* getFilename(symbol_t* symbols, char* filename) {
     return mvm_search(symbols->files, filename);
-}
-
-void deleteFilename(symbol_t* symbols, char* filename) {
-    mvm_delete(symbols->files, filename);
 }
 
 /* This is not pretty at the moment */
@@ -49,4 +54,3 @@ void freeSymbolTable(symbol_t* symbols) {
     mvm_free(&symbols->vars);
     free(symbols);
 }
-

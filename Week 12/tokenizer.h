@@ -2,6 +2,7 @@
 #define TOKENIZER_H
 
 #include <stdio.h>
+#include "symbols.h"
 
 /* FIXME add bracket open /close options etc. */
 /*FIXME better alternative for INSTR_FILE */
@@ -54,7 +55,7 @@ typedef unsigned int line_t;
 prog_t* initProgQueue(void);
 token_t* dequeueToken(prog_t* program);
 token_t* peekToken(prog_t* program, int dist);
-void enqueueToken(prog_t* program, char* attrib, int len, int line, int word);
+void enqueueToken(prog_t* program, symbol_t* symbols, char* attrib, int len, int line, int word);
 void buildToken(token_t* token, char* attrib, int len, int line, int word);
 void expandProgQueue(prog_t* program);
 void freeProgQueue(prog_t* program);
@@ -84,7 +85,7 @@ bool_t isStrUpper(char* word);
 
 void printInstr(type_t instr);
 
-prog_t* tokenizeFile(char* filename);
+prog_t* tokenizeFile(char* filename, symbol_t* symbols);
 
 line_t parseBufferWords(char** pos);
 

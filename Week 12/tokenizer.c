@@ -1,4 +1,5 @@
 #include "tokenizer.h"
+
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,7 +51,7 @@ token_t* peekToken(prog_t* program, int dist) {
     return program->token + (program->pos + dist);
 }
 
-prog_t* tokenizeFile(char* filename) {
+prog_t* tokenizeFile(char* filename, symbol_t* symbols) {
     prog_t* program = initProgQueue();
     FILE* file = openFile(filename);
 
@@ -70,7 +71,7 @@ prog_t* tokenizeFile(char* filename) {
         /* Parse through words in the line */
         while ((word_len = parseBufferWords(&pos))) {
             word++;
-            enqueueToken(program, pos, word_len, line, word);
+            enqueueToken(program, symbols, pos, word_len, line, word);
             pos += word_len;
         }
     }
@@ -194,13 +195,18 @@ prog_t* initProgQueue(void) {
     return tmp;
 }
 
-void enqueueToken(prog_t* program, char* attrib, int len, int line, int word) {
+void enqueueToken(prog_t* program, symbol_t* symbols, char* attrib, int len, int line, int word) {
     int i = program->len;
     if (i >= program->size) {
         expandProgQueue(program);
     }
 
     buildToken(program->token + i, attrib, len, line, word);
+
+    if(program->token[i].type == STRVAR || program->token[i].type == NUMVAR){
+        addVariable(symbols, program->token[i].attrib);
+    }
+
     program->len++;
 }
 
