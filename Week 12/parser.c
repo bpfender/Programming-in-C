@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "symbols.h"
 
 /* FIXME need a gettoken function for bounds checking */
 /* FIXME functionise bracket handling */
@@ -25,65 +26,67 @@
 
 void parseFile(char* filename) {
     prog_t* program = tokenizeFile(filename);
+    symbol_t* symbols = initSymbolTable();
 
-    prog(program);
+    prog(program, symbols);
     printf("Parsed ok\n");
     freeProgQueue(program);
+    freeSymbolTable(symbols);
 }
 
-void prog(prog_t* program) {
+void prog(prog_t* program, symbol_t* symbols) {
     token_t* token = dequeueToken(program);
 
     if (!strcmp(token->attrib, "{")) {
-        instr(program);
+        instr(program, symbols);
     } else {
         ERROR(token);
     }
 }
 
-void instr(prog_t* program) {
+void instr(prog_t* program, symbol_t* symbols) {
     token_t* token = dequeueToken(program);
 
     switch (token->type) {
         case FILE_:
-            file(program);
+            file(program, symbols);
             break;
         case ABORT:
-            prog_abort(program);
+            prog_abort(program, symbols);
             break;
         case IN2STR:
-            in2str(program);
+            in2str(program, symbols);
             break;
         case INNUM:
-            innum(program);
+            innum(program, symbols);
             break;
         case IFEQUAL:
-            ifequal(program);
+            ifequal(program, symbols);
             break;
         case IFGREATER:
-            ifgreater(program);
+            ifgreater(program, symbols);
             break;
         case INC:
-            inc(program);
+            inc(program, symbols);
             break;
         case SET:
             ERROR(token);
             break;
         case JUMP:
-            jump(program);
+            jump(program, symbols);
             break;
         case PRINT:
-            print(program);
+            print(program, symbols);
             break;
         case PRINTN:
-            print(program);
+            print(program, symbols);
             break;
         case RND:
-            rnd(program);
+            rnd(program, symbols);
             break;
         case STRVAR:
         case NUMVAR:
-            var(program, token->type);
+            var(program, token->type, symbols);
             break;
         case SECTION:
             if (!strcmp(token->attrib, "}")) {
@@ -103,7 +106,7 @@ void instr(prog_t* program) {
 }
 
 /* FIXME super dirty filenmae hack */
-void file(prog_t* program) {
+void file(prog_t* program, symbol_t* symbols) {
     char filename[500] = "./Files/";
     prog_t* next_program;
 
@@ -112,39 +115,44 @@ void file(prog_t* program) {
     if (token->type == STRCON) {
         getSTRCON(token->attrib);
         strcat(filename, token->attrib);
-        next_program = tokenizeFile(filename);
 
-        prog(next_program);
-        freeProgQueue(next_program);
+        if (!getFilename(symbols, filename)) {
+            addFilename(symbols, filename);
+            next_program = tokenizeFile(filename);
 
-        instr(program);
+            prog(next_program, symbols);
+            freeProgQueue(next_program);
+
+            instr(program, symbols);
+        }
+
     } else {
         ERROR(token);
     }
 }
 
-void prog_abort(prog_t* program) {
+void prog_abort(prog_t* program, symbol_t* symbols) {
     token_t* token = dequeueToken(program);
 
     if (token->type == SECTION && !strcmp(token->attrib, "}")) {
-        instr(program);
+        instr(program, symbols);
     } else {
         ERROR(token);
     }
 }
 
-void in2str(prog_t* program) {
+void in2str(prog_t* program, symbol_t* symbols) {
     if (parseBrackets(program, STRVAR, IN2STR_ARGS)) {
-        instr(program);
+        instr(program, symbols);
 
     } else {
         ERROR(peekToken(program, 0));
     }
 }
 
-void innum(prog_t* program) {
+void innum(prog_t* program, symbol_t* symbols) {
     if (parseBrackets(program, NUMVAR, INNUM_ARGS)) {
-        instr(program);
+        instr(program, symbols);
 
     } else {
         ERROR(peekToken(program, 0));
@@ -153,14 +161,16 @@ void innum(prog_t* program) {
 
 /* FIXME ifequal and ifgreater are identical */
 /* QUESTION Does this need two sets of instr for {} */
-void ifequal(prog_t* program) {
+void ifequal(prog_t* program, symbol_t* symbols) {
     token_t* token = peekToken(program, 0);
     if (parseCondBracket(program)) {
         token = dequeueToken(program);
 
         /* Could just reuse prog(); */
         if (!strcmp(token->attrib, "{")) {
-            instr(program);
+            instr(program, symbols);
+
+            instr(program, symbols);
             return;
         } else {
             ERROR(token);
@@ -173,13 +183,15 @@ void ifequal(prog_t* program) {
     }
 }
 
-void ifgreater(prog_t* program) {
+void ifgreater(prog_t* program, symbol_t* symbols) {
     token_t* token = peekToken(program, 0);
     if (parseCondBracket(program)) {
         token = dequeueToken(program);
 
         if (!strcmp(token->attrib, "{")) {
-            instr(program);
+            instr(program, symbols);
+
+            instr(program, symbols);
             return;
         } else {
             ERROR(token);
@@ -191,46 +203,46 @@ void ifgreater(prog_t* program) {
     }
 }
 
-void inc(prog_t* program) {
+void inc(prog_t* program, symbol_t* symbols) {
     if (parseBrackets(program, NUMVAR, INC_ARGS)) {
-        instr(program);
+        instr(program, symbols);
 
     } else {
         ERROR(peekToken(program, 0));
     }
 }
 
-void jump(prog_t* program) {
+void jump(prog_t* program, symbol_t* symbols) {
     token_t* token = dequeueToken(program);
 
     if (token->type == NUMCON) {
-        instr(program);
+        instr(program, symbols);
     } else {
         ERROR(token);
     }
 }
 
-void print(prog_t* program) {
+void print(prog_t* program, symbol_t* symbols) {
     token_t* token = dequeueToken(program);
 
     if (token->type == STRVAR || token->type == NUMVAR ||
         token->type == STRCON || token->type == NUMCON) {
-        instr(program);
+        instr(program, symbols);
     } else {
         ERROR(token);
     }
 }
 
-void rnd(prog_t* program) {
+void rnd(prog_t* program, symbol_t* symbols) {
     if (parseBrackets(program, NUMVAR, RND_ARGS)) {
-        instr(program);
+        instr(program, symbols);
 
     } else {
         ERROR(peekToken(program, 0));
     }
 }
 
-void var(prog_t* program, type_t var) {
+void var(prog_t* program, type_t var, symbol_t* symbols) {
     token_t* token = dequeueToken(program);
 
     switch (var) {
@@ -238,7 +250,7 @@ void var(prog_t* program, type_t var) {
             if (token->type == SET) {
                 token = dequeueToken(program);
                 if (token->type == STRCON || token->type == STRVAR) {
-                    instr(program);
+                    instr(program, symbols);
                     return;
                 }
             }
@@ -248,7 +260,7 @@ void var(prog_t* program, type_t var) {
             if (token->type == SET) {
                 token = dequeueToken(program);
                 if (token->type == NUMVAR || token->type == NUMCON) {
-                    instr(program);
+                    instr(program, symbols);
                     return;
                 }
             }
