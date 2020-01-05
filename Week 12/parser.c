@@ -122,9 +122,10 @@ void file(prog_t* program, symbol_t* symbols) {
 
             prog(next_program, symbols);
             freeProgQueue(next_program);
-
-            instr(program, symbols);
+            printf("Finished %s\n", filename);
         }
+
+        instr(program, symbols);
 
     } else {
         ERROR(token);
