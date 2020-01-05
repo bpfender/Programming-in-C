@@ -31,7 +31,7 @@ int main(void) {
     freeProgQueue(program);
 
     printf("PARSE TEST\n");
-    parseFile("./Files/test5.nal");
+    parseFile("./Files/escape211.nal");
 
     printf("Testing end...\n");
 

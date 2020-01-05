@@ -27,6 +27,7 @@ void print(prog_t* program);
 void rnd(prog_t* program);
 void var(prog_t* program, type_t var);
 bool_t parseBrackets(prog_t* program, type_t arg, int n);
+bool_t parseCondBracket(prog_t* program);
 
 void handleError(void);
 
