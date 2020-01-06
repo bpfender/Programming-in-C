@@ -161,7 +161,6 @@ void* allocHandler(void* ptr, size_t nmemb, size_t size) {
     return tmp;
 }
 
-
 /* Writes string into buffer that is dynamically resized as required. Would have
  * liked to use strncat() for easier buffer resizing but I believe this is a GNU
  * only extension. Buffer is initially sized based on average word lengths and
@@ -181,7 +180,7 @@ char* mvm_print(mvm* m) {
         fit the buffer. If required, buffer is expanded and string is then added
         to the buffer. Loop continues to last node in linked list */
         while (node) {
-            next_index += strlen(node->key) + strlen(node->data) + FRMT_CHARS;
+            next_index += strlen(node->key) + 3;
 
             /* Check with "+ 1" to ensure there is space for NUll terminator if 
             this is the final appended string. Resize buffer if required */
@@ -190,7 +189,7 @@ char* mvm_print(mvm* m) {
                 buffer = (char*)allocHandler(buffer, buffer_size, sizeof(char));
             }
 
-            sprintf(buffer + curr_index, "[%s](%s) ", node->key, node->data);
+            sprintf(buffer + curr_index, "[%s] ", node->key);
             curr_index = next_index;
             node = node->next;
         }

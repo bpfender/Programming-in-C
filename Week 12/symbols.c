@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* FIXME might be nice to write an implementation that can actually store numbers */
+
 symbol_t* initSymbolTable(void) {
     symbol_t* tmp = (symbol_t*)malloc(sizeof(symbol_t));
     if (!tmp) {
@@ -21,7 +23,7 @@ mvmcell* getVariable(symbol_t* symbols, char* var) {
 mvmcell* updateVariable(symbol_t* symbols, char* var, char* val) {
     mvmcell* cell = mvm_search(symbols->vars, var);
     if (cell) {
-        /* Ok to call free on nulled data? */
+        /* QUESTION Ok to call free on nulled data? */
         free(cell->data);
         cell->data = (char*)malloc(sizeof(char) * (strlen(val) + 1));
         if (!cell->data) {
@@ -35,7 +37,7 @@ mvmcell* updateVariable(symbol_t* symbols, char* var, char* val) {
 /* FIXME This is not pretty at the moment */
 void addVariable(symbol_t* symbols, char* var) {
     if (!mvm_search(symbols->vars, var)) {
-        mvm_insert(symbols->vars, var, "TEST");
+        mvm_insert(symbols->vars, var, "NULL");
     }
 }
 

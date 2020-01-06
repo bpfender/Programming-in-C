@@ -28,14 +28,13 @@ void parseFile(char* filename) {
     char* p;
     symbol_t* symbols = initSymbolTable();
     prog_t* program = tokenizeFile(filename, symbols);
-    
 
     prog(program, symbols);
     printf("Parsed ok\n");
-    p =mvm_print(symbols->files);
+    p = mvm_print(symbols->files);
     printf("%s\n", p);
     free(p);
-    p=mvm_print(symbols->vars);
+    p = mvm_print(symbols->vars);
     printf("%s\n", p);
     free(p);
     freeProgQueue(program);
@@ -61,6 +60,7 @@ void instr(prog_t* program, symbol_t* symbols) {
             break;
         case ABORT:
             prog_abort(program, symbols);
+            return;
             break;
         case IN2STR:
             in2str(program, symbols);
@@ -120,6 +120,7 @@ void file(prog_t* program, symbol_t* symbols) {
 
     token_t* token = dequeueToken(program);
 
+    /* FIXME be careful about strocn() filename twice */
     if (token->type == STRCON) {
         getSTRCON(token->attrib);
         strcat(filename, token->attrib);
@@ -140,11 +141,12 @@ void file(prog_t* program, symbol_t* symbols) {
     }
 }
 
+/* Is this the right condition for prog_abort? */
 void prog_abort(prog_t* program, symbol_t* symbols) {
     token_t* token = dequeueToken(program);
 
     if (token->type == SECTION && !strcmp(token->attrib, "}")) {
-        instr(program, symbols);
+        return;
     } else {
         ERROR(token);
     }
@@ -178,7 +180,7 @@ void ifequal(prog_t* program, symbol_t* symbols) {
         /* Could just reuse prog(); */
         if (!strcmp(token->attrib, "{")) {
             instr(program, symbols);
-
+            printf("COND CONT\n");
             instr(program, symbols);
             return;
         } else {
@@ -199,7 +201,7 @@ void ifgreater(prog_t* program, symbol_t* symbols) {
 
         if (!strcmp(token->attrib, "{")) {
             instr(program, symbols);
-
+            printf("COND CONT\n");
             instr(program, symbols);
             return;
         } else {

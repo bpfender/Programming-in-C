@@ -7,6 +7,8 @@
    O(n) deletion
 */
 
+/* NOTE modified to return mvmcell* rather than cahar*
+
 /* Error that can't be ignored */
 #define ON_ERROR(STR)     \
     fprintf(stderr, STR); \

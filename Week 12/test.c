@@ -23,17 +23,18 @@ int main(void) {
     }
     printf("\n");
 
-    program = tokenizeFile("./Files/test5.nal",symbols);
+    program = tokenizeFile("./Files/test5.nal", symbols);
     for (i = 0; i < program->len; i++) {
         printInstr(program->token[i].type);
         printf(" Line: %d Word: %d", program->token[i].line, program->token[i].word);
         printf(" %s\n", program->token[i].attrib);
     }
+    printf("\n\n");
     freeProgQueue(program);
     freeSymbolTable(symbols);
 
     printf("PARSE TEST\n");
-    parseFile("./Files/escape211.nal");
+    parseFile("./Files/test6.nal");
 
     printf("Testing end...\n");
 

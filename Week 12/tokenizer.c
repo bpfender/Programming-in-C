@@ -40,7 +40,8 @@ token_t* dequeueToken(prog_t* program) {
 
     token = program->token + program->pos;
     program->pos++;
-    printf("Line %d word %d\n", token->line, token->word);
+    printInstr(token->type);
+    printf(" Line %d word %d\n", token->line, token->word);
     return token;
 }
 
@@ -203,7 +204,7 @@ void enqueueToken(prog_t* program, symbol_t* symbols, char* attrib, int len, int
 
     buildToken(program->token + i, attrib, len, line, word);
 
-    if(program->token[i].type == STRVAR || program->token[i].type == NUMVAR){
+    if (program->token[i].type == STRVAR || program->token[i].type == NUMVAR) {
         addVariable(symbols, program->token[i].attrib);
     }
 
