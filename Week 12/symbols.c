@@ -37,7 +37,7 @@ mvmcell* updateVariable(symbol_t* symbols, char* var, char* val) {
 /* FIXME This is not pretty at the moment */
 void addVariable(symbol_t* symbols, char* var) {
     if (!mvm_search(symbols->vars, var)) {
-        mvm_insert(symbols->vars, var, "NULL");
+        mvm_insert(symbols->vars, var, NULL);
     }
 }
 

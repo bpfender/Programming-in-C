@@ -8,6 +8,9 @@
 /* FIXME need a gettoken function for bounds checking */
 /* FIXME functionise bracket handling */
 
+#define TWO_ARG_LEN 5
+#define ONE_ARG_LEN 3
+
 #define RND_ARGS 1
 #define IFCOND_ARGS 2
 #define IN2STR_ARGS 2
@@ -86,10 +89,8 @@ void instr(prog_t* program, symbol_t* symbols, ast_t* ast) {
             jump(program, symbols, ast);
             break;
         case PRINT:
-            print(program, symbols, ast);
-            break;
         case PRINTN:
-            print(program, symbols, ast);
+            print(program, token->type, symbols, ast);
             break;
         case RND:
             rnd(program, symbols, ast);
@@ -134,7 +135,7 @@ void file(prog_t* program, symbol_t* symbols, ast_t* ast) {
             addFilename(symbols, filename, next_ast);
 
             ast_node = buildASTFile(getFilename(symbols, filename));
-
+            addNode(ast, ast_node);
 
             next_program = tokenizeFile(filename, symbols);
             prog(next_program, symbols, ast);
@@ -154,7 +155,12 @@ void file(prog_t* program, symbol_t* symbols, ast_t* ast) {
 void prog_abort(prog_t* program, symbol_t* symbols, ast_t* ast) {
     token_t* token = dequeueToken(program);
 
+    ast_node_t* ast_node;
+
     if (token->type == SECTION && !strcmp(token->attrib, "}")) {
+        ast_node = buildASTAbort();
+        addNode(ast, ast_node);
+
         return;
     } else {
         ERROR(token);
@@ -162,6 +168,8 @@ void prog_abort(prog_t* program, symbol_t* symbols, ast_t* ast) {
 }
 
 void in2str(prog_t* program, symbol_t* symbols, ast_t* ast) {
+    token_t* token_string[TWO_ARG_LEN];
+
     if (parseBrackets(program, STRVAR, IN2STR_ARGS)) {
         instr(program, symbols, ast);
 
@@ -234,6 +242,7 @@ void inc(prog_t* program, symbol_t* symbols, ast_t* ast) {
 
 void jump(prog_t* program, symbol_t* symbols, ast_t* ast) {
     token_t* token = dequeueToken(program);
+    ast_node_t* ast_node;
 
     if (token->type == NUMCON) {
         instr(program, symbols, ast);
@@ -242,11 +251,13 @@ void jump(prog_t* program, symbol_t* symbols, ast_t* ast) {
     }
 }
 
-void print(prog_t* program, symbol_t* symbols, ast_t* ast) {
+void print(prog_t* program, type_t type, symbol_t* symbols, ast_t* ast) {
     token_t* token = dequeueToken(program);
+    ast_node_t* ast_node;
 
     if (token->type == STRVAR || token->type == NUMVAR ||
         token->type == STRCON || token->type == NUMCON) {
+        ast_node = buildASTPrint(type, token->type, token->attrib);
         instr(program, symbols, ast);
     } else {
         ERROR(token);
@@ -351,6 +362,37 @@ bool_t parseCondBracket(prog_t* program) {
     }
 
     return TRUE;
+}
+
+token_t* parseBracketsEdit(token_t* tokens[], type_t arg, int len) {
+    int i;
+    if (strcmp(tokens[0]->attrib, "(")) {
+        return tokens[0];
+    }
+
+    for (i = 1; i < len - 2; i += 2) {
+        if (tokens[i]->type != arg) {
+            return tokens[i];
+        }
+        if (tokens[i + 1]->type != COMMA) {
+            return tokens[i + 1];
+        }
+    }
+
+    if (tokens[len - 2]->type != arg) {
+        return tokens[len - 2];
+    }
+    if (strcmp(tokens[len - 1]->attrib, ")")) {
+        return tokens[len - 1];
+    }
+    return NULL;
+}
+
+void fillTokenString(prog_t* program, token_t* tokens[], int len) {
+    int i;
+    for (i = 0; i < len; i++) {
+        tokens[i] = dequeueToken(program);
+    }
 }
 
 /* FIXME this is horribly written at the moment */

@@ -34,7 +34,7 @@ int main(void) {
     freeSymbolTable(symbols);
 
     printf("PARSE TEST\n");
-    parseFile("./Files/test6.nal");
+    parseFile("./Files/test4.nal");
 
     printf("Testing end...\n");
 

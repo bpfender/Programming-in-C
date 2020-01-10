@@ -25,11 +25,14 @@ void ifequal(prog_t* program, symbol_t* symbols, ast_t* ast);
 void ifgreater(prog_t* program, symbol_t* symbols, ast_t* ast);
 void inc(prog_t* program, symbol_t* symbols, ast_t* ast);
 void jump(prog_t* program, symbol_t* symbols, ast_t* ast);
-void print(prog_t* program, symbol_t* symbols, ast_t* ast);
+void print(prog_t* program, type_t type, symbol_t* symbols, ast_t* ast);
 void rnd(prog_t* program, symbol_t* symbols, ast_t* ast);
 void set(prog_t* program, type_t var, symbol_t* symbols, ast_t* ast);
 bool_t parseBrackets(prog_t* program, type_t arg, int n);
 bool_t parseCondBracket(prog_t* program);
+
+token_t* parseBracketsEdit(token_t* tokens[], type_t arg, int len);
+void fillTokenString(prog_t* program, token_t* tokens[], int len);
 
 void handleError(void);
 

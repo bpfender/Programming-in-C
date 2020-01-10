@@ -129,4 +129,32 @@ ast_node_t* buildASTSet(type_t type1, type_t type2, mvmcell* var, void* varcon) 
 }
 
 void addNode(ast_t* ast, ast_node_t* node) {
+    if (ast->curr) {
+        switch (ast->curr->type) {
+            case FILE_:
+            case ABORT:
+            case INNUM:
+            case JUMP:
+            case PRINT:
+            case PRINTN:
+            case RND:
+            case INC:
+                ast->curr->data->ONE_OP_Node.next = node;
+                break;
+            case SET:
+            case IN2STR:
+                ast->curr->data->TWO_OP_Node.next = node;
+                break;
+            case IFEQUAL:
+            case IFGREATER:
+                ast->curr->data->CONDNode.next = node;
+                break;
+            default:
+                exit(EXIT_FAILURE);
+        }
+        ast->curr = node;
+
+    } else {
+        ast->curr = ast->head = node;
+    }
 }
