@@ -20,7 +20,6 @@
     exit(EXIT_FAILURE)
 
 /* FIXME tokenizer has no lexical analysis on errors yet */
-
 FILE* openFile(char* filename) {
     FILE* file = fopen(filename, "r");
 
@@ -154,7 +153,7 @@ line_t getLine(char** buffer, line_t* size, FILE* file) {
 
 void truncateLineEnd(char* buffer, line_t* len) {
     line_t size = *len;
-
+    /* FIXME magic numbers */
     if (size && buffer[size - 1] == '\n') {
         if (size >= 2 && buffer[size - 2] == '\r') {
             buffer[size - 2] = '\0';

@@ -27,9 +27,11 @@
 void parseFile(char* filename) {
     char* p;
     symbol_t* symbols = initSymbolTable();
+    ast_t* ast = initAST(filename);
+
     prog_t* program = tokenizeFile(filename, symbols);
 
-    prog(program, symbols);
+    prog(program, symbols, ast);
     printf("Parsed ok\n");
     p = mvm_print(symbols->files);
     printf("%s\n", p);
@@ -41,60 +43,60 @@ void parseFile(char* filename) {
     freeSymbolTable(symbols);
 }
 
-void prog(prog_t* program, symbol_t* symbols) {
+void prog(prog_t* program, symbol_t* symbols, ast_t* ast) {
     token_t* token = dequeueToken(program);
 
     if (!strcmp(token->attrib, "{")) {
-        instr(program, symbols);
+        instr(program, symbols, ast);
     } else {
         ERROR(token);
     }
 }
 
-void instr(prog_t* program, symbol_t* symbols) {
+void instr(prog_t* program, symbol_t* symbols, ast_t* ast) {
     token_t* token = dequeueToken(program);
 
     switch (token->type) {
         case FILE_:
-            file(program, symbols);
+            file(program, symbols, ast);
             break;
         case ABORT:
-            prog_abort(program, symbols);
+            prog_abort(program, symbols, ast);
             return;
             break;
         case IN2STR:
-            in2str(program, symbols);
+            in2str(program, symbols, ast);
             break;
         case INNUM:
-            innum(program, symbols);
+            innum(program, symbols, ast);
             break;
         case IFEQUAL:
-            ifequal(program, symbols);
+            ifequal(program, symbols, ast);
             break;
         case IFGREATER:
-            ifgreater(program, symbols);
+            ifgreater(program, symbols, ast);
             break;
         case INC:
-            inc(program, symbols);
+            inc(program, symbols, ast);
             break;
         case SET:
             ERROR(token);
             break;
         case JUMP:
-            jump(program, symbols);
+            jump(program, symbols, ast);
             break;
         case PRINT:
-            print(program, symbols);
+            print(program, symbols, ast);
             break;
         case PRINTN:
-            print(program, symbols);
+            print(program, symbols, ast);
             break;
         case RND:
-            rnd(program, symbols);
+            rnd(program, symbols, ast);
             break;
         case STRVAR:
         case NUMVAR:
-            var(program, token->type, symbols);
+            set(program, token->type, symbols, ast);
             break;
         case SECTION:
             if (!strcmp(token->attrib, "}")) {
@@ -114,7 +116,7 @@ void instr(prog_t* program, symbol_t* symbols) {
 }
 
 /* FIXME super dirty filenmae hack */
-void file(prog_t* program, symbol_t* symbols) {
+void file(prog_t* program, symbol_t* symbols, ast_t* ast) {
     char filename[500] = "./Files/";
     prog_t* next_program;
 
@@ -129,12 +131,12 @@ void file(prog_t* program, symbol_t* symbols) {
             addFilename(symbols, filename);
             next_program = tokenizeFile(filename, symbols);
 
-            prog(next_program, symbols);
+            prog(next_program, symbols, ast);
             freeProgQueue(next_program);
             printf("Finished %s\n", filename);
         }
 
-        instr(program, symbols);
+        instr(program, symbols, ast);
 
     } else {
         ERROR(token);
@@ -142,7 +144,7 @@ void file(prog_t* program, symbol_t* symbols) {
 }
 
 /* Is this the right condition for prog_abort? */
-void prog_abort(prog_t* program, symbol_t* symbols) {
+void prog_abort(prog_t* program, symbol_t* symbols, ast_t* ast) {
     token_t* token = dequeueToken(program);
 
     if (token->type == SECTION && !strcmp(token->attrib, "}")) {
@@ -152,18 +154,18 @@ void prog_abort(prog_t* program, symbol_t* symbols) {
     }
 }
 
-void in2str(prog_t* program, symbol_t* symbols) {
+void in2str(prog_t* program, symbol_t* symbols, ast_t* ast) {
     if (parseBrackets(program, STRVAR, IN2STR_ARGS)) {
-        instr(program, symbols);
+        instr(program, symbols, ast);
 
     } else {
         ERROR(peekToken(program, 0));
     }
 }
 
-void innum(prog_t* program, symbol_t* symbols) {
+void innum(prog_t* program, symbol_t* symbols, ast_t* ast) {
     if (parseBrackets(program, NUMVAR, INNUM_ARGS)) {
-        instr(program, symbols);
+        instr(program, symbols, ast);
 
     } else {
         ERROR(peekToken(program, 0));
@@ -172,16 +174,16 @@ void innum(prog_t* program, symbol_t* symbols) {
 
 /* FIXME ifequal and ifgreater are identical */
 /* QUESTION Does this need two sets of instr for {} */
-void ifequal(prog_t* program, symbol_t* symbols) {
+void ifequal(prog_t* program, symbol_t* symbols, ast_t* ast) {
     token_t* token = peekToken(program, 0);
     if (parseCondBracket(program)) {
         token = dequeueToken(program);
 
         /* Could just reuse prog(); */
         if (!strcmp(token->attrib, "{")) {
-            instr(program, symbols);
+            instr(program, symbols, ast);
             printf("COND CONT\n");
-            instr(program, symbols);
+            instr(program, symbols, ast);
             return;
         } else {
             ERROR(token);
@@ -194,15 +196,15 @@ void ifequal(prog_t* program, symbol_t* symbols) {
     }
 }
 
-void ifgreater(prog_t* program, symbol_t* symbols) {
+void ifgreater(prog_t* program, symbol_t* symbols, ast_t* ast) {
     token_t* token = peekToken(program, 0);
     if (parseCondBracket(program)) {
         token = dequeueToken(program);
 
         if (!strcmp(token->attrib, "{")) {
-            instr(program, symbols);
+            instr(program, symbols, ast);
             printf("COND CONT\n");
-            instr(program, symbols);
+            instr(program, symbols, ast);
             return;
         } else {
             ERROR(token);
@@ -214,46 +216,46 @@ void ifgreater(prog_t* program, symbol_t* symbols) {
     }
 }
 
-void inc(prog_t* program, symbol_t* symbols) {
+void inc(prog_t* program, symbol_t* symbols, ast_t* ast) {
     if (parseBrackets(program, NUMVAR, INC_ARGS)) {
-        instr(program, symbols);
+        instr(program, symbols, ast);
 
     } else {
         ERROR(peekToken(program, 0));
     }
 }
 
-void jump(prog_t* program, symbol_t* symbols) {
+void jump(prog_t* program, symbol_t* symbols, ast_t* ast) {
     token_t* token = dequeueToken(program);
 
     if (token->type == NUMCON) {
-        instr(program, symbols);
+        instr(program, symbols, ast);
     } else {
         ERROR(token);
     }
 }
 
-void print(prog_t* program, symbol_t* symbols) {
+void print(prog_t* program, symbol_t* symbols, ast_t* ast) {
     token_t* token = dequeueToken(program);
 
     if (token->type == STRVAR || token->type == NUMVAR ||
         token->type == STRCON || token->type == NUMCON) {
-        instr(program, symbols);
+        instr(program, symbols, ast);
     } else {
         ERROR(token);
     }
 }
 
-void rnd(prog_t* program, symbol_t* symbols) {
+void rnd(prog_t* program, symbol_t* symbols, ast_t* ast) {
     if (parseBrackets(program, NUMVAR, RND_ARGS)) {
-        instr(program, symbols);
+        instr(program, symbols, ast);
 
     } else {
         ERROR(peekToken(program, 0));
     }
 }
 
-void var(prog_t* program, type_t var, symbol_t* symbols) {
+void set(prog_t* program, type_t var, symbol_t* symbols, ast_t* ast) {
     token_t* token = dequeueToken(program);
 
     switch (var) {
@@ -261,7 +263,7 @@ void var(prog_t* program, type_t var, symbol_t* symbols) {
             if (token->type == SET) {
                 token = dequeueToken(program);
                 if (token->type == STRCON || token->type == STRVAR) {
-                    instr(program, symbols);
+                    instr(program, symbols, ast);
                     return;
                 }
             }
@@ -271,7 +273,7 @@ void var(prog_t* program, type_t var, symbol_t* symbols) {
             if (token->type == SET) {
                 token = dequeueToken(program);
                 if (token->type == NUMVAR || token->type == NUMCON) {
-                    instr(program, symbols);
+                    instr(program, symbols, ast);
                     return;
                 }
             }

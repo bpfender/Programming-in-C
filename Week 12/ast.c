@@ -1,13 +1,15 @@
 #include "ast.h"
 #include <stdlib.h>
 
-ast_t* initAST(void) {
+/* FIXME filename array is a bit clunky */
+ast_t* initAST(char* filename) {
     ast_t* tmp = (ast_t*)malloc(sizeof(ast_t));
     if (!tmp) {
         ON_ERROR("Memory allocation error\n");
     }
     tmp->curr = NULL;
     tmp->head = NULL;
+    strcpy(tmp->filename, filename);
     return tmp;
 }
 

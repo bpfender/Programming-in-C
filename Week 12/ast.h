@@ -1,7 +1,7 @@
 #ifndef AST_H
 #define AST_H
 
-#include "symbols.h"
+#include <string.h>
 #include "tokenizer.h"
 
 typedef struct ast_node_t ast_node_t;
@@ -39,10 +39,21 @@ struct ast_node_t {
 };
 
 typedef struct ast_t {
+    char filename[500];
     syntax_node_t* head;
     syntax_node_t* curr;
 } ast_t;
 
+/* FIXME CLUNKY AT THE MOMENT */
+typedef struct ast_progs {
+    ast_t* ast[500];
+    int pos;
+    int num;
+} ast_progs;
+
+void initASTProgs(ast_progs* ast_table);
+
+ast_t* initAST(char* filename);
 ast_node_t* initASTNode(type_t type);
 ast_node_t* buildASTFile(mvmcell* file);
 ast_node_t* buildASTAbort(void);

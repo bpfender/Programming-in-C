@@ -1,6 +1,7 @@
 #ifndef PARSER_H
 #define PARSER_H
 
+#include "ast.h"
 #include "symbols.h"
 #include "tokenizer.h"
 
@@ -14,19 +15,19 @@ void getSTRCON(char* word);
 
 void parseFile(char* filename);
 
-void prog(prog_t* program, symbol_t* symbols);
-void instr(prog_t* program, symbol_t* symbols);
-void file(prog_t* program, symbol_t* symbols);
-void prog_abort(prog_t* program, symbol_t* symbols);
-void in2str(prog_t* program, symbol_t* symbols);
-void innum(prog_t* program, symbol_t* symbols);
-void ifequal(prog_t* program, symbol_t* symbols);
-void ifgreater(prog_t* program, symbol_t* symbols);
-void inc(prog_t* program, symbol_t* symbols);
-void jump(prog_t* program, symbol_t* symbols);
-void print(prog_t* program, symbol_t* symbols);
-void rnd(prog_t* program, symbol_t* symbols);
-void var(prog_t* program, type_t var, symbol_t* symbols);
+void prog(prog_t* program, symbol_t* symbols, ast_t* ast);
+void instr(prog_t* program, symbol_t* symbols, ast_t* ast);
+void file(prog_t* program, symbol_t* symbols, ast_t* ast);
+void prog_abort(prog_t* program, symbol_t* symbols, ast_t* ast);
+void in2str(prog_t* program, symbol_t* symbols, ast_t* ast);
+void innum(prog_t* program, symbol_t* symbols, ast_t* ast);
+void ifequal(prog_t* program, symbol_t* symbols, ast_t* ast);
+void ifgreater(prog_t* program, symbol_t* symbols, ast_t* ast);
+void inc(prog_t* program, symbol_t* symbols, ast_t* ast);
+void jump(prog_t* program, symbol_t* symbols, ast_t* ast);
+void print(prog_t* program, symbol_t* symbols, ast_t* ast);
+void rnd(prog_t* program, symbol_t* symbols, ast_t* ast);
+void set(prog_t* program, type_t var, symbol_t* symbols, ast_t* ast);
 bool_t parseBrackets(prog_t* program, type_t arg, int n);
 bool_t parseCondBracket(prog_t* program);
 

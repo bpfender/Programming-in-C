@@ -25,8 +25,7 @@ typedef enum type_t { FILE_,
                       BRACKET,
                       SECTION,
                       COMMA,
-                      ERROR
-} type_t;
+                      ERROR } type_t;
 
 typedef enum bool_t { FALSE,
                       TRUE } bool_t;
@@ -43,7 +42,6 @@ typedef struct prog_t {
     int pos;
     int len;
     int size;
-
 } prog_t;
 
 /* Mainly defined for a shorter version of unsigned int. However, also allows
