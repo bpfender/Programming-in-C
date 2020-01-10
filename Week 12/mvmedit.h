@@ -16,7 +16,7 @@
 
 struct mvmcell {
     char* key;
-    char* data;
+    void* data;
     struct mvmcell* next;
 };
 typedef struct mvmcell mvmcell;
