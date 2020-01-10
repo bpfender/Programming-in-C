@@ -20,7 +20,12 @@ ast_node_t* initASTNode(type_t type) {
     }
 
     tmp->type = type;
-    tmp->data = NULL;
+
+    tmp->data = (syntax_node_t*)malloc(sizeof(syntax_node_t));
+    if (!tmp->data) {
+        ON_ERROR("Memory allocation error\n");
+    }
+
     return tmp;
 }
 
