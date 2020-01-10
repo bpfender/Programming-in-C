@@ -9,22 +9,24 @@ typedef struct ast_node_t ast_node_t;
 
 typedef union syntax_node_t {
     char* con;
-
     mvmcell* var;
 
-    struct ast_node_t* jump;
+    struct {
+        mvmcell* file;
+        struct ast_node_t* next;
+    } FILE_Node;
 
     struct {
         struct ast_node_t* op;
         struct ast_node_t* next;
 
-    } ONE_OPNode;
+    } ONE_OP_Node;
 
     struct {
         struct ast_node_t* op1;
         struct ast_node_t* op2;
         struct ast_node_t* next;
-    } TWO_OPNode;
+    } TWO_OP_Node;
 
     struct {
         struct ast_node_t* op1;
@@ -39,10 +41,10 @@ struct ast_node_t {
     syntax_node_t* data;
 };
 
-typedef struct ast_t {
+struct ast_t {
     ast_node_t* head;
     ast_node_t* curr;
-} ast_t;
+};
 
 ast_t* initAST(void);
 ast_node_t* initASTNode(type_t type);

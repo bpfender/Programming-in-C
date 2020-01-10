@@ -16,7 +16,7 @@ strings this can just be rounded to 10 */
 /* ------ HELPER FUNCTION DECLARATIONS ------ */
 /* These functions do not need to be exposed to the user */
 mvmcell* mvm_findKey(mvmcell* head, char* key);
-mvmcell* mvmcell_init(char* key, char* data);
+mvmcell* mvmcell_init(char* key, void* data);
 mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key, mvm* m);
 void mvmcell_unloadList(mvmcell* node);
 void mvmcell_unloadNode(mvmcell* node);
@@ -41,7 +41,7 @@ int mvm_size(mvm* m) {
 
 /* Insert element at head of linked list stored in mvm ADT. Does nothing when
  * given an invalid input */
-void mvm_insert(mvm* m, char* key, char* data) {
+void mvm_insert(mvm* m, char* key, void* data) {
     if (m && key) {
         mvmcell* node = mvmcell_init(key, data);
 
@@ -91,18 +91,13 @@ mvmcell* mvm_findKey(mvmcell* head, char* key) {
  * next ptr doesn't have to be zeroed because elements are always added to head
  * of mvm list, which is initialised with NULL.
  */
-mvmcell* mvmcell_init(char* key, char* data) {
+mvmcell* mvmcell_init(char* key, void* data) {
     mvmcell* node = (mvmcell*)allocHandler(NULL, 1, sizeof(mvmcell));
 
     node->key = (char*)allocHandler(NULL, strlen(key) + 1, sizeof(char));
     strcpy(node->key, key);
 
-    if (data) {
-        node->data = (char*)allocHandler(NULL, strlen(data) + 1, sizeof(char));
-        strcpy(node->data, data);
-    } else {
-        node->data = NULL;
-    }
+    node->data = data;
 
     return node;
 }

@@ -26,26 +26,26 @@ ast_node_t* initASTNode(type_t type) {
 
 ast_node_t* buildASTFile(mvmcell* file) {
     ast_node_t* tmp = initASTNode(FILE_);
-    tmp->data->ONE_OPNode.op = initASTNode(STRCON);
-    tmp->data->ONE_OPNode.op->data->var = file;
 
+    tmp->data->FILE_Node.file = file;
     return tmp;
 }
 
 ast_node_t* buildASTAbort(void) {
     ast_node_t* tmp = initASTNode(ABORT);
-    tmp->data->jump = NULL;
+
+    tmp->data->ONE_OP_Node.op = NULL;
     return tmp;
 }
 
 ast_node_t* buildASTIN2STR(mvmcell* input1, mvmcell* input2) {
     ast_node_t* tmp = initASTNode(IN2STR);
 
-    tmp->data->TWO_OPNode.op1 = initASTNode(STRVAR);
-    tmp->data->TWO_OPNode.op2 = initASTNode(STRVAR);
+    tmp->data->TWO_OP_Node.op1 = initASTNode(STRVAR);
+    tmp->data->TWO_OP_Node.op2 = initASTNode(STRVAR);
 
-    tmp->data->TWO_OPNode.op1->data->var = input1;
-    tmp->data->TWO_OPNode.op2->data->var = input2;
+    tmp->data->TWO_OP_Node.op1->data->var = input1;
+    tmp->data->TWO_OP_Node.op2->data->var = input2;
 
     return tmp;
 }
@@ -53,36 +53,33 @@ ast_node_t* buildASTIN2STR(mvmcell* input1, mvmcell* input2) {
 ast_node_t* buildASTINNUM(mvmcell* input) {
     ast_node_t* tmp = initASTNode(INNUM);
 
-    tmp->data->ONE_OPNode.op = initASTNode(NUMVAR);
-    tmp->data->ONE_OPNode.op->data->var = input;
+    tmp->data->ONE_OP_Node.op = initASTNode(NUMVAR);
+    tmp->data->ONE_OP_Node.op->data->var = input;
 
     return tmp;
 }
 
 ast_node_t* buildASTJump(ast_node_t* jump) {
     ast_node_t* tmp = initASTNode(JUMP);
-    tmp->data->jump = jump;
 
+    tmp->data->ONE_OP_Node.op = jump;
     return tmp;
 }
 
 ast_node_t* buildASTPrint(type_t print, type_t type, void* input) {
     ast_node_t* tmp = initASTNode(print);
-    tmp->data->ONE_OPNode.op = initASTNode(type);
 
-    if (type == STRVAR || type == NUMVAR) {
-        tmp->data->ONE_OPNode.op->data->var = (mvmcell*)input;
-    } else {
-        tmp->data->ONE_OPNode.op->data->con = (char*)input;
-    }
+    tmp->data->ONE_OP_Node.op = initASTNode(type);
+    insertData(tmp->data->ONE_OP_Node.op, type, input);
 
     return tmp;
 }
 
 ast_node_t* buildASTRnd(mvmcell* numvar) {
     ast_node_t* tmp = initASTNode(RND);
-    tmp->data->ONE_OPNode.op = initASTNode(NUMVAR);
-    tmp->data->ONE_OPNode.op->data->var = numvar;
+
+    tmp->data->ONE_OP_Node.op = initASTNode(NUMVAR);
+    tmp->data->ONE_OP_Node.op->data->var = numvar;
     return tmp;
 }
 
@@ -109,26 +106,22 @@ void insertData(ast_node_t* node, type_t type, void* input) {
 ast_node_t* buildASTInc(mvmcell* numvar) {
     ast_node_t* tmp = initASTNode(INC);
 
-    tmp->data->ONE_OPNode.op = initASTNode(NUMVAR);
-    tmp->data->ONE_OPNode.op->data->var = numvar;
-
+    tmp->data->ONE_OP_Node.op = initASTNode(NUMVAR);
+    tmp->data->ONE_OP_Node.op->data->var = numvar;
     return tmp;
 }
 
 ast_node_t* buildASTSet(type_t type1, type_t type2, mvmcell* var, void* varcon) {
     ast_node_t* tmp = initASTNode(SET);
 
-    tmp->data->TWO_OPNode.op1 = initASTNode(type1);
-    tmp->data->TWO_OPNode.op2 = initASTNode(type2);
+    tmp->data->TWO_OP_Node.op1 = initASTNode(type1);
+    tmp->data->TWO_OP_Node.op2 = initASTNode(type2);
 
-    tmp->data->TWO_OPNode.op1->data->var = var;
-    insertData(tmp->data->TWO_OPNode.op2, type2, varcon);
+    tmp->data->TWO_OP_Node.op1->data->var = var;
+    insertData(tmp->data->TWO_OP_Node.op2, type2, varcon);
 
     return tmp;
 }
 
-
 void addNode(ast_t* ast, ast_node_t* node) {
-
 }
-

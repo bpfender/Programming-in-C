@@ -31,7 +31,7 @@ mvm* mvm_init(void);
 /* Number of key/value pairs stored */
 int mvm_size(mvm* m);
 /* Insert one key/value pair */
-void mvm_insert(mvm* m, char* key, char* data);
+void mvm_insert(mvm* m, char* key, void* data);
 /* Remove one key/value */
 void mvm_delete(mvm* m, char* key);
 /* Return the corresponding value for a key */
