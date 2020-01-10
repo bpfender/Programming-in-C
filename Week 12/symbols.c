@@ -47,8 +47,8 @@ mvmcell* getFilename(symbol_t* symbols, char* filename) {
 }
 
 /* This is not pretty at the moment */
-void addFilename(symbol_t* symbols, char* filename) {
-    mvm_insert(symbols->files, filename, "OPEN");
+void addFilename(symbol_t* symbols, char* filename, ast_t* ast) {
+    mvm_insert(symbols->files, filename, ast);
 }
 
 void freeSymbolTable(symbol_t* symbols) {

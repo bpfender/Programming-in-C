@@ -27,7 +27,7 @@
 void parseFile(char* filename) {
     char* p;
     symbol_t* symbols = initSymbolTable();
-    ast_t* ast = initAST(filename);
+    ast_t* ast = initAST();
 
     prog_t* program = tokenizeFile(filename, symbols);
 
@@ -119,6 +119,8 @@ void instr(prog_t* program, symbol_t* symbols, ast_t* ast) {
 void file(prog_t* program, symbol_t* symbols, ast_t* ast) {
     char filename[500] = "./Files/";
     prog_t* next_program;
+    ast_t* next_ast;
+    ast_node_t* ast_node;
 
     token_t* token = dequeueToken(program);
 
@@ -128,11 +130,16 @@ void file(prog_t* program, symbol_t* symbols, ast_t* ast) {
         strcat(filename, token->attrib);
 
         if (!getFilename(symbols, filename)) {
-            addFilename(symbols, filename);
-            next_program = tokenizeFile(filename, symbols);
+            next_ast = initAST();
+            addFilename(symbols, filename, next_ast);
 
+            ast_node = buildASTFile(getFilename(symbols, filename));
+
+
+            next_program = tokenizeFile(filename, symbols);
             prog(next_program, symbols, ast);
             freeProgQueue(next_program);
+
             printf("Finished %s\n", filename);
         }
 

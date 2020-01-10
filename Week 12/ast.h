@@ -2,6 +2,7 @@
 #define AST_H
 
 #include <string.h>
+#include "symbols.h"
 #include "tokenizer.h"
 
 typedef struct ast_node_t ast_node_t;
@@ -39,21 +40,11 @@ struct ast_node_t {
 };
 
 typedef struct ast_t {
-    char filename[500];
-    syntax_node_t* head;
-    syntax_node_t* curr;
+    ast_node_t* head;
+    ast_node_t* curr;
 } ast_t;
 
-/* FIXME CLUNKY AT THE MOMENT */
-typedef struct ast_progs {
-    ast_t* ast[500];
-    int pos;
-    int num;
-} ast_progs;
-
-void initASTProgs(ast_progs* ast_table);
-
-ast_t* initAST(char* filename);
+ast_t* initAST(void);
 ast_node_t* initASTNode(type_t type);
 ast_node_t* buildASTFile(mvmcell* file);
 ast_node_t* buildASTAbort(void);
@@ -63,8 +54,10 @@ ast_node_t* buildASTJump(ast_node_t* jump);
 ast_node_t* buildASTPrint(type_t print, type_t type, void* input);
 ast_node_t* buildASTRnd(mvmcell* numvar);
 ast_node_t* buildASTCond(type_t cond, type_t type1, type_t type2, void* input1, void* input2);
-void insertData(ast_node_t* node, type_t type, void* input);
 ast_node_t* buildASTInc(mvmcell* numvar);
 ast_node_t* buildASTSet(type_t type1, type_t type2, mvmcell* var, void* varcon);
+
+void insertData(ast_node_t* node, type_t type, void* input);
+void addNode(ast_t* ast, ast_node_t* node);
 
 #endif

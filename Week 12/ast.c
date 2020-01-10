@@ -2,14 +2,14 @@
 #include <stdlib.h>
 
 /* FIXME filename array is a bit clunky */
-ast_t* initAST(char* filename) {
+ast_t* initAST(void) {
     ast_t* tmp = (ast_t*)malloc(sizeof(ast_t));
     if (!tmp) {
         ON_ERROR("Memory allocation error\n");
     }
     tmp->curr = NULL;
     tmp->head = NULL;
-    strcpy(tmp->filename, filename);
+
     return tmp;
 }
 
@@ -26,7 +26,9 @@ ast_node_t* initASTNode(type_t type) {
 
 ast_node_t* buildASTFile(mvmcell* file) {
     ast_node_t* tmp = initASTNode(FILE_);
-    tmp->data->var = file;
+    tmp->data->ONE_OPNode.op = initASTNode(STRCON);
+    tmp->data->ONE_OPNode.op->data->var = file;
+
     return tmp;
 }
 
@@ -124,3 +126,9 @@ ast_node_t* buildASTSet(type_t type1, type_t type2, mvmcell* var, void* varcon) 
 
     return tmp;
 }
+
+
+void addNode(ast_t* ast, ast_node_t* node) {
+
+}
+
