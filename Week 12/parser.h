@@ -31,6 +31,7 @@ void set(prog_t* program, type_t var, symbol_t* symbols, ast_t* ast);
 bool_t parseBrackets(prog_t* program, type_t arg, int n);
 bool_t parseCondBracket(prog_t* program);
 
+token_t* parseCondBracketEdit(token_t* tokens[]);
 token_t* parseBracketsEdit(token_t* tokens[], type_t arg, int len);
 void fillTokenString(prog_t* program, token_t* tokens[], int len);
 

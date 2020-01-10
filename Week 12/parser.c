@@ -168,9 +168,19 @@ void prog_abort(prog_t* program, symbol_t* symbols, ast_t* ast) {
 }
 
 void in2str(prog_t* program, symbol_t* symbols, ast_t* ast) {
-    token_t* token_string[TWO_ARG_LEN];
+    ast_node_t* ast_node;
+    mvmcell *arg1, *arg2;
 
-    if (parseBrackets(program, STRVAR, IN2STR_ARGS)) {
+    token_t* token_string[TWO_ARG_LEN];
+    fillTokenString(program, token_string, TWO_ARG_LEN);
+
+    if (!parseBracketsEdit(token_string, STRVAR, TWO_ARG_LEN)) {
+        arg1 = getVariable(symbols, token_string[1]->attrib);
+        arg2 = getVariable(symbols, token_string[3]->attrib);
+
+        ast_node = buildASTIN2STR(arg1, arg2);
+        addNode(ast, ast_node);
+
         instr(program, symbols, ast);
 
     } else {
@@ -179,9 +189,18 @@ void in2str(prog_t* program, symbol_t* symbols, ast_t* ast) {
 }
 
 void innum(prog_t* program, symbol_t* symbols, ast_t* ast) {
-    if (parseBrackets(program, NUMVAR, INNUM_ARGS)) {
-        instr(program, symbols, ast);
+    ast_node_t* ast_node;
+    mvmcell* arg1;
 
+    token_t* token_string[ONE_ARG_LEN];
+    fillTokenString(program, token_string, ONE_ARG_LEN);
+
+    if (!parseBracketsEdit(token_string, NUMVAR, ONE_ARG_LEN)) {
+        arg1 = getVariable(symbols, token_string[1]->attrib);
+        ast_node = buildASTINNUM(arg1);
+        addNode(ast, ast_node);
+
+        instr(program, symbols, ast);
     } else {
         ERROR(peekToken(program, 0));
     }
@@ -191,7 +210,10 @@ void innum(prog_t* program, symbol_t* symbols, ast_t* ast) {
 /* QUESTION Does this need two sets of instr for {} */
 void ifequal(prog_t* program, symbol_t* symbols, ast_t* ast) {
     token_t* token = peekToken(program, 0);
-    if (parseCondBracket(program)) {
+    token_t* token_string[TWO_ARG_LEN];
+    fillTokenString(program, token_string, TWO_ARG_LEN);
+
+    if (!parseCondBracketEdit(token_string)) {
         token = dequeueToken(program);
 
         /* Could just reuse prog(); */
@@ -213,9 +235,13 @@ void ifequal(prog_t* program, symbol_t* symbols, ast_t* ast) {
 
 void ifgreater(prog_t* program, symbol_t* symbols, ast_t* ast) {
     token_t* token = peekToken(program, 0);
-    if (parseCondBracket(program)) {
+    token_t* token_string[TWO_ARG_LEN];
+    fillTokenString(program, token_string, TWO_ARG_LEN);
+
+    if (!parseCondBracketEdit(token_string)) {
         token = dequeueToken(program);
 
+        /* Could just reuse prog(); */
         if (!strcmp(token->attrib, "{")) {
             instr(program, symbols, ast);
             printf("COND CONT\n");
@@ -228,11 +254,15 @@ void ifgreater(prog_t* program, symbol_t* symbols, ast_t* ast) {
 
     } else {
         ERROR(token);
+        return;
     }
 }
 
 void inc(prog_t* program, symbol_t* symbols, ast_t* ast) {
-    if (parseBrackets(program, NUMVAR, INC_ARGS)) {
+    token_t* token_string[ONE_ARG_LEN];
+    fillTokenString(program, token_string, ONE_ARG_LEN);
+
+    if (!parseBracketsEdit(token_string, NUMVAR, ONE_ARG_LEN)) {
         instr(program, symbols, ast);
 
     } else {
@@ -265,7 +295,10 @@ void print(prog_t* program, type_t type, symbol_t* symbols, ast_t* ast) {
 }
 
 void rnd(prog_t* program, symbol_t* symbols, ast_t* ast) {
-    if (parseBrackets(program, NUMVAR, RND_ARGS)) {
+    token_t* token_string[ONE_ARG_LEN];
+    fillTokenString(program, token_string, ONE_ARG_LEN);
+
+    if (!parseBracketsEdit(token_string, NUMVAR, ONE_ARG_LEN)) {
         instr(program, symbols, ast);
 
     } else {
@@ -364,6 +397,45 @@ bool_t parseCondBracket(prog_t* program) {
     return TRUE;
 }
 
+token_t* parseCondBracketEdit(token_t* tokens[TWO_ARG_LEN]) {
+    if (strcmp(tokens[0]->attrib, "(")) {
+        return tokens[0];
+    }
+
+    if (!(tokens[1]->type == STRVAR || tokens[1]->type == NUMVAR ||
+          tokens[1]->type == STRCON || tokens[1]->type == NUMCON)) {
+        return tokens[1];
+    }
+
+    if (tokens[2]->type != COMMA) {
+        return tokens[2];
+    }
+
+    switch (tokens[1]->type) {
+        case STRVAR:
+        case STRCON:
+            if (!(tokens[3]->type == STRVAR || tokens[3]->type == STRCON)) {
+                return tokens[3];
+            }
+            break;
+        case NUMVAR:
+        case NUMCON:
+            if (!(tokens[3]->type == NUMVAR || tokens[3]->type == NUMCON)) {
+                return tokens[3];
+            }
+            break;
+        default:
+            break;
+    }
+
+    if (strcmp(tokens[4]->attrib, ")")) {
+        return tokens[4];
+    }
+
+    return NULL;
+}
+
+/* FIXME rename this function when ready */
 token_t* parseBracketsEdit(token_t* tokens[], type_t arg, int len) {
     int i;
     if (strcmp(tokens[0]->attrib, "(")) {
