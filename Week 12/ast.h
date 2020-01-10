@@ -4,12 +4,14 @@
 #include "symbols.h"
 #include "tokenizer.h"
 
+typedef struct ast_node_t ast_node_t;
+
 typedef union syntax_node_t {
     char* con;
 
     mvmcell* var;
 
-    ast_node_t* jump;
+    struct ast_node_t* jump;
 
     struct {
         struct ast_node_t* op;
@@ -31,14 +33,27 @@ typedef union syntax_node_t {
     } CONDNode;
 } syntax_node_t;
 
-typedef struct ast_node_t {
+struct ast_node_t {
     type_t type;
     syntax_node_t* data;
-} ast_node_t;
+};
 
 typedef struct ast_t {
     syntax_node_t* head;
     syntax_node_t* curr;
 } ast_t;
+
+ast_node_t* initASTNode(type_t type);
+ast_node_t* buildASTFile(mvmcell* file);
+ast_node_t* buildASTAbort(void);
+ast_node_t* buildASTIN2STR(mvmcell* input1, mvmcell* input2);
+ast_node_t* buildASTINNUM(mvmcell* input);
+ast_node_t* buildASTJump(ast_node_t* jump);
+ast_node_t* buildASTPrint(type_t print, type_t type, void* input);
+ast_node_t* buildASTRnd(mvmcell* numvar);
+ast_node_t* buildASTCond(type_t cond, type_t type1, type_t type2, void* input1, void* input2);
+void insertData(ast_node_t* node, type_t type, void* input);
+ast_node_t* buildASTInc(mvmcell* numvar);
+ast_node_t* buildASTSet(type_t type1, type_t type2, mvmcell* var, void* varcon);
 
 #endif
