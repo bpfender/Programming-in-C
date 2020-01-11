@@ -158,3 +158,4 @@ void addNode(ast_t* ast, ast_node_t* node) {
         ast->curr = ast->head = node;
     }
 }
+

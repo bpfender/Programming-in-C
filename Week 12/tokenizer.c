@@ -203,6 +203,7 @@ void enqueueToken(prog_t* program, symbol_t* symbols, char* attrib, int len, int
 
     buildToken(program->token + i, attrib, len, line, word);
 
+    /* FIXME possibly better not to add var declaractions here */
     if (program->token[i].type == STRVAR || program->token[i].type == NUMVAR) {
         addVariable(symbols, program->token[i].attrib);
     }

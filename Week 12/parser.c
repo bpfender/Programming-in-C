@@ -29,20 +29,24 @@
 
 void parseFile(char* filename) {
     char* p;
-    symbol_t* symbols = initSymbolTable();
     ast_t* ast = initAST();
 
+    symbol_t* symbols = initSymbolTable();
     prog_t* program = tokenizeFile(filename, symbols);
+    addFilename(symbols, filename, program);
 
     prog(program, symbols, ast);
+
     printf("Parsed ok\n");
+
     p = mvm_print(symbols->files);
     printf("%s\n", p);
     free(p);
     p = mvm_print(symbols->vars);
     printf("%s\n", p);
     free(p);
-    freeProgQueue(program);
+
+    /*freeProgQueue(program);*/
     freeSymbolTable(symbols);
 }
 
@@ -82,9 +86,6 @@ void instr(prog_t* program, symbol_t* symbols, ast_t* ast) {
         case INC:
             inc(program, symbols, ast);
             break;
-        case SET:
-            ERROR(token);
-            break;
         case JUMP:
             jump(program, symbols, ast);
             break;
@@ -105,6 +106,7 @@ void instr(prog_t* program, symbol_t* symbols, ast_t* ast) {
             }
             ERROR(token);
             break;
+        case SET:
         case STRCON:
         case NUMCON:
         case BRACKET:
@@ -116,28 +118,20 @@ void instr(prog_t* program, symbol_t* symbols, ast_t* ast) {
     }
 }
 
-/* FIXME super dirty filenmae hack */
+/* FIXME super dirty filenmae hack this can be fixed with symbol table*/
 void file(prog_t* program, symbol_t* symbols, ast_t* ast) {
     char filename[500] = "./Files/";
     prog_t* next_program;
-    ast_t* next_ast;
-    ast_node_t* ast_node;
 
     token_t* token = dequeueToken(program);
 
-    /* FIXME be careful about strocn() filename twice */
     if (token->type == STRCON) {
         getSTRCON(token->attrib);
         strcat(filename, token->attrib);
 
         if (!getFilename(symbols, filename)) {
-            next_ast = initAST();
-            addFilename(symbols, filename, next_ast);
-
-            ast_node = buildASTFile(getFilename(symbols, filename));
-            addNode(ast, ast_node);
-
             next_program = tokenizeFile(filename, symbols);
+            addFilename(symbols, filename, next_program);
             prog(next_program, symbols, ast);
             freeProgQueue(next_program);
 
