@@ -133,7 +133,7 @@ void file(prog_t* program, symbol_t* symbols, ast_t* ast) {
             next_program = tokenizeFile(filename, symbols);
             addFilename(symbols, filename, next_program);
             prog(next_program, symbols, ast);
-            freeProgQueue(next_program);
+/*            freeProgQueue(next_program);*/
 
             printf("Finished %s\n", filename);
         }

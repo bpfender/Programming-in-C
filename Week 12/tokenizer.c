@@ -1,4 +1,5 @@
 #include "tokenizer.h"
+#include "mvmedit.h"
 
 #include <ctype.h>
 #include <stdlib.h>
@@ -18,6 +19,19 @@
 #define ON_ERROR(STR)     \
     fprintf(stderr, STR); \
     exit(EXIT_FAILURE)
+
+mvm* tok_filesinit(void){
+    return mvm_init();
+}
+
+mvmcell* tok_fileexists(mvm* files, char* filename){
+    return mvm_search(files, filename);
+}
+
+void tok_insertfilename(mvm* files, char* filename, prog_t* prog){
+    mvm_insert(files, filename, prog);
+}
+
 
 /* FIXME tokenizer has no lexical analysis on errors yet */
 FILE* openFile(char* filename) {
