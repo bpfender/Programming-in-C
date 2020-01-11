@@ -1,3 +1,6 @@
+#ifndef MVM_H
+#define MVM_H
+
 /* Multi-Value Map ADT : via Linked List
    Both key & data are strings (char*) 
    Multiple Keys may be stored
@@ -40,3 +43,5 @@ mvmcell* mvm_search(mvm* m, char* key);
 void mvm_free(mvm** p);
 
 char* mvm_print(mvm* m);
+
+#endif

@@ -12,6 +12,10 @@ int main(void) {
     int i;
     prog_t* program;
     symbol_t* symbols = initSymbolTable();
+    char filename[500];
+
+    symbol_t* symboltab;
+    mvm* files;
 
     printf("Testing start...\n");
 
@@ -34,7 +38,17 @@ int main(void) {
     freeSymbolTable(symbols);
 
     printf("PARSE TEST\n");
-    parseFile("./Files/escape211.nal");
+
+    strcpy(filename, "./Files/test2.nal");
+    symboltab = initSymbolTable();
+    files = tok_filesinit();
+    program = tokenizeFile(filename, symboltab);
+    tok_insertfilename(files, filename, program);
+
+    parseFile(program, symboltab, files);
+
+    tok_freefilenames(files);
+    freeSymbolTable(symboltab);
 
     printf("Testing end...\n");
 

@@ -1,5 +1,5 @@
 #include "tokenizer.h"
-#include "mvmedit.h"
+
 
 #include <ctype.h>
 #include <stdlib.h>
@@ -30,6 +30,22 @@ mvmcell* tok_fileexists(mvm* files, char* filename){
 
 void tok_insertfilename(mvm* files, char* filename, prog_t* prog){
     mvm_insert(files, filename, prog);
+}
+
+void tok_freefilenames(mvm* files){
+    mvmcell* node = files->head;
+    tok_unloadlist(node);
+    free(files);
+}
+
+void tok_unloadlist(mvmcell* node){
+    if(!node){
+        return;
+    }
+    tok_unloadlist(node->next);
+    free(node->key);
+    freeProgQueue(node->data);
+    free(node);
 }
 
 

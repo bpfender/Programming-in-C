@@ -13,21 +13,23 @@
 void rot18(char* s);
 void getSTRCON(char* word);
 
-void parseFile(char* filename);
 
-void prog(prog_t* program, symbol_t* symbols, ast_t* ast);
-void instr(prog_t* program, symbol_t* symbols, ast_t* ast);
-void file(prog_t* program, symbol_t* symbols, ast_t* ast);
-void prog_abort(prog_t* program, symbol_t* symbols, ast_t* ast);
-void in2str(prog_t* program, symbol_t* symbols, ast_t* ast);
-void innum(prog_t* program, symbol_t* symbols, ast_t* ast);
-void ifequal(prog_t* program, symbol_t* symbols, ast_t* ast);
-void ifgreater(prog_t* program, symbol_t* symbols, ast_t* ast);
-void inc(prog_t* program, symbol_t* symbols, ast_t* ast);
-void jump(prog_t* program, symbol_t* symbols, ast_t* ast);
-void print(prog_t* program, type_t type, symbol_t* symbols, ast_t* ast);
-void rnd(prog_t* program, symbol_t* symbols, ast_t* ast);
-void set(prog_t* program, type_t var, symbol_t* symbols, ast_t* ast);
+/* FIXME no error checking for non-closed brackets */
+void parseFile(prog_t* program, symbol_t* symbols, mvm* files);
+
+void prog(prog_t* program, symbol_t* symbols, mvm* files);
+void instr(prog_t* program, symbol_t* symbols, mvm* files);
+void file(prog_t* program, symbol_t* symbols, mvm* files);
+void prog_abort(prog_t* program, symbol_t* symbols, mvm* files);
+void in2str(prog_t* program, symbol_t* symbols, mvm* files);
+void innum(prog_t* program, symbol_t* symbols, mvm* files);
+void ifequal(prog_t* program, symbol_t* symbols, mvm* files);
+void ifgreater(prog_t* program, symbol_t* symbols, mvm* files);
+void inc(prog_t* program, symbol_t* symbols, mvm* files);
+void jump(prog_t* program, symbol_t* symbols, mvm* files);
+void print(prog_t* program, type_t type, symbol_t* symbols, mvm* files);
+void rnd(prog_t* program, symbol_t* symbols, mvm* files);
+void set(prog_t* program, type_t var, symbol_t* symbols, mvm* files);
 bool_t parseBrackets(prog_t* program, type_t arg, int n);
 bool_t parseCondBracket(prog_t* program);
 

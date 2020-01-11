@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include "symbols.h"
+#include "mvmedit.h"
 
 /* FIXME add bracket open /close options etc. */
 /*FIXME better alternative for INSTR_FILE */
@@ -49,6 +50,12 @@ typedef struct prog_t {
  * work
  */
 typedef unsigned int line_t;
+
+void tok_insertfilename(mvm* files, char* filename, prog_t* prog);
+mvmcell* tok_fileexists(mvm* files, char* filename);
+mvm* tok_filesinit(void);
+void tok_freefilenames(mvm* files);
+void tok_unloadlist(mvmcell* node);
 
 prog_t* initProgQueue(void);
 token_t* dequeueToken(prog_t* program);
