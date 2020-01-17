@@ -159,3 +159,42 @@ void addNode(ast_t* ast, ast_node_t* node) {
     }
 }
 
+void freeAST(ast_t* ast) {
+    AST_unloadHelper(ast->head);
+    free(ast);
+}
+
+void AST_unloadHelper(ast_node_t* ast_node) {
+    if (ast_node) {
+        switch (ast_node->type) {
+            case FILE_:
+            case ABORT:
+            case INNUM:
+            case JUMP:
+            case PRINT:
+            case PRINTN:
+            case RND:
+            case INC:
+                AST_unloadHelper(ast_node->data->ONE_OP_Node.next);
+                free(ast_node->data->ONE_OP_Node.op);
+                free(ast_node);
+                break;
+            case SET:
+            case IN2STR:
+                AST_unloadHelper(ast_node->data->TWO_OP_Node.next);
+                free(ast_node->data->TWO_OP_Node.op1);
+                free(ast_node->data->TWO_OP_Node.op2);
+                free(ast_node);
+                break;
+            case IFEQUAL:
+            case IFGREATER:
+                AST_unloadHelper(ast_node->data->CONDNode.next);
+                free(ast_node->data->CONDNode.op1);
+                free(ast_node->data->CONDNode.op2);
+                free(ast_node);
+                break;
+            default:
+                exit(EXIT_FAILURE);
+        }
+    }
+}

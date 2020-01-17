@@ -62,4 +62,7 @@ ast_node_t* buildASTSet(type_t type1, type_t type2, mvmcell* var, void* varcon);
 void insertData(ast_node_t* node, type_t type, void* input);
 void addNode(ast_t* ast, ast_node_t* node);
 
+void freeAST(ast_t* ast);
+void AST_unloadHelper(ast_node_t* ast_node);
+
 #endif
