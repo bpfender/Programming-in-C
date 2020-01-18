@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "interpreter.h"
 #include "symbols.h"
 
 #define INTERP 1
@@ -34,6 +35,7 @@ void parseFile(prog_t* program, symbol_t* symbols, mvm* files) {
     prog(program, symbols, files);
 
     printf("Parsed ok\n");
+
     p = mvm_print(symbols->files);
     printf("%s\n", p);
     free(p);
