@@ -62,7 +62,8 @@ token_t* dequeueToken(prog_t* program) {
     token_t* token;
 
     if (program->pos >= program->len) {
-        return NULL;
+        fprintf(stderr, "No tokens left\n");
+        exit(EXIT_FAILURE);
     }
 
     token = program->token + program->pos;
@@ -73,6 +74,11 @@ token_t* dequeueToken(prog_t* program) {
 }
 
 token_t* peekToken(prog_t* program, int dist) {
+    if (program->pos >= program->len) {
+        fprintf(stderr, "No tokens left\n");
+        exit(EXIT_FAILURE);
+    }
+
     if (program->pos + dist >= program->len) {
         return NULL;
     }
@@ -226,6 +232,7 @@ prog_t* initProgQueue(void) {
 
 void enqueueToken(prog_t* program, symbol_t* symbols, char* attrib, int len, int line, int word) {
     int i = program->len;
+
     if (i >= program->size) {
         expandProgQueue(program);
     }
@@ -235,10 +242,7 @@ void enqueueToken(prog_t* program, symbol_t* symbols, char* attrib, int len, int
     /* FIXME possibly better not to add var declaractions here */
     if (program->token[i].type == STRVAR || program->token[i].type == NUMVAR) {
         /* Empty symbol table entry as record */
-        addVariable(symbols, program->token[i].attrib);
-    }
-
-    if (program->token[i].type == STRCON || program->token[i].type == NUMCON) {
+        /*   addVariable(symbols, program->token[i].attrib);*/
     }
 
     program->len++;
