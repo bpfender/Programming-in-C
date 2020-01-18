@@ -17,6 +17,22 @@ void inter_abort(void) {
     exit(EXIT_SUCCESS);
 }
 
+double* allocNumber(void) {
+    double* tmp = (double*)malloc(sizeof(double));
+    if (!tmp) {
+        ON_ERROR("Memory allocation error\n");
+    }
+    return tmp;
+}
+
+char* allocString(size_t len) {
+    char* tmp = (char*)malloc(sizeof(char) * (len + 1));
+    if (!tmp) {
+        ON_ERROR("Memory allocation error\n");
+    }
+    return tmp;
+}
+
 /* FIXME not doing any handling on buffer lengths currently */
 void inter_in2str(mvmcell* arg1, mvmcell* arg2) {
     char line[256];
@@ -26,11 +42,8 @@ void inter_in2str(mvmcell* arg1, mvmcell* arg2) {
 
     if (fgets(line, sizeof(line), stdin)) {
         if (sscanf(line, "%s %s", word1, word2) == 2) {
-            w1 = (char*)malloc(sizeof(char) * (strlen(word1) + 1));
-            w2 = (char*)malloc(sizeof(char) * (strlen(word2) + 1));
-            if (!(w1 && w2)) {
-                ON_ERROR("Memory allocation error\n");
-            }
+            w1 = allocString(strlen(word1));
+            w2 = allocString(strlen(word2));
 
             printf("%s %s\n", word1, word2);
 
@@ -50,10 +63,7 @@ void inter_in2str(mvmcell* arg1, mvmcell* arg2) {
 void inter_innum(mvmcell* arg) {
     char line[256];
 
-    double* num = (double*)malloc(sizeof(double));
-    if (!num) {
-        ON_ERROR("Memory allocation error\n");
-    }
+    double* num = allocNumber();
 
     if (fgets(line, sizeof(line), stdin)) {
         if (sscanf(line, "%lf", num) == 1) {
@@ -68,17 +78,26 @@ void inter_innum(mvmcell* arg) {
 
 void inter_jump(void) {}
 
-void inter_print(type_t type, mvmcell* arg) {
+void inter_print(type_t type, type_t arg_type, mvmcell* arg) {
     /*FIXME should this be functionised */
-    printf("%s", arg->data);
+    if (arg_type == NUMVAR) {
+        printf("%lf", arg->data);
+
+    } else {
+        printf("%s", arg->data);
+    }
 
     if (type == PRINTN) {
         printf("\n");
     }
 }
 
+/* FIXME ints vs doubles? */
 void inter_rnd(mvmcell* arg) {
-    int rnd = rand();
+    double* rnd = allocNumber();
+    *rnd = (double)99 / (rand() % RND_RANGE);
+
+    arg->data = rnd;
 }
 
 bool_t inter_ifequal(mvmcell* arg1, mvmcell* arg2) {
@@ -104,6 +123,20 @@ bool_t inter_ifgreater(mvmcell* arg1, mvmcell* arg2) {
 }
 
 void inter_inc(mvmcell* arg) {
+    *((double*)arg->data) += 1;
 }
 
-void inter_set(mvmcell* arg1, void* arg2) {}
+void inter_set(mvmcell* arg1, void* arg2, type_t type1, type_t type2) {
+    if (type1 == NUMVAR) {
+        if (type2 == NUMVAR) {
+            *((double*)arg1->data) = *((double*)(((mvmcell*)arg2)->data));
+        } else {
+            *((double*)arg1->data) = *(double*)arg2;
+        }
+    } else {
+        if (type2 == STRVAR) {
+            
+        } else {
+        }
+    }
+}
