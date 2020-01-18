@@ -59,6 +59,7 @@ void prog(prog_t* program, symbol_t* symbols, mvm* files) {
     }
 }
 
+/* FIXME GET RID OF MAGIC NUMBERS */
 void instr(prog_t* program, symbol_t* symbols, mvm* files) {
     token_t* token = peekToken(program, 0);
 
@@ -112,6 +113,7 @@ void instr(prog_t* program, symbol_t* symbols, mvm* files) {
             break;
         case SECTION:
             if (!strcmp(token->attrib, "}")) {
+                dequeueToken(program);
                 break;
             }
             ERROR(token);
@@ -158,7 +160,7 @@ void file(prog_t* program, symbol_t* symbols, mvm* files) {
 
 /* Is this the right condition for prog_abort? */
 void prog_abort(prog_t* program, symbol_t* symbols, mvm* files) {
-    token_t* token = program->instr[0];
+    token_t* token = dequeueToken(program);
 
     if (token->type == SECTION && !strcmp(token->attrib, "}")) {
         return;
@@ -188,19 +190,10 @@ void innum(prog_t* program, symbol_t* symbols, mvm* files) {
 /* QUESTION Does this need two sets of instr for {} */
 void ifequal(prog_t* program, symbol_t* symbols, mvm* files) {
     token_t* token = program->instr[0];
-    if (!parseCondBracketEdit(program->instr + 1)) {
-        token = dequeueToken(program);
-        /* Could just reuse prog(); */
-        if (!strcmp(token->attrib, "{")) {
-            instr(program, symbols, files);
-            printf("COND CONT\n");
-            instr(program, symbols, files);
-            return;
-        } else {
-            ERROR(token);
-            return;
-        }
 
+    if (!parseCondBracketEdit(program->instr + 1)) {
+        prog(program, symbols, files);
+        instr(program, symbols, files);
     } else {
         ERROR(token);
         return;
@@ -211,18 +204,8 @@ void ifgreater(prog_t* program, symbol_t* symbols, mvm* files) {
     token_t* token = program->instr[0];
 
     if (!parseCondBracketEdit(program->instr + 1)) {
-        token = dequeueToken(program);
-        /* Could just reuse prog(); */
-        if (!strcmp(token->attrib, "{")) {
-            instr(program, symbols, files);
-            printf("COND CONT\n");
-            instr(program, symbols, files);
-            return;
-        } else {
-            ERROR(token);
-            return;
-        }
-
+        prog(program, symbols, files);
+        instr(program, symbols, files);
     } else {
         ERROR(token);
         return;
