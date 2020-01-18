@@ -1,6 +1,5 @@
 #include "tokenizer.h"
 
-
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,26 +19,26 @@
     fprintf(stderr, STR); \
     exit(EXIT_FAILURE)
 
-mvm* tok_filesinit(void){
+mvm* tok_filesinit(void) {
     return mvm_init();
 }
 
-mvmcell* tok_fileexists(mvm* files, char* filename){
+mvmcell* tok_fileexists(mvm* files, char* filename) {
     return mvm_search(files, filename);
 }
 
-void tok_insertfilename(mvm* files, char* filename, prog_t* prog){
+void tok_insertfilename(mvm* files, char* filename, prog_t* prog) {
     mvm_insert(files, filename, prog);
 }
 
-void tok_freefilenames(mvm* files){
+void tok_freefilenames(mvm* files) {
     mvmcell* node = files->head;
     tok_unloadlist(node);
     free(files);
 }
 
-void tok_unloadlist(mvmcell* node){
-    if(!node){
+void tok_unloadlist(mvmcell* node) {
+    if (!node) {
         return;
     }
     tok_unloadlist(node->next);
@@ -47,7 +46,6 @@ void tok_unloadlist(mvmcell* node){
     freeProgQueue(node->data);
     free(node);
 }
-
 
 /* FIXME tokenizer has no lexical analysis on errors yet */
 FILE* openFile(char* filename) {
@@ -95,15 +93,16 @@ prog_t* tokenizeFile(char* filename, symbol_t* symbols) {
     while ((line_len = getLine(&buffer, &size, file))) {
         truncateLineEnd(buffer, &line_len);
         pos = buffer;
-        line++;
+
         word = 0;
 
         /* Parse through words in the line */
         while ((word_len = parseBufferWords(&pos))) {
-            word++;
             enqueueToken(program, symbols, pos, word_len, line, word);
             pos += word_len;
+            word++;
         }
+        line++;
     }
 
     free(buffer);
@@ -235,7 +234,11 @@ void enqueueToken(prog_t* program, symbol_t* symbols, char* attrib, int len, int
 
     /* FIXME possibly better not to add var declaractions here */
     if (program->token[i].type == STRVAR || program->token[i].type == NUMVAR) {
+        /* Empty symbol table entry as record */
         addVariable(symbols, program->token[i].attrib);
+    }
+
+    if (program->token[i].type == STRCON || program->token[i].type == NUMCON) {
     }
 
     program->len++;

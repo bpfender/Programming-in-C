@@ -20,6 +20,7 @@ mvmcell* getVariable(symbol_t* symbols, char* var) {
     return mvm_search(symbols->vars, var);
 }
 
+/* FIXME this needs to be modified */
 mvmcell* updateVariable(symbol_t* symbols, char* var, char* val) {
     mvmcell* cell = mvm_search(symbols->vars, var);
     if (cell) {
@@ -56,4 +57,3 @@ void freeSymbolTable(symbol_t* symbols) {
     mvm_free(&symbols->vars);
     free(symbols);
 }
-

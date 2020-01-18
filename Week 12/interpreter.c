@@ -78,13 +78,20 @@ void inter_innum(mvmcell* arg) {
 
 void inter_jump(void) {}
 
-void inter_print(type_t type, type_t arg_type, mvmcell* arg) {
+void inter_print(type_t type, type_t arg_type, void* arg) {
     /*FIXME should this be functionised */
-    if (arg_type == NUMVAR) {
-        printf("%lf", arg->data);
 
-    } else {
-        printf("%s", arg->data);
+    switch (arg_type) {
+        case NUMVAR:
+            printf("%lf", ((mvmcell*)arg)->data);
+            break;
+        case STRVAR:
+            printf("%s", ((mvmcell*)arg)->data);
+            break;
+        case NUMCON:
+        case STRCON:
+            printf("%s", arg);
+            break;
     }
 
     if (type == PRINTN) {
@@ -135,7 +142,6 @@ void inter_set(mvmcell* arg1, void* arg2, type_t type1, type_t type2) {
         }
     } else {
         if (type2 == STRVAR) {
-            
         } else {
         }
     }

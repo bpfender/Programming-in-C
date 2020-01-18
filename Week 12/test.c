@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include "interpreter.h"
 #include "parser.h"
 #include "tokenizer.h"
 
@@ -13,6 +14,7 @@ int main(void) {
     prog_t* program;
     symbol_t* symbols = initSymbolTable();
     char filename[500];
+    ast_t* ast;
 
     symbol_t* symboltab;
     mvm* files;
@@ -39,16 +41,18 @@ int main(void) {
 
     printf("PARSE TEST\n");
 
-    strcpy(filename, "./Files/test2.nal");
+    strcpy(filename, "./Files/test1.nal");
     symboltab = initSymbolTable();
     files = tok_filesinit();
     program = tokenizeFile(filename, symboltab);
     tok_insertfilename(files, filename, program);
+    ast = initAST();
 
     parseFile(program, symboltab, files);
 
     tok_freefilenames(files);
     freeSymbolTable(symboltab);
+    freeAST(ast);
 
     printf("Testing end...\n");
 

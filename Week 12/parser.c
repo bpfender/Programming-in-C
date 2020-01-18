@@ -123,11 +123,13 @@ void file(prog_t* program, symbol_t* symbols, mvm* files) {
         getSTRCON(token->attrib);
         strcat(filename, token->attrib);
 
-        if (!tok_fileexists(files, filename)) {
+        if (!getFilename(symbols, filename) || !INTERP) {
             next_program = tokenizeFile(filename, symbols);
-            tok_insertfilename(files, filename, next_program);
+            addFilename(symbols, filename, NULL);
+
             prog(next_program, symbols, files);
 
+            freeProgQueue(next_program);
             printf("Finished %s\n", filename);
         }
 
@@ -141,6 +143,10 @@ void file(prog_t* program, symbol_t* symbols, mvm* files) {
 /* Is this the right condition for prog_abort? */
 void prog_abort(prog_t* program, symbol_t* symbols, mvm* files) {
     token_t* token = dequeueToken(program);
+    if (INTERP) {
+        printf("Program ended\n");
+        exit(EXIT_SUCCESS);
+    }
 
     if (token->type == SECTION && !strcmp(token->attrib, "}")) {
         return;
@@ -154,6 +160,9 @@ void in2str(prog_t* program, symbol_t* symbols, mvm* files) {
     fillTokenString(program, token_string, TWO_ARG_LEN);
 
     if (!parseBracketsEdit(token_string, STRVAR, TWO_ARG_LEN)) {
+        if (INTERP) {
+            inter_in2str(getVariable(symbols, token_string[1]->attrib), getVariable(symbols, token_string[3]->attrib));
+        }
         instr(program, symbols, files);
 
     } else {
@@ -166,6 +175,9 @@ void innum(prog_t* program, symbol_t* symbols, mvm* files) {
     fillTokenString(program, token_string, ONE_ARG_LEN);
 
     if (!parseBracketsEdit(token_string, NUMVAR, ONE_ARG_LEN)) {
+        if (INTERP) {
+            inter_innum(getVariable(symbols, token_string[1]->attrib));
+        }
         instr(program, symbols, files);
     } else {
         ERROR(peekToken(program, 0));
@@ -251,6 +263,10 @@ void print(prog_t* program, type_t type, symbol_t* symbols, mvm* files) {
 
     if (token->type == STRVAR || token->type == NUMVAR ||
         token->type == STRCON || token->type == NUMCON) {
+        if (INTERP) {
+            inter_print(type, token->type, token->attrib);
+        }
+
         instr(program, symbols, files);
     } else {
         ERROR(token);
@@ -262,6 +278,9 @@ void rnd(prog_t* program, symbol_t* symbols, mvm* files) {
     fillTokenString(program, token_string, ONE_ARG_LEN);
 
     if (!parseBracketsEdit(token_string, NUMVAR, ONE_ARG_LEN)) {
+        if(INTERP){
+            inter_rnd(getVariable(symbols, token_string[1]->attrib));
+        }
         instr(program, symbols, files);
 
     } else {
