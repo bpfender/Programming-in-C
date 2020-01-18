@@ -128,7 +128,7 @@ ast_node_t* buildASTSet(type_t type1, type_t type2, mvmcell* var, void* varcon) 
     return tmp;
 }
 
-void addNode(ast_t* ast, ast_node_t* node) {
+void addNode(ast_t* ast, ast_node_t* node, line_t line) {
     if (ast->curr) {
         switch (ast->curr->type) {
             case FILE_:
@@ -157,6 +157,7 @@ void addNode(ast_t* ast, ast_node_t* node) {
     } else {
         ast->curr = ast->head = node;
     }
+    node->line = line;
 }
 
 void freeAST(ast_t* ast) {

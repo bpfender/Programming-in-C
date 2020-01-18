@@ -39,6 +39,7 @@ typedef union syntax_node_t {
 struct ast_node_t {
     type_t type;
     syntax_node_t* data;
+    line_t line;
 };
 
 struct ast_t {
@@ -60,7 +61,7 @@ ast_node_t* buildASTInc(mvmcell* numvar);
 ast_node_t* buildASTSet(type_t type1, type_t type2, mvmcell* var, void* varcon);
 
 void insertData(ast_node_t* node, type_t type, void* input);
-void addNode(ast_t* ast, ast_node_t* node);
+void addNode(ast_t* ast, ast_node_t* node, line_t line);
 
 void freeAST(ast_t* ast);
 void AST_unloadHelper(ast_node_t* ast_node);
