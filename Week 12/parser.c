@@ -5,6 +5,7 @@
 #include <string.h>
 #include "interpreter.h"
 #include "symbols.h"
+#include "syntax.h"
 
 #define INTERP 1
 
@@ -55,44 +56,55 @@ void prog(prog_t* program, symbol_t* symbols, mvm* files) {
 }
 
 void instr(prog_t* program, symbol_t* symbols, mvm* files) {
-    token_t* token = dequeueToken(program);
+    token_t* token = peekToken(program, 0);
 
     switch (token->type) {
         case FILE_:
+            fillTokenString(program, program->instr, 2);
             file(program, symbols, files);
             break;
         case ABORT:
+            fillTokenString(program, program->instr, 1);
             prog_abort(program, symbols, files);
             return;
             break;
         case IN2STR:
+            fillTokenString(program, program->instr, 6);
             in2str(program, symbols, files);
             break;
         case INNUM:
+            fillTokenString(program, program->instr, 4);
             innum(program, symbols, files);
             break;
         case IFEQUAL:
+            fillTokenString(program, program->instr, 6);
             ifequal(program, symbols, files);
             break;
         case IFGREATER:
+            fillTokenString(program, program->instr, 6);
             ifgreater(program, symbols, files);
             break;
         case INC:
+            fillTokenString(program, program->instr, 4);
             inc(program, symbols, files);
             break;
         case JUMP:
+            fillTokenString(program, program->instr, 2);
             jump(program, symbols, files);
             break;
         case PRINT:
         case PRINTN:
-            print(program, token->type, symbols, files);
+            fillTokenString(program, program->instr, 2);
+            print(program, symbols, files);
             break;
         case RND:
+            fillTokenString(program, program->instr, 4);
             rnd(program, symbols, files);
             break;
         case STRVAR:
         case NUMVAR:
-            set(program, token->type, symbols, files);
+            fillTokenString(program, program->instr, 3);
+            set(program, symbols, files);
             break;
         case SECTION:
             if (!strcmp(token->attrib, "}")) {
@@ -117,7 +129,7 @@ void file(prog_t* program, symbol_t* symbols, mvm* files) {
     char filename[500] = "./Files/";
     prog_t* next_program;
 
-    token_t* token = dequeueToken(program);
+    token_t* token = program->instr[1];
 
     if (token->type == STRCON) {
         getSTRCON(token->attrib);
@@ -142,11 +154,7 @@ void file(prog_t* program, symbol_t* symbols, mvm* files) {
 
 /* Is this the right condition for prog_abort? */
 void prog_abort(prog_t* program, symbol_t* symbols, mvm* files) {
-    token_t* token = dequeueToken(program);
-    if (INTERP) {
-        printf("Program ended\n");
-        exit(EXIT_SUCCESS);
-    }
+    token_t* token = program->instr[0];
 
     if (token->type == SECTION && !strcmp(token->attrib, "}")) {
         return;
@@ -156,13 +164,7 @@ void prog_abort(prog_t* program, symbol_t* symbols, mvm* files) {
 }
 
 void in2str(prog_t* program, symbol_t* symbols, mvm* files) {
-    token_t* token_string[TWO_ARG_LEN];
-    fillTokenString(program, token_string, TWO_ARG_LEN);
-
-    if (!parseBracketsEdit(token_string, STRVAR, TWO_ARG_LEN)) {
-        if (INTERP) {
-            inter_in2str(getVariable(symbols, token_string[1]->attrib), getVariable(symbols, token_string[3]->attrib));
-        }
+    if (!parseBracketsEdit(program->instr + 1, STRVAR, TWO_ARG_LEN)) {
         instr(program, symbols, files);
 
     } else {
@@ -171,13 +173,7 @@ void in2str(prog_t* program, symbol_t* symbols, mvm* files) {
 }
 
 void innum(prog_t* program, symbol_t* symbols, mvm* files) {
-    token_t* token_string[ONE_ARG_LEN];
-    fillTokenString(program, token_string, ONE_ARG_LEN);
-
-    if (!parseBracketsEdit(token_string, NUMVAR, ONE_ARG_LEN)) {
-        if (INTERP) {
-            inter_innum(getVariable(symbols, token_string[1]->attrib));
-        }
+    if (!parseBracketsEdit(program->instr + 1, NUMVAR, ONE_ARG_LEN)) {
         instr(program, symbols, files);
     } else {
         ERROR(peekToken(program, 0));
@@ -187,13 +183,9 @@ void innum(prog_t* program, symbol_t* symbols, mvm* files) {
 /* FIXME ifequal and ifgreater are identical */
 /* QUESTION Does this need two sets of instr for {} */
 void ifequal(prog_t* program, symbol_t* symbols, mvm* files) {
-    token_t* token = peekToken(program, 0);
-    token_t* token_string[TWO_ARG_LEN];
-    fillTokenString(program, token_string, TWO_ARG_LEN);
-
-    if (!parseCondBracketEdit(token_string)) {
+    token_t* token = program->instr[0];
+    if (!parseCondBracketEdit(program->instr + 1)) {
         token = dequeueToken(program);
-
         /* Could just reuse prog(); */
         if (!strcmp(token->attrib, "{")) {
             instr(program, symbols, files);
@@ -212,13 +204,10 @@ void ifequal(prog_t* program, symbol_t* symbols, mvm* files) {
 }
 
 void ifgreater(prog_t* program, symbol_t* symbols, mvm* files) {
-    token_t* token = peekToken(program, 0);
-    token_t* token_string[TWO_ARG_LEN];
-    fillTokenString(program, token_string, TWO_ARG_LEN);
+    token_t* token = program->instr[0];
 
-    if (!parseCondBracketEdit(token_string)) {
+    if (!parseCondBracketEdit(program->instr + 1)) {
         token = dequeueToken(program);
-
         /* Could just reuse prog(); */
         if (!strcmp(token->attrib, "{")) {
             instr(program, symbols, files);
@@ -237,10 +226,7 @@ void ifgreater(prog_t* program, symbol_t* symbols, mvm* files) {
 }
 
 void inc(prog_t* program, symbol_t* symbols, mvm* files) {
-    token_t* token_string[ONE_ARG_LEN];
-    fillTokenString(program, token_string, ONE_ARG_LEN);
-
-    if (!parseBracketsEdit(token_string, NUMVAR, ONE_ARG_LEN)) {
+    if (!parseBracketsEdit(program->instr + 1, NUMVAR, ONE_ARG_LEN)) {
         instr(program, symbols, files);
 
     } else {
@@ -249,7 +235,7 @@ void inc(prog_t* program, symbol_t* symbols, mvm* files) {
 }
 
 void jump(prog_t* program, symbol_t* symbols, mvm* files) {
-    token_t* token = dequeueToken(program);
+    token_t* token = program->instr[1];
 
     if (token->type == NUMCON) {
         instr(program, symbols, files);
@@ -258,15 +244,11 @@ void jump(prog_t* program, symbol_t* symbols, mvm* files) {
     }
 }
 
-void print(prog_t* program, type_t type, symbol_t* symbols, mvm* files) {
-    token_t* token = dequeueToken(program);
+void print(prog_t* program, symbol_t* symbols, mvm* files) {
+    token_t* token = program->instr[1];
 
     if (token->type == STRVAR || token->type == NUMVAR ||
         token->type == STRCON || token->type == NUMCON) {
-        if (INTERP) {
-            inter_print(type, token->type, token->attrib);
-        }
-
         instr(program, symbols, files);
     } else {
         ERROR(token);
@@ -274,13 +256,7 @@ void print(prog_t* program, type_t type, symbol_t* symbols, mvm* files) {
 }
 
 void rnd(prog_t* program, symbol_t* symbols, mvm* files) {
-    token_t* token_string[ONE_ARG_LEN];
-    fillTokenString(program, token_string, ONE_ARG_LEN);
-
-    if (!parseBracketsEdit(token_string, NUMVAR, ONE_ARG_LEN)) {
-        if(INTERP){
-            inter_rnd(getVariable(symbols, token_string[1]->attrib));
-        }
+    if (!parseBracketsEdit(program->instr + 1, NUMVAR, ONE_ARG_LEN)) {
         instr(program, symbols, files);
 
     } else {
@@ -288,32 +264,28 @@ void rnd(prog_t* program, symbol_t* symbols, mvm* files) {
     }
 }
 
-void set(prog_t* program, type_t var, symbol_t* symbols, mvm* files) {
-    token_t* token = dequeueToken(program);
-
-    switch (var) {
+void set(prog_t* program, symbol_t* symbols, mvm* files) {
+    switch (program->instr[0]->type) {
         case STRVAR:
-            if (token->type == SET) {
-                token = dequeueToken(program);
-                if (token->type == STRCON || token->type == STRVAR) {
+            if (program->instr[1]->type == SET) {
+                if (program->instr[2]->type == STRCON || program->instr[2]->type == STRVAR) {
                     instr(program, symbols, files);
                     return;
                 }
             }
-            ERROR(token);
+            ERROR(program->instr[1]);
             break;
         case NUMVAR:
-            if (token->type == SET) {
-                token = dequeueToken(program);
-                if (token->type == NUMVAR || token->type == NUMCON) {
+            if (program->instr[1]->type == SET) {
+                if (program->instr[2]->type == NUMVAR || program->instr[2]->type == NUMCON) {
                     instr(program, symbols, files);
                     return;
                 }
             }
-            ERROR(token);
+            ERROR(program->instr[1]);
             break;
         default:
-            ERROR(token);
+            ERROR(program->instr[0]);
             break;
     }
 }

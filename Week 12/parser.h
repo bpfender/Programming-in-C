@@ -26,9 +26,9 @@ void ifequal(prog_t* program, symbol_t* symbols, mvm* files);
 void ifgreater(prog_t* program, symbol_t* symbols, mvm* files);
 void inc(prog_t* program, symbol_t* symbols, mvm* files);
 void jump(prog_t* program, symbol_t* symbols, mvm* files);
-void print(prog_t* program, type_t type, symbol_t* symbols, mvm* files);
+void print(prog_t* program, symbol_t* symbols, mvm* files);
 void rnd(prog_t* program, symbol_t* symbols, mvm* files);
-void set(prog_t* program, type_t var, symbol_t* symbols, mvm* files);
+void set(prog_t* program, symbol_t* symbols, mvm* files);
 bool_t parseBrackets(prog_t* program, type_t arg, int n);
 bool_t parseCondBracket(prog_t* program);
 
