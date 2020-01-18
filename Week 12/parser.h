@@ -13,7 +13,6 @@
 void rot18(char* s);
 void getSTRCON(char* word);
 
-
 /* FIXME no error checking for non-closed brackets */
 void parseFile(prog_t* program, symbol_t* symbols, mvm* files);
 

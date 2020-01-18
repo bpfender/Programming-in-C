@@ -5,6 +5,8 @@
 #include <string.h>
 #include "symbols.h"
 
+#define INTERP 1
+
 /* FIXME need a gettoken function for bounds checking */
 /* FIXME functionise bracket handling */
 
@@ -32,14 +34,12 @@ void parseFile(prog_t* program, symbol_t* symbols, mvm* files) {
     prog(program, symbols, files);
 
     printf("Parsed ok\n");
-
     p = mvm_print(symbols->files);
     printf("%s\n", p);
     free(p);
     p = mvm_print(symbols->vars);
     printf("%s\n", p);
     free(p);
-
 }
 
 void prog(prog_t* program, symbol_t* symbols, mvm* files) {
