@@ -1,28 +1,69 @@
 #include "interpreter.h"
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #define RND_RANGE 100
 
-void inter_rndSeed(void){
+void inter_rndSeed(void) {
     srand(time(NULL));
 }
 
-void inter_file(void) {}
+void inter_file(void) {
+}
 
 void inter_abort(void) {
     printf("Program ended\n");
     exit(EXIT_SUCCESS);
 }
 
-/* FIXME not sure how best to get input from string */
+/* FIXME not doing any handling on buffer lengths currently */
 void inter_in2str(mvmcell* arg1, mvmcell* arg2) {
-    char* buffer = NULL;
-    line_t size;
-    getLine(&buffer, &size, stdin);
+    char line[256];
+    char word1[256];
+    char word2[256];
+    char *w1, *w2;
+
+    if (fgets(line, sizeof(line), stdin)) {
+        if (sscanf(line, "%s %s", word1, word2) == 2) {
+            w1 = (char*)malloc(sizeof(char) * (strlen(word1) + 1));
+            w2 = (char*)malloc(sizeof(char) * (strlen(word2) + 1));
+            if (!(w1 && w2)) {
+                ON_ERROR("Memory allocation error\n");
+            }
+
+            printf("%s %s\n", word1, word2);
+
+            strcpy(w1, word1);
+            strcpy(w2, word2);
+
+            printf("%s %s\n", w1, w2);
+        } else {
+            ON_ERROR("Input error\n");
+        }
+    }
+
+    arg1->data = w1;
+    arg2->data = w2;
 }
 
-void inter_innum(void) {
+void inter_innum(mvmcell* arg) {
+    char line[256];
+
+    double* num = (double*)malloc(sizeof(double));
+    if (!num) {
+        ON_ERROR("Memory allocation error\n");
+    }
+
+    if (fgets(line, sizeof(line), stdin)) {
+        if (sscanf(line, "%lf", num) == 1) {
+            printf("%lf\n", *num);
+        } else {
+            ON_ERROR("Input error\n");
+        }
+    }
+
+    arg->data = num;
 }
 
 void inter_jump(void) {}
