@@ -35,7 +35,11 @@ void parseFile(prog_t* program, symbol_t* symbols, mvm* files) {
     char* p;
     prog(program, symbols, files);
 
-    printf("Parsed ok\n");
+    if (program->pos == program->len) {
+        printf("Parsed ok\n");
+    } else {
+        ON_ERROR("Tokens left\n");
+    }
 
     p = mvm_print(symbols->files);
     printf("%s\n", p);
@@ -290,67 +294,6 @@ void set(prog_t* program, symbol_t* symbols, mvm* files) {
     }
 }
 
-bool_t parseSingleBracket(prog_t* program, type_t arg) {
-    token_t* token = dequeueToken(program);
-    if (strcmp(token->attrib, "(")) {
-        return FALSE;
-    }
-    token = dequeueToken(program);
-    if (token->type != arg) {
-        return FALSE;
-    }
-    token = dequeueToken(program);
-    if (strcmp(token->attrib, ")")) {
-        return FALSE;
-    }
-    return TRUE;
-}
-
-bool_t parseCondBracket(prog_t* program) {
-    token_t* token = dequeueToken(program);
-    type_t type;
-
-    if (strcmp(token->attrib, "(")) {
-        return FALSE;
-    }
-    token = dequeueToken(program);
-    if (!(token->type == STRVAR || token->type == NUMVAR ||
-          token->type == STRCON || token->type == NUMCON)) {
-        return FALSE;
-    }
-    type = token->type;
-
-    token = dequeueToken(program);
-    if (token->type != COMMA) {
-        return FALSE;
-    }
-
-    token = dequeueToken(program);
-    switch (type) {
-        case STRVAR:
-        case STRCON:
-            if (!(token->type == STRVAR || token->type == STRCON)) {
-                return FALSE;
-            }
-            break;
-        case NUMVAR:
-        case NUMCON:
-            if (!(token->type == NUMVAR || token->type == NUMCON)) {
-                return FALSE;
-            }
-            break;
-        default:
-            break;
-    }
-
-    token = dequeueToken(program);
-    if (strcmp(token->attrib, ")")) {
-        return FALSE;
-    }
-
-    return TRUE;
-}
-
 token_t* parseCondBracketEdit(token_t* tokens[TWO_ARG_LEN]) {
     if (strcmp(tokens[0]->attrib, "(")) {
         return tokens[0];
@@ -419,35 +362,6 @@ void fillTokenString(prog_t* program, token_t* tokens[], int len) {
     for (i = 0; i < len; i++) {
         tokens[i] = dequeueToken(program);
     }
-}
-
-/* FIXME this is horribly written at the moment */
-bool_t parseBrackets(prog_t* program, type_t arg, int n) {
-    int i;
-    token_t* token = dequeueToken(program);
-    if (strcmp(token->attrib, "(")) {
-        return FALSE;
-    }
-
-    for (i = 0; i < n - 1; i++) {
-        token = dequeueToken(program);
-        if (token->type != arg) {
-            return FALSE;
-        }
-        token = dequeueToken(program);
-        if (token->type != COMMA) {
-            return FALSE;
-        }
-    }
-    token = dequeueToken(program);
-    if (token->type != arg) {
-        return FALSE;
-    }
-    token = dequeueToken(program);
-    if (strcmp(token->attrib, ")")) {
-        return FALSE;
-    }
-    return TRUE;
 }
 
 void handleError(void) {
