@@ -202,11 +202,11 @@ bool_t inter_ifequal(prog_t* program, symbol_t* symbols) {
 void findElseJump(prog_t* program) {
     token_t* token = dequeueToken(program);
 
-    if (strcmp(token, "{")) {
+    if (strcmp(token->attrib, "{")) {
         ON_ERROR("If else statement error\n");
     }
 
-    while (strcmp(token, "}")) {
+    while (strcmp(token->attrib, "}")) {
         /*FIXME extra error handling */
         token = dequeueToken(program);
     }
