@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "symbols.h"
 
 #define RND_RANGE 100
 
@@ -34,11 +35,16 @@ char* allocString(size_t len) {
 }
 
 /* FIXME not doing any handling on buffer lengths currently */
-void inter_in2str(mvmcell* arg1, mvmcell* arg2) {
+void inter_in2str(prog_t* program, symbol_t* symbols) {
+    /* FIXME could return cell */
     char line[256];
     char word1[256];
     char word2[256];
+
     char *w1, *w2;
+
+    addVariable(symbols, program->instr[2]->attrib);
+    addVariable(symbols, program->instr[4]->attrib);
 
     if (fgets(line, sizeof(line), stdin)) {
         if (sscanf(line, "%s %s", word1, word2) == 2) {
@@ -56,55 +62,113 @@ void inter_in2str(mvmcell* arg1, mvmcell* arg2) {
         }
     }
 
-    arg1->data = w1;
-    arg2->data = w2;
+    updateVariable(symbols, program->instr[2]->attrib, w1);
+    updateVariable(symbols, program->instr[4]->attrib, w2);
 }
 
-void inter_innum(mvmcell* arg) {
+void inter_innum(prog_t* program, symbol_t* symbols) {
     char line[256];
 
     double* num = allocNumber();
 
+    addVariable(symbols, program->instr[2]->attrib);
+
     if (fgets(line, sizeof(line), stdin)) {
         if (sscanf(line, "%lf", num) == 1) {
-            printf("%lf\n", *num);
+            printf("%f\n", *num);
         } else {
-            ON_ERROR("Input error\n");
+            ON_ERROR("Expected single number input\n");
         }
     }
 
-    arg->data = num;
+    updateVariable(symbols, program->instr[2]->attrib, num);
 }
 
-void inter_jump(void) {}
+void inter_jump(prog_t* program) {
+    int pos;
+    if (!checkJumpValue(program->instr[1]->attrib)) {
+        ON_ERROR("Jump value should be integer");
+    }
 
-void inter_print(type_t type, type_t arg_type, void* arg) {
+    pos = atoi(program->instr[1]->attrib);
+
+    if (!checkValidJump(program, pos)) {
+        ON_ERROR("Invalid jump\n");
+    }
+    program->pos = pos;
+}
+
+bool_t checkValidJump(prog_t* program, int pos) {
+    if (pos >= program->len) {
+        return FALSE;
+    }
+
+    if (program->token[pos].word != 0) {
+        return FALSE;
+    }
+    return TRUE;
+}
+
+bool_t checkJumpValue(char* num) {
+    int i;
+    bool_t dot = FALSE;
+    for (i = 0; num[i] != '\0'; i++) {
+        if (num[i] == '.') {
+            /* FIXME bit of a naughty edit here */
+            num[i] = '\0';
+            dot = TRUE;
+            i++;
+        }
+        if (dot == TRUE && num[i] != 0) {
+            return FALSE;
+        }
+    }
+    return TRUE;
+}
+
+void inter_print(prog_t* program, symbol_t* symbols) {
     /*FIXME should this be functionised */
+    mvmcell* cell;
 
-    switch (arg_type) {
+    switch (program->instr[1]->type) {
         case NUMVAR:
-            printf("%lf", ((mvmcell*)arg)->data);
+            cell = getVariable(symbols, program->instr[1]->attrib);
+            if (!cell) {
+                ON_ERROR("Variable has not been initialised\n");
+            }
+            printf("%f", *(double*)cell->data);
             break;
         case STRVAR:
-            printf("%s", ((mvmcell*)arg)->data);
+            cell = getVariable(symbols, program->instr[1]->attrib);
+            if (!cell) {
+                ON_ERROR("Variable has not been initialised\n");
+            }
+            printf("%s", (char*)cell->data);
             break;
         case NUMCON:
         case STRCON:
-            printf("%s", arg);
+            printf("%s", program->instr[1]->attrib);
             break;
+        default:
+            ON_ERROR("Something went wrong\n");
     }
 
-    if (type == PRINTN) {
+    if (program->instr[0]->type == PRINTN) {
         printf("\n");
     }
 }
 
 /* FIXME ints vs doubles? */
-void inter_rnd(mvmcell* arg) {
-    double* rnd = allocNumber();
+void inter_rnd(prog_t* program, symbol_t* symbols) {
+        double* rnd = allocNumber();
+   
+    addVariable(symbols, program->instr[2]->attrib);
+
+
+    /* FIXME not sure about this generation also make sure to call seed fct */
     *rnd = (double)99 / (rand() % RND_RANGE);
 
-    arg->data = rnd;
+    updateVariable(symbols, program->instr[2]->attrib, rnd);
 }
 
 bool_t inter_ifequal(mvmcell* arg1, mvmcell* arg2) {
@@ -117,32 +181,65 @@ bool_t inter_ifequal(mvmcell* arg1, mvmcell* arg2) {
 /* Not quite sure about number detection here */
 bool_t inter_ifgreater(mvmcell* arg1, mvmcell* arg2) {
     if (arg1->key[0] == '%') {
-        if (atof(arg1) > atof(arg2)) {
+        if (atof(arg1->data) > atof(arg2->data)) {
             return TRUE;
         }
         return FALSE;
     } else {
-        if (strcmp(arg1, arg2) > 0) {
+        if (strcmp(arg1->data, arg2->data) > 0) {
             return TRUE;
         }
         return FALSE;
     }
 }
 
-void inter_inc(mvmcell* arg) {
-    *((double*)arg->data) += 1;
+void inter_inc(prog_t* program, symbol_t* symbols) {
+    mvmcell* cell = getVariable(symbols, program->instr[2]->attrib);
+    if (!cell) {
+        fprintf(stderr, "Variable not initialised\n");
+        exit(EXIT_FAILURE);
+    }
+
+    *(double*)cell->data += 1;
 }
 
-void inter_set(mvmcell* arg1, void* arg2, type_t type1, type_t type2) {
-    if (type1 == NUMVAR) {
-        if (type2 == NUMVAR) {
-            *((double*)arg1->data) = *((double*)(((mvmcell*)arg2)->data));
-        } else {
-            *((double*)arg1->data) = *(double*)arg2;
-        }
-    } else {
-        if (type2 == STRVAR) {
-        } else {
-        }
+void inter_set(prog_t* program, symbol_t* symbols) {
+    mvmcell* cell;
+    char* str;
+    double* num;
+
+    addVariable(symbols, program->instr[0]->attrib);
+
+    switch (program->instr[2]->type) {
+        case STRCON:
+            str = allocString(strlen(program->instr[2]->attrib));
+            strcpy(str, program->instr[2]->attrib);
+            updateVariable(symbols, program->instr[0]->attrib, str);
+            break;
+        case STRVAR:
+            cell = getVariable(symbols, program->instr[2]->attrib);
+            if (!cell) {
+                ON_ERROR("Variable not initialised\n");
+            }
+            str = allocString(strlen((char*)cell->data));
+            strcpy(str, (char*)cell->data);
+            updateVariable(symbols, program->instr[0]->attrib, str);
+            break;
+        case NUMCON:
+            num = allocNumber();
+            *num = strtod(program->instr[2]->attrib, NULL);
+            updateVariable(symbols, program->instr[0]->attrib, num);
+            break;
+        case NUMVAR:
+            cell = getVariable(symbols, program->instr[2]->attrib);
+            if (!cell) {
+                ON_ERROR("Variable not initialised\n");
+            }
+            num = allocNumber();
+            *num = *(double*)cell->data;
+            updateVariable(symbols, program->instr[0]->attrib, num);
+            break;
+        default:
+            ON_ERROR("Something went wrong\n");
     }
 }

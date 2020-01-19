@@ -34,6 +34,8 @@ token_t* parseCondBracketEdit(token_t* tokens[]);
 token_t* parseBracketsEdit(token_t* tokens[], type_t arg, int len);
 void fillTokenString(prog_t* program, token_t* tokens[], int len);
 
+bool_t parseSetVals(prog_t* program) ;
+
 void handleError(void);
 
 /*    switch (token->type) {

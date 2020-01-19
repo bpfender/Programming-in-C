@@ -2,8 +2,8 @@
 #define TOKENIZER_H
 
 #include <stdio.h>
-#include "symbols.h"
 #include "mvmedit.h"
+#include "symbols.h"
 
 /* FIXME add bracket open /close options etc. */
 /*FIXME better alternative for INSTR_FILE */
@@ -36,9 +36,11 @@ typedef struct token_t {
     char* attrib;
     int line;
     int word;
+    int instruction;
 } token_t;
 
 typedef struct prog_t {
+    token_t* instr[6];
     token_t* token;
     int pos;
     int len;

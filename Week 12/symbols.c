@@ -21,15 +21,14 @@ mvmcell* getVariable(symbol_t* symbols, char* var) {
 }
 
 /* FIXME this needs to be modified */
-mvmcell* updateVariable(symbol_t* symbols, char* var, char* val) {
+mvmcell* updateVariable(symbol_t* symbols, char* var, void* val) {
     mvmcell* cell = mvm_search(symbols->vars, var);
     if (cell) {
         /* QUESTION Ok to call free on nulled data? */
+        if(cell->data){
         free(cell->data);
-        cell->data = (char*)malloc(sizeof(char) * (strlen(val) + 1));
-        if (!cell->data) {
-            ON_ERROR("Error allocating var\n");
         }
+        cell->data = val;
         return cell;
     }
     return NULL;

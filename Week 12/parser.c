@@ -133,15 +133,15 @@ void instr(prog_t* program, symbol_t* symbols, mvm* files) {
 /* FIXME super dirty filenmae hack this can be fixed with symbol table*/
 void file(prog_t* program, symbol_t* symbols, mvm* files) {
     char filename[500] = "./Files/";
-    prog_t* next_program;
 
+    prog_t* next_program;
     token_t* token = program->instr[1];
 
     if (token->type == STRCON) {
         getSTRCON(token->attrib);
         strcat(filename, token->attrib);
 
-        if (!getFilename(symbols, filename) || !INTERP) {
+        if (!getFilename(symbols, filename)) {
             next_program = tokenizeFile(filename, symbols);
             addFilename(symbols, filename, NULL);
 
@@ -167,23 +167,32 @@ void prog_abort(prog_t* program, symbol_t* symbols, mvm* files) {
     } else {
         ERROR(token);
     }
+
+    if (INTERP) {
+        printf("PROGRAM ENDED\n");
+        exit(EXIT_SUCCESS);
+    }
 }
 
 void in2str(prog_t* program, symbol_t* symbols, mvm* files) {
-    if (!parseBracketsEdit(program->instr + 1, STRVAR, TWO_ARG_LEN)) {
-        instr(program, symbols, files);
-
-    } else {
-        ERROR(peekToken(program, 0));
+    if (parseBracketsEdit(program->instr + 1, STRVAR, TWO_ARG_LEN)) {
+        /* FIXME not sure about this */
+        ERROR(program->instr[0]);
     }
+    if (INTERP) {
+        inter_in2str(program, symbols);
+    }
+    instr(program, symbols, files);
 }
 
 void innum(prog_t* program, symbol_t* symbols, mvm* files) {
-    if (!parseBracketsEdit(program->instr + 1, NUMVAR, ONE_ARG_LEN)) {
-        instr(program, symbols, files);
-    } else {
-        ERROR(peekToken(program, 0));
+    if (parseBracketsEdit(program->instr + 1, NUMVAR, ONE_ARG_LEN)) {
+        ERROR(program->instr[0]);
     }
+    if (INTERP) {
+        inter_innum(program, symbols);
+    }
+    instr(program, symbols, files);
 }
 
 /* FIXME ifequal and ifgreater are identical */
@@ -213,68 +222,87 @@ void ifgreater(prog_t* program, symbol_t* symbols, mvm* files) {
 }
 
 void inc(prog_t* program, symbol_t* symbols, mvm* files) {
-    if (!parseBracketsEdit(program->instr + 1, NUMVAR, ONE_ARG_LEN)) {
-        instr(program, symbols, files);
-
-    } else {
+    if (parseBracketsEdit(program->instr + 1, NUMVAR, ONE_ARG_LEN)) {
         ERROR(peekToken(program, 0));
     }
+    if (INTERP) {
+        inter_inc(program, symbols);
+    }
+
+    instr(program, symbols, files);
 }
 
 void jump(prog_t* program, symbol_t* symbols, mvm* files) {
     token_t* token = program->instr[1];
 
-    if (token->type == NUMCON) {
-        instr(program, symbols, files);
-    } else {
+    if (token->type != NUMCON) {
         ERROR(token);
     }
+
+    if (INTERP) {
+        inter_jump(program);
+    }
+
+    instr(program, symbols, files);
 }
 
 void print(prog_t* program, symbol_t* symbols, mvm* files) {
     token_t* token = program->instr[1];
 
-    if (token->type == STRVAR || token->type == NUMVAR ||
-        token->type == STRCON || token->type == NUMCON) {
-        instr(program, symbols, files);
-    } else {
+    if (token->type != STRVAR && token->type != NUMVAR &&
+        token->type != STRCON && token->type != NUMCON) {
         ERROR(token);
     }
+
+    if (INTERP) {
+        inter_print(program, symbols);
+    }
+
+    instr(program, symbols, files);
 }
 
 void rnd(prog_t* program, symbol_t* symbols, mvm* files) {
-    if (!parseBracketsEdit(program->instr + 1, NUMVAR, ONE_ARG_LEN)) {
-        instr(program, symbols, files);
-
-    } else {
-        ERROR(peekToken(program, 0));
+    if (parseBracketsEdit(program->instr + 1, NUMVAR, ONE_ARG_LEN)) {
+        ERROR(program->instr[0]);
     }
+    if (INTERP) {
+        inter_rnd(program, symbols);
+    }
+
+    instr(program, symbols, files);
 }
 
-void set(prog_t* program, symbol_t* symbols, mvm* files) {
+bool_t parseSetVals(prog_t* program) {
     switch (program->instr[0]->type) {
         case STRVAR:
             if (program->instr[1]->type == SET) {
                 if (program->instr[2]->type == STRCON || program->instr[2]->type == STRVAR) {
-                    instr(program, symbols, files);
-                    return;
+                    return TRUE;
                 }
             }
-            ERROR(program->instr[1]);
-            break;
+            return FALSE;
         case NUMVAR:
             if (program->instr[1]->type == SET) {
                 if (program->instr[2]->type == NUMVAR || program->instr[2]->type == NUMCON) {
-                    instr(program, symbols, files);
-                    return;
+                    return TRUE;
                 }
             }
-            ERROR(program->instr[1]);
-            break;
+            return FALSE;
         default:
-            ERROR(program->instr[0]);
-            break;
+            return FALSE;
     }
+}
+
+void set(prog_t* program, symbol_t* symbols, mvm* files) {
+    if (!parseSetVals(program)) {
+        ERROR(program->instr[0]);
+    }
+
+    if(INTERP){
+        inter_set(program, symbols);
+    }
+
+    instr(program, symbols, files);
 }
 
 token_t* parseCondBracketEdit(token_t* tokens[TWO_ARG_LEN]) {

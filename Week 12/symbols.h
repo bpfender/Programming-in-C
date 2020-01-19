@@ -15,7 +15,7 @@ symbol_t* initSymbolTable(void);
 
 mvmcell* getVariable(symbol_t* symbols, char* var);
 void addVariable(symbol_t* symbols, char* var);
-mvmcell* updateVariable(symbol_t* symbols, char* var, char* val);
+mvmcell* updateVariable(symbol_t* symbols, char* var, void* val);
 
 mvmcell* getFilename(symbol_t* symbols, char* filename);
 void addFilename(symbol_t* symbols, char* filename, void* prog);

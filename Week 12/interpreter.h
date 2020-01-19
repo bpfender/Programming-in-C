@@ -5,7 +5,15 @@
 #include "tokenizer.h"
 
 void inter_abort(void);
-void inter_innum(mvmcell* arg);
-void inter_in2str(mvmcell* arg1, mvmcell* arg2);
+void inter_innum(prog_t* program, symbol_t* symbols);
+void inter_in2str(prog_t* program, symbol_t* symbols);
+void inter_inc(prog_t* program, symbol_t* symbols);
+void inter_print(prog_t* program, symbol_t* symbols);
+void inter_rnd(prog_t* program, symbol_t* symbols);
+void inter_set(prog_t* program, symbol_t* symbols);
+
+void inter_jump(prog_t* program);
+bool_t checkJumpValue(char* num);
+bool_t checkValidJump(prog_t* program, int pos);
 
 #endif
