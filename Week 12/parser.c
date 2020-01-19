@@ -36,9 +36,9 @@ void parseFile(prog_t* program, symbol_t* symbols, mvm* files) {
     prog(program, symbols, files);
 
     if (program->pos == program->len) {
-        printf("Parsed ok\n");
+        printf("\n\nParsed ok\n");
     } else {
-        ON_ERROR("Tokens left\n");
+        ON_ERROR("\n\nTokens left\n");
     }
 
     p = mvm_print(symbols->files);
@@ -141,7 +141,7 @@ void file(prog_t* program, symbol_t* symbols, mvm* files) {
         getSTRCON(token->attrib);
         strcat(filename, token->attrib);
 
-        if (!getFilename(symbols, filename)) {
+        if (!getFilename(symbols, filename) || INTERP) {
             next_program = tokenizeFile(filename, symbols);
             addFilename(symbols, filename, NULL);
 
@@ -200,25 +200,30 @@ void innum(prog_t* program, symbol_t* symbols, mvm* files) {
 void ifequal(prog_t* program, symbol_t* symbols, mvm* files) {
     token_t* token = program->instr[0];
 
-    if (!parseCondBracketEdit(program->instr + 1)) {
-        prog(program, symbols, files);
-        instr(program, symbols, files);
-    } else {
+    if (parseCondBracketEdit(program->instr + 1)) {
         ERROR(token);
-        return;
     }
+
+    if (!INTERP || inter_ifequal(program, symbols)) {
+        prog(program, symbols, files);
+    }
+
+    instr(program, symbols, files);
 }
 
 void ifgreater(prog_t* program, symbol_t* symbols, mvm* files) {
     token_t* token = program->instr[0];
 
-    if (!parseCondBracketEdit(program->instr + 1)) {
-        prog(program, symbols, files);
-        instr(program, symbols, files);
-    } else {
+    if (parseCondBracketEdit(program->instr + 1)) {
         ERROR(token);
-        return;
     }
+
+    /* Relies on evaluation order */
+    if (!INTERP || inter_ifgreater(program, symbols)) {
+        prog(program, symbols, files);
+    }
+
+    instr(program, symbols, files);
 }
 
 void inc(prog_t* program, symbol_t* symbols, mvm* files) {
@@ -298,7 +303,7 @@ void set(prog_t* program, symbol_t* symbols, mvm* files) {
         ERROR(program->instr[0]);
     }
 
-    if(INTERP){
+    if (INTERP) {
         inter_set(program, symbols);
     }
 

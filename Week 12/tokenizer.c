@@ -68,8 +68,8 @@ token_t* dequeueToken(prog_t* program) {
 
     token = program->token + program->pos;
     program->pos++;
-    printInstr(token->type);
-    printf(" Line %d word %d\n", token->line, token->word);
+    /*printInstr(token->type);
+    printf(" Line %d word %d\n", token->line, token->word);*/
     return token;
 }
 
@@ -94,7 +94,7 @@ prog_t* tokenizeFile(char* filename, symbol_t* symbols) {
     line_t size;
     line_t line_len, word_len;
     int line = 0, word;
-    printf("Opening %s\n", filename);
+    printf("\nOPENING %s\n\n", filename);
 
     while ((line_len = getLine(&buffer, &size, file))) {
         truncateLineEnd(buffer, &line_len);

@@ -41,7 +41,7 @@ int main(void) {
 
     printf("PARSE TEST\n");
 
-    strcpy(filename, "./Files/escape211.nal");
+    strcpy(filename, "./Files/test2.nal");
     symboltab = initSymbolTable();
     files = tok_filesinit();
     program = tokenizeFile(filename, symboltab);
