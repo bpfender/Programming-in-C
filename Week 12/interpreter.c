@@ -160,10 +160,9 @@ void inter_print(prog_t* program, symbol_t* symbols) {
 
 /* FIXME ints vs doubles? */
 void inter_rnd(prog_t* program, symbol_t* symbols) {
-        double* rnd = allocNumber();
-   
-    addVariable(symbols, program->instr[2]->attrib);
+    double* rnd = allocNumber();
 
+    addVariable(symbols, program->instr[2]->attrib);
 
     /* FIXME not sure about this generation also make sure to call seed fct */
     *rnd = (double)99 / (rand() % RND_RANGE);
@@ -171,25 +170,97 @@ void inter_rnd(prog_t* program, symbol_t* symbols) {
     updateVariable(symbols, program->instr[2]->attrib, rnd);
 }
 
-bool_t inter_ifequal(mvmcell* arg1, mvmcell* arg2) {
-    if (strcmp(arg1->data, arg2->data)) {
-        return FALSE;
+bool_t inter_ifequal(prog_t* program, symbol_t* symbols) {
+    void* arg1 = getArg(program->instr[2], symbols);
+    void* arg2 = getArg(program->instr[4], symbols);
+
+    switch (program->instr[2]->type) {
+        case STRVAR:
+        case STRCON:
+            if (!strcmp(arg1, arg2)) {
+                return TRUE;
+            } else {
+                findElseJump(program);
+                return FALSE;
+            }
+            break;
+        case NUMVAR:
+        case NUMCON:
+            if (*(double*)arg1 == *(double*)arg2) {
+                return TRUE;
+            } else {
+                findElseJump(program);
+                return FALSE;
+            }
+            break;
+        default:
+            ON_ERROR("Something went wrong\n");
+            break;
     }
-    return TRUE;
+}
+
+void findElseJump(prog_t* program) {
+    token_t* token = dequeueToken(program);
+
+    if (strcmp(token, "{")) {
+        ON_ERROR("If else statement error\n");
+    }
+
+    while (strcmp(token, "}")) {
+        /*FIXME extra error handling */
+        token = dequeueToken(program);
+    }
 }
 
 /* Not quite sure about number detection here */
-bool_t inter_ifgreater(mvmcell* arg1, mvmcell* arg2) {
-    if (arg1->key[0] == '%') {
-        if (atof(arg1->data) > atof(arg2->data)) {
-            return TRUE;
-        }
-        return FALSE;
-    } else {
-        if (strcmp(arg1->data, arg2->data) > 0) {
-            return TRUE;
-        }
-        return FALSE;
+bool_t inter_ifgreater(prog_t* program, symbol_t* symbols) {
+    void* arg1 = getArg(program->instr[2], symbols);
+    void* arg2 = getArg(program->instr[4], symbols);
+
+    switch (program->instr[2]->type) {
+        case STRVAR:
+        case STRCON:
+            if (strcmp(arg1, arg2) > 0) {
+                return TRUE;
+            } else {
+                findElseJump(program);
+                return FALSE;
+            }
+            break;
+        case NUMVAR:
+        case NUMCON:
+            if (*(double*)arg1 > *(double*)arg2) {
+                return TRUE;
+            } else {
+                findElseJump(program);
+                return FALSE;
+            }
+            break;
+        default:
+            ON_ERROR("Something went wrong\n");
+            break;
+    }
+}
+
+void* getArg(token_t* token, symbol_t* symbols) {
+    mvmcell* cell;
+
+    switch (token->type) {
+        case NUMVAR:
+        case STRVAR:
+            cell = getVariable(symbols, token->attrib);
+            if (!cell) {
+                ON_ERROR("Variable not yet initialised\n");
+            }
+            return cell->data;
+            break;
+        case NUMCON:
+        case STRCON:
+            return token->attrib;
+            break;
+        default:
+            ON_ERROR("Something went wrong\n");
+            break;
     }
 }
 
