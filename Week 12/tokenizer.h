@@ -5,6 +5,8 @@
 #include "mvmedit.h"
 #include "symbols.h"
 
+#define INTERP 1
+
 /* FIXME add bracket open /close options etc. */
 /*FIXME better alternative for INSTR_FILE */
 typedef enum type_t { FILE_,
@@ -52,6 +54,9 @@ typedef struct prog_t {
  * work
  */
 typedef unsigned int line_t;
+
+void tok_rot18(char* s) ;
+void tok_getSTRCON(char* word);
 
 void tok_insertfilename(mvm* files, char* filename, prog_t* prog);
 mvmcell* tok_fileexists(mvm* files, char* filename);

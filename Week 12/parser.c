@@ -7,7 +7,7 @@
 #include "symbols.h"
 #include "syntax.h"
 
-#define INTERP 1
+
 
 /* FIXME need a gettoken function for bounds checking */
 /* FIXME functionise bracket handling */
@@ -138,7 +138,7 @@ void file(prog_t* program, symbol_t* symbols, mvm* files) {
     token_t* token = program->instr[1];
 
     if (token->type == STRCON) {
-        getSTRCON(token->attrib);
+       /* getSTRCON(token->attrib);*/
         strcat(filename, token->attrib);
 
         if (!getFilename(symbols, filename) || INTERP) {
@@ -148,7 +148,7 @@ void file(prog_t* program, symbol_t* symbols, mvm* files) {
             prog(next_program, symbols, files);
 
             freeProgQueue(next_program);
-            printf("Finished %s\n", filename);
+            printf("\n\nFinished %s\n", filename);
         }
 
         instr(program, symbols, files);
@@ -162,8 +162,7 @@ void file(prog_t* program, symbol_t* symbols, mvm* files) {
 void prog_abort(prog_t* program, symbol_t* symbols, mvm* files) {
     token_t* token = dequeueToken(program);
 
-    if (token->type == SECTION && !strcmp(token->attrib, "}")) {
-        return;
+    if (token->type == SECTION && !strcmp(token->attrib, "}")) { 
     } else {
         ERROR(token);
     }
@@ -172,6 +171,7 @@ void prog_abort(prog_t* program, symbol_t* symbols, mvm* files) {
         printf("PROGRAM ENDED\n");
         exit(EXIT_SUCCESS);
     }
+    return;
 }
 
 void in2str(prog_t* program, symbol_t* symbols, mvm* files) {

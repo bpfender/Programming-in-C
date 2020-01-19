@@ -12,6 +12,11 @@
 
 #define PROG_LENGTH 500
 
+#define ROT5 5
+#define ROT13 13
+#define ALPHA 26
+#define DIGIT 10
+
 /* Macro defines maximum value of line_t type */
 #define LINE_T_MAX (line_t) ~0
 
@@ -256,10 +261,15 @@ void buildToken(token_t* token, char* attrib, int len, int line, int word) {
     memcpy(str, attrib, sizeof(char) * len);
     str[len] = '\0';
 
-    token->attrib = str;
-    token->type = tokenType(token->attrib);
+    token->type = tokenType(str);
     token->line = line;
     token->word = word;
+
+
+    if(token->type == FILE_ || (token->type == STRCON && INTERP)){
+        tok_getSTRCON(str);
+    }
+    token->attrib = str;    
 }
 
 void expandProgQueue(prog_t* program) {
@@ -524,5 +534,33 @@ void printInstr(type_t instr) {
         case ERROR:
             printf("ERR");
             break;
+    }
+}
+
+/* decode strconsts in place */
+void tok_getSTRCON(char* word) {
+    int len;
+    if (word[0] == '"' || word[0] == '#') {
+        len = strlen(word);
+        word[len - 1] = '\0';
+
+        if (word[0] == '#') {
+            tok_rot18(word + 1);
+        }
+
+        memmove(word, word + 1, sizeof(char) * len - 1);
+    }
+}
+
+void tok_rot18(char* s) {
+    int i;
+    for (i = 0; s[i] != '\0'; i++) {
+        if (isupper(s[i])) {
+            s[i] = 'A' + (s[i] - 'A' + ROT13) % ALPHA;
+        } else if (islower(s[i])) {
+            s[i] = 'a' + (s[i] - 'a' + ROT13) % ALPHA;
+        } else if (isdigit(s[i])) {
+            s[i] = (s[i] + ROT5) % DIGIT;
+        }
     }
 }

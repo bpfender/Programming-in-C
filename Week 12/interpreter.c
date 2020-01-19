@@ -244,6 +244,8 @@ bool_t inter_ifgreater(prog_t* program, symbol_t* symbols) {
 
 void* getArg(token_t* token, symbol_t* symbols) {
     mvmcell* cell;
+    /* FIXME this is soo fucking bodgy right now */
+    static double num;
 
     switch (token->type) {
         case NUMVAR:
@@ -255,6 +257,9 @@ void* getArg(token_t* token, symbol_t* symbols) {
             return cell->data;
             break;
         case NUMCON:
+            num = strtod(token->attrib, NULL);
+            return &num;
+            break;
         case STRCON:
             return token->attrib;
             break;
