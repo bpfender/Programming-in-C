@@ -560,7 +560,7 @@ void tok_rot18(char* s) {
         } else if (islower(s[i])) {
             s[i] = 'a' + (s[i] - 'a' + ROT13) % ALPHA;
         } else if (isdigit(s[i])) {
-            s[i] = (s[i] + ROT5) % DIGIT;
+            s[i] = '0' + (s[i] - '0' + ROT5) % DIGIT;
         }
     }
 }

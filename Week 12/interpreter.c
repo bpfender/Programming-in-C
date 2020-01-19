@@ -51,12 +51,8 @@ void inter_in2str(prog_t* program, symbol_t* symbols) {
             w1 = allocString(strlen(word1));
             w2 = allocString(strlen(word2));
 
-            printf("%s %s\n", word1, word2);
-
             strcpy(w1, word1);
             strcpy(w2, word2);
-
-            printf("%s %s\n", w1, w2);
         } else {
             ON_ERROR("Input error\n");
         }
@@ -75,7 +71,6 @@ void inter_innum(prog_t* program, symbol_t* symbols) {
 
     if (fgets(line, sizeof(line), stdin)) {
         if (sscanf(line, "%lf", num) == 1) {
-            printf("%f\n", *num);
         } else {
             ON_ERROR("Expected single number input\n");
         }
@@ -143,11 +138,11 @@ void inter_print(prog_t* program, symbol_t* symbols) {
             if (!cell) {
                 ON_ERROR("Variable has not been initialised\n");
             }
-            printf("%s", (char*)cell->data);
+            printf("%s ", (char*)cell->data);
             break;
         case NUMCON:
         case STRCON:
-            printf("%s", program->instr[1]->attrib);
+            printf("%s ", program->instr[1]->attrib);
             break;
         default:
             ON_ERROR("Something went wrong\n");
@@ -165,7 +160,7 @@ void inter_rnd(prog_t* program, symbol_t* symbols) {
     addVariable(symbols, program->instr[2]->attrib);
 
     /* FIXME not sure about this generation also make sure to call seed fct */
-    *rnd = (double)99 / (rand() % RND_RANGE);
+    *rnd = rand() % RND_RANGE;
 
     updateVariable(symbols, program->instr[2]->attrib, rnd);
 }
@@ -200,15 +195,22 @@ bool_t inter_ifequal(prog_t* program, symbol_t* symbols) {
 }
 
 void findElseJump(prog_t* program) {
+    int nest = 1;
     token_t* token = dequeueToken(program);
 
     if (strcmp(token->attrib, "{")) {
         ON_ERROR("If else statement error\n");
     }
 
-    while (strcmp(token->attrib, "}")) {
+    while (strcmp(token->attrib, "}") || nest) {
         /*FIXME extra error handling */
         token = dequeueToken(program);
+        if (!strcmp(token->attrib, "}")) {
+            nest--;
+        }
+        if (!strcmp(token->attrib, "{")) {
+            nest++;
+        }
     }
 }
 
