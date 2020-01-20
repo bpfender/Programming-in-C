@@ -7,8 +7,6 @@
 #include "symbols.h"
 #include "syntax.h"
 
-
-
 /* FIXME need a gettoken function for bounds checking */
 /* FIXME functionise bracket handling */
 
@@ -50,18 +48,17 @@ void parseFile(prog_t* program, symbol_t* symbols, mvm* files) {
 }
 
 void prog(prog_t* program, symbol_t* symbols, mvm* files) {
-    token_t* token = dequeueToken(program);
+    token_t* token = program->instr[0] = dequeueToken(program);
 
-    if (!strcmp(token->attrib, "{")) {
-        instr(program, symbols, files);
-    } else {
-        ERROR(token);
+    if (strcmp(token->attrib, "{")) {
+        prog_error(program);
     }
+    instr(program, symbols, files);
 }
 
 /* FIXME GET RID OF MAGIC NUMBERS */
 void instr(prog_t* program, symbol_t* symbols, mvm* files) {
-    token_t* token = peekToken(program, 0);
+    token_t* token = program->instr[0] = peekToken(program, 0);
 
     switch (token->type) {
         case FILE_:
@@ -112,20 +109,23 @@ void instr(prog_t* program, symbol_t* symbols, mvm* files) {
             set(program, symbols, files);
             break;
         case SECTION:
-            if (!strcmp(token->attrib, "}")) {
-                dequeueToken(program);
+            if (strcmp(token->attrib, "}")) {
+                instr_error(program);
+                instr(program, symbols, files);
                 break;
             }
-            ERROR(token);
+            /* FIXME is this good form */
+            dequeueToken(program);
             break;
+        case ERROR:
         case SET:
         case STRCON:
         case NUMCON:
         case BRACKET:
         case COMMA:
-        case ERROR:
         default:
-            ERROR(token);
+            instr_error(program);
+            instr(program, symbols, files);
             break;
     }
 }
@@ -138,7 +138,7 @@ void file(prog_t* program, symbol_t* symbols, mvm* files) {
     token_t* token = program->instr[1];
 
     if (token->type == STRCON) {
-       /* getSTRCON(token->attrib);*/
+        /* getSTRCON(token->attrib);*/
         strcat(filename, token->attrib);
 
         if (!getFilename(symbols, filename) || INTERP) {
@@ -150,19 +150,18 @@ void file(prog_t* program, symbol_t* symbols, mvm* files) {
             freeProgQueue(next_program);
             printf("\n\nFinished %s\n", filename);
         }
-
-        instr(program, symbols, files);
-
     } else {
         ERROR(token);
     }
+    
+    instr(program, symbols, files);
 }
 
 /* Is this the right condition for prog_abort? */
 void prog_abort(prog_t* program, symbol_t* symbols, mvm* files) {
     token_t* token = dequeueToken(program);
 
-    if (token->type == SECTION && !strcmp(token->attrib, "}")) { 
+    if (token->type == SECTION && !strcmp(token->attrib, "}")) {
     } else {
         ERROR(token);
     }

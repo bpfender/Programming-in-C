@@ -4,6 +4,7 @@
 #include "ast.h"
 #include "symbols.h"
 #include "tokenizer.h"
+#include "error.h"
 
 #define ROT5 5
 #define ROT13 13
