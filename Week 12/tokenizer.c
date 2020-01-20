@@ -1,4 +1,5 @@
 #include "tokenizer.h"
+#include "error.h"
 
 #include <ctype.h>
 #include <stdlib.h>
@@ -9,6 +10,7 @@
 #define FACTOR 2
 #define WHITESPACE " \t\n\v\f\r"
 #define TERMINATORS "(){},=#\" \t\n\v\f\r"
+#define STRING_TERMINATORS "\"\n"
 
 #define PROG_LENGTH 500
 
@@ -73,8 +75,8 @@ token_t* dequeueToken(prog_t* program) {
 
     token = program->token + program->pos;
     program->pos++;
-    /*printInstr(token->type);
-    printf(" Line %d word %d\n", token->line, token->word);*/
+    /*printInstr(token->type);*/
+    printf(" Line %d word %d\n", token->line+1, token->word+1);
     return token;
 }
 
@@ -91,7 +93,7 @@ token_t* peekToken(prog_t* program, int dist) {
 }
 
 prog_t* tokenizeFile(char* filename, symbol_t* symbols) {
-    prog_t* program = initProgQueue();
+    prog_t* program = initProgQueue(filename);
     FILE* file = openFile(filename);
 
     char* buffer = NULL;
@@ -141,7 +143,9 @@ line_t parseBufferWords(char** pos) {
         case '"':
         case '#':
             /* FIXME a little bit dirty at the moment */
-            return strchr(*pos + 1, *pos[0]) - *pos + 1;
+            /*return strchr(*pos + 1, *pos[0]) - *pos + 1;*/
+            
+            return strcspn(*pos + 1, STRING_TERMINATORS) + 2;
             break;
         default:
             return strcspn(*pos, TERMINATORS);
@@ -217,11 +221,17 @@ char* bufferAllocHandler(char* buffer, line_t size) {
     return tmp;
 }
 
-prog_t* initProgQueue(void) {
+prog_t* initProgQueue(char* filename) {
     prog_t* tmp = (prog_t*)malloc(sizeof(prog_t));
     if (!tmp) {
         ON_ERROR("Error allocating program struct\n");
     }
+
+    tmp->filename = (char*)malloc(sizeof(char)*(strlen(filename)+1));
+    if(!tmp->filename){
+        ON_ERROR("Error allocating memory for filename\n");   
+    }
+    strcpy(tmp->filename,filename);
 
     tmp->token = (token_t*)malloc(sizeof(token_t) * PROG_LENGTH);
     if (!tmp->token) {
@@ -265,11 +275,14 @@ void buildToken(token_t* token, char* attrib, int len, int line, int word) {
     token->line = line;
     token->word = word;
 
+   /* if(token->type == ERROR){
+        suggestCorrectToken(str);
+    }*/
 
-    if(token->type == FILE_ || (token->type == STRCON && INTERP)){
+    if (token->type == FILE_ || (token->type == STRCON && INTERP)) {
         tok_getSTRCON(str);
     }
-    token->attrib = str;    
+    token->attrib = str;
 }
 
 void expandProgQueue(prog_t* program) {
@@ -285,6 +298,7 @@ void freeProgQueue(prog_t* program) {
     for (i = 0; i < program->len; i++) {
         free(program->token[i].attrib);
     }
+    free(program->filename);
     free(program->token);
     free(program);
 }

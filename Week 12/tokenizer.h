@@ -5,7 +5,7 @@
 #include "mvmedit.h"
 #include "symbols.h"
 
-#define INTERP 1
+#define INTERP 0
 
 /* FIXME add bracket open /close options etc. */
 /*FIXME better alternative for INSTR_FILE */
@@ -44,6 +44,7 @@ typedef struct token_t {
 typedef struct prog_t {
     token_t* instr[6];
     token_t* token;
+    char* filename;
     int pos;
     int len;
     int size;
@@ -64,7 +65,7 @@ mvm* tok_filesinit(void);
 void tok_freefilenames(mvm* files);
 void tok_unloadlist(mvmcell* node);
 
-prog_t* initProgQueue(void);
+prog_t* initProgQueue(char* filename);
 token_t* dequeueToken(prog_t* program);
 token_t* peekToken(prog_t* program, int dist);
 void enqueueToken(prog_t* program, symbol_t* symbols, char* attrib, int len, int line, int word);
