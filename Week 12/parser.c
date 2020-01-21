@@ -142,50 +142,52 @@ void file(prog_t* program, symbol_t* symbols, mvm* files) {
         strcat(filename, token->attrib);
 
         if (!getFilename(symbols, filename) || INTERP) {
-            next_program = tokenizeFile(filename, symbols);
-            addFilename(symbols, filename, NULL);
+            if (!(next_program = tokenizeFile(filename, symbols))) {
+                file_error(program);
+            } else {
+                addFilename(symbols, filename, NULL);
 
-            prog(next_program, symbols, files);
+                prog(next_program, symbols, files);
 
-            freeProgQueue(next_program);
-            printf("\n\nFinished %s\n", filename);
+                freeProgQueue(next_program);
+                printf("\n\nFinished %s\n", filename);
+            }
         }
     } else {
-        ERROR(token);
+        file_error(program);
     }
-    
+
     instr(program, symbols, files);
 }
 
 /* Is this the right condition for prog_abort? */
 void prog_abort(prog_t* program, symbol_t* symbols, mvm* files) {
-    token_t* token = dequeueToken(program);
+    token_t* token = peekToken(program, 0);
 
-    if (token->type == SECTION && !strcmp(token->attrib, "}")) {
-    } else {
-        ERROR(token);
+    if (strcmp(token->attrib, "}")) {
+        abort_error(program);
     }
 
     if (INTERP) {
-        printf("PROGRAM ENDED\n");
+        printf("\nPROGRAM END: Program completed successfully\n");
         exit(EXIT_SUCCESS);
     }
-    return;
+
+    instr(program, symbols, files);
 }
 
 void in2str(prog_t* program, symbol_t* symbols, mvm* files) {
-    if (parseBracketsEdit(program->instr + 1, STRVAR, TWO_ARG_LEN)) {
-        /* FIXME not sure about this */
-        ERROR(program->instr[0]);
-    }
+    parseBrackets(program, STRVAR, TWO_ARG_LEN);
+
     if (INTERP) {
         inter_in2str(program, symbols);
     }
+
     instr(program, symbols, files);
 }
 
 void innum(prog_t* program, symbol_t* symbols, mvm* files) {
-    if (parseBracketsEdit(program->instr + 1, NUMVAR, ONE_ARG_LEN)) {
+    if (parseBrackets(program, NUMVAR, ONE_ARG_LEN)) {
         ERROR(program->instr[0]);
     }
     if (INTERP) {
@@ -199,7 +201,7 @@ void innum(prog_t* program, symbol_t* symbols, mvm* files) {
 void ifequal(prog_t* program, symbol_t* symbols, mvm* files) {
     token_t* token = program->instr[0];
 
-    if (parseCondBracketEdit(program->instr + 1)) {
+    if (parseCondBracket(program)) {
         ERROR(token);
     }
 
@@ -213,7 +215,7 @@ void ifequal(prog_t* program, symbol_t* symbols, mvm* files) {
 void ifgreater(prog_t* program, symbol_t* symbols, mvm* files) {
     token_t* token = program->instr[0];
 
-    if (parseCondBracketEdit(program->instr + 1)) {
+    if (parseCondBracket(program)) {
         ERROR(token);
     }
 
@@ -226,7 +228,7 @@ void ifgreater(prog_t* program, symbol_t* symbols, mvm* files) {
 }
 
 void inc(prog_t* program, symbol_t* symbols, mvm* files) {
-    if (parseBracketsEdit(program->instr + 1, NUMVAR, ONE_ARG_LEN)) {
+    if (parseBrackets(program, NUMVAR, ONE_ARG_LEN)) {
         ERROR(peekToken(program, 0));
     }
     if (INTERP) {
@@ -266,7 +268,7 @@ void print(prog_t* program, symbol_t* symbols, mvm* files) {
 }
 
 void rnd(prog_t* program, symbol_t* symbols, mvm* files) {
-    if (parseBracketsEdit(program->instr + 1, NUMVAR, ONE_ARG_LEN)) {
+    if (parseBrackets(program, NUMVAR, ONE_ARG_LEN)) {
         ERROR(program->instr[0]);
     }
     if (INTERP) {
@@ -309,31 +311,33 @@ void set(prog_t* program, symbol_t* symbols, mvm* files) {
     instr(program, symbols, files);
 }
 
-token_t* parseCondBracketEdit(token_t* tokens[TWO_ARG_LEN]) {
+bool_t parseCondBracketEdit(token_t* tokens[TWO_ARG_LEN]) {
+    bool_t error_flag = FALSE;
+
     if (strcmp(tokens[0]->attrib, "(")) {
-        return tokens[0];
+        error_flag = TRUE;
     }
 
     if (!(tokens[1]->type == STRVAR || tokens[1]->type == NUMVAR ||
           tokens[1]->type == STRCON || tokens[1]->type == NUMCON)) {
-        return tokens[1];
+        error_flag = TRUE;
     }
 
     if (tokens[2]->type != COMMA) {
-        return tokens[2];
+        error_flag = TRUE;
     }
 
     switch (tokens[1]->type) {
         case STRVAR:
         case STRCON:
             if (!(tokens[3]->type == STRVAR || tokens[3]->type == STRCON)) {
-                return tokens[3];
+                error_flag = TRUE;
             }
             break;
         case NUMVAR:
         case NUMCON:
             if (!(tokens[3]->type == NUMVAR || tokens[3]->type == NUMCON)) {
-                return tokens[3];
+                error_flag = TRUE;
             }
             break;
         default:
@@ -341,35 +345,111 @@ token_t* parseCondBracketEdit(token_t* tokens[TWO_ARG_LEN]) {
     }
 
     if (strcmp(tokens[4]->attrib, ")")) {
-        return tokens[4];
+        error_flag = TRUE;
     }
 
-    return NULL;
+    return error_flag;
 }
 
-/* FIXME rename this function when ready */
-token_t* parseBracketsEdit(token_t* tokens[], type_t arg, int len) {
-    int i;
+bool_t parseCondBracket(prog_t* program){
+    token_t** tokens = program->instr+1;
+
     if (strcmp(tokens[0]->attrib, "(")) {
-        return tokens[0];
+        return TRUE;
+    }
+
+    if (!(tokens[1]->type == STRVAR || tokens[1]->type == NUMVAR ||
+          tokens[1]->type == STRCON || tokens[1]->type == NUMCON)) {
+        return TRUE;
+    }
+
+    if (tokens[2]->type != COMMA) {
+        return TRUE;
+    }
+
+    switch (tokens[1]->type) {
+        case STRVAR:
+        case STRCON:
+            if (!(tokens[3]->type == STRVAR || tokens[3]->type == STRCON)) {
+                return TRUE;
+            }
+            break;
+        case NUMVAR:
+        case NUMCON:
+            if (!(tokens[3]->type == NUMVAR || tokens[3]->type == NUMCON)) {
+                return TRUE;
+            }
+            break;
+        default:
+            break;
+    }
+
+    if (strcmp(tokens[4]->attrib, ")")) {
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+/* FIXME magic number problems and numbers passed*/
+bool_t parseBrackets(prog_t* program, type_t arg, int len) {
+    int i;
+    /* FIXME this is cludgy */
+    token_t** tokens = program->instr + 1;
+
+    if (strcmp(tokens[0]->attrib, "(")) {
+        bracket_error(program, BRACKET, 0);
+        return TRUE;
     }
 
     for (i = 1; i < len - 2; i += 2) {
         if (tokens[i]->type != arg) {
-            return tokens[i];
+            bracket_error(program, arg, i);
+            return TRUE;
         }
         if (tokens[i + 1]->type != COMMA) {
-            return tokens[i + 1];
+            bracket_error(program, COMMA, i+1);
+            return TRUE;
         }
     }
 
     if (tokens[len - 2]->type != arg) {
-        return tokens[len - 2];
+        bracket_error(program, arg, len-2);
+        return TRUE;
     }
     if (strcmp(tokens[len - 1]->attrib, ")")) {
-        return tokens[len - 1];
+        bracket_error(program, BRACKET, len-1);
+        return TRUE;
     }
-    return NULL;
+
+    return FALSE;
+}
+
+/* FIXME rename this function when ready */
+bool_t parseBracketsEdit(token_t* tokens[], type_t arg, int len) {
+    int i;
+    bool_t error_flag = FALSE;
+
+    if (strcmp(tokens[0]->attrib, "(")) {
+        error_flag = TRUE;
+    }
+
+    for (i = 1; i < len - 2; i += 2) {
+        if (tokens[i]->type != arg) {
+            error_flag = TRUE;
+        }
+        if (tokens[i + 1]->type != COMMA) {
+            error_flag = TRUE;
+        }
+    }
+
+    if (tokens[len - 2]->type != arg) {
+        error_flag = TRUE;
+    }
+    if (strcmp(tokens[len - 1]->attrib, ")")) {
+        error_flag = TRUE;
+    }
+    return error_flag;
 }
 
 void fillTokenString(prog_t* program, token_t* tokens[], int len) {

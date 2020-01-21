@@ -31,9 +31,12 @@ void print(prog_t* program, symbol_t* symbols, mvm* files);
 void rnd(prog_t* program, symbol_t* symbols, mvm* files);
 void set(prog_t* program, symbol_t* symbols, mvm* files);
 
-token_t* parseCondBracketEdit(token_t* tokens[]);
-token_t* parseBracketsEdit(token_t* tokens[], type_t arg, int len);
+bool_t parseCondBracketEdit(token_t* tokens[]);
+bool_t parseBracketsEdit(token_t* tokens[], type_t arg, int len);
 void fillTokenString(prog_t* program, token_t* tokens[], int len);
+
+bool_t parseCondBracket(prog_t* program);
+bool_t parseBrackets(prog_t* program, type_t arg, int len);
 
 bool_t parseSetVals(prog_t* program) ;
 
