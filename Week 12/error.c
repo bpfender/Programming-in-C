@@ -53,7 +53,6 @@ void prog_error(prog_t* program) {
 }
 
 void instr_error(prog_t* program) {
-    token_t* token;
     printLocation(program->instr[0], program->filename);
 
     switch (program->instr[0]->type) {
@@ -85,11 +84,94 @@ void instr_error(prog_t* program) {
 
     /* Parse to next line, can the same line be interpreted? */
     /* FIXME functionise as recoved error */
+    recoverError(program);
+}
+
+void recoverError(prog_t* program) {
+    token_t* token;
+
     program->pos++;
     do {
         token = dequeueToken(program);
     } while (token->word != 0);
     program->pos--;
+}
+
+void file_error(prog_t* program) {
+    char* attrib = program->instr[1]->attrib;
+
+    printLocation(program->instr[1], program->filename);
+
+    switch (program->instr[1]->type) {
+        case STRCON:
+            fprintf(stderr, "Unable to open file specified as '%s'\n", program->instr[1]->attrib);
+            break;
+        default:
+            if (attrib[0] == '"' || attrib[strlen(attrib) - 1] == '"' ||
+                attrib[0] == '#' || attrib[strlen(attrib) - 1] == '#') {
+                fprintf(stderr, "String may be missing '\"' or '#'\n");
+            } else {
+                fprintf(stderr, "Expected string referencing filename\n");
+            }
+            break;
+    }
+
+    if (INTERP) {
+        exit(EXIT_FAILURE);
+    }
+
+    recoverError(program);
+}
+
+/* This is more of a warning */
+void abort_error(prog_t* program) {
+    if (!INTERP) {
+        printLocation(program->instr[0], program->filename);
+        fprintf(stderr, "WARNING. Code after abort may not be executed\n");
+    }
+}
+
+/* FIXME this offset is ugly at the moment */
+void bracket_error(prog_t* program, type_t expected, int index) {
+    printLocation(program->instr[index + 1], program->filename);
+
+    switch (expected) {
+        case BRACKET:
+            if (index == 0) {
+                fprintf(stderr, "Expected '(' before statement\n");
+            } else {
+                fprintf(stderr, "Expected ')' at end of statement\n");
+            }
+            break;
+        case NUMVAR:
+            if (index == 1) {
+                fprintf(stderr, "Expected NUMVAR argument\n");
+            }
+            break;
+        case STRVAR:
+            if (index == 1) {
+                fprintf(stderr, "Expected STRVAR argument\n");
+            } else {
+                fprintf(stderr, "Arguments must match and both be STRVAR\n");
+            }
+            break;
+        case COMMA:
+                fprintf(stderr, "Arguments should be seperated with ','\n");
+            break;
+        default:
+            break;
+    }
+
+    if (INTERP) {
+        exit(EXIT_FAILURE);
+    }
+
+    recoverError(program);
+}
+
+void in2str_error(prog_t* program, int index) {
+    printLocation(program->instr[index], program->filename);
+
 }
 
 void suggestCorrectToken(char* word) {
@@ -103,17 +185,14 @@ void suggestCorrectToken(char* word) {
     if (word[0] == '"' || word[strlen(word) - 1] == '"') {
         printf("Did you mean to type a string\n");
         return;
-        
     }
     if (word[0] == '#' || word[strlen(word) - 1] == '#') {
         printf("Did you mean to type a string\n");
         return;
-    
     }
     if (strlen(word) == 1) {
         printf("Undefined character\n");
         return;
-    
     }
 
     for (i = 0; i < (sizeof(instructions) / sizeof(instructions[0])); i++) {
