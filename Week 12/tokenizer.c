@@ -76,7 +76,7 @@ token_t* dequeueToken(prog_t* program) {
     token = program->token + program->pos;
     program->pos++;
     /*printInstr(token->type);*/
-    printf(" Line %d word %d\n", token->line+1, token->word+1);
+    printf(" Line %d word %d\n", token->line + 1, token->word + 1);
     return token;
 }
 
@@ -94,13 +94,20 @@ token_t* peekToken(prog_t* program, int dist) {
 
 prog_t* tokenizeFile(char* filename, symbol_t* symbols) {
     prog_t* program = initProgQueue(filename);
-    FILE* file = openFile(filename);
+    FILE* file = fopen(filename, "r");
+    /*FILE* file = openFile(filename);*/
+
 
     char* buffer = NULL;
     char* pos;
     line_t size;
     line_t line_len, word_len;
     int line = 0, word;
+    
+    if (!file) {
+        return NULL;
+    }
+
     printf("\nOPENING %s\n\n", filename);
 
     while ((line_len = getLine(&buffer, &size, file))) {
@@ -144,7 +151,7 @@ line_t parseBufferWords(char** pos) {
         case '#':
             /* FIXME a little bit dirty at the moment */
             /*return strchr(*pos + 1, *pos[0]) - *pos + 1;*/
-            
+
             return strcspn(*pos + 1, STRING_TERMINATORS) + 2;
             break;
         default:
@@ -227,11 +234,11 @@ prog_t* initProgQueue(char* filename) {
         ON_ERROR("Error allocating program struct\n");
     }
 
-    tmp->filename = (char*)malloc(sizeof(char)*(strlen(filename)+1));
-    if(!tmp->filename){
-        ON_ERROR("Error allocating memory for filename\n");   
+    tmp->filename = (char*)malloc(sizeof(char) * (strlen(filename) + 1));
+    if (!tmp->filename) {
+        ON_ERROR("Error allocating memory for filename\n");
     }
-    strcpy(tmp->filename,filename);
+    strcpy(tmp->filename, filename);
 
     tmp->token = (token_t*)malloc(sizeof(token_t) * PROG_LENGTH);
     if (!tmp->token) {
@@ -275,7 +282,7 @@ void buildToken(token_t* token, char* attrib, int len, int line, int word) {
     token->line = line;
     token->word = word;
 
-   /* if(token->type == ERROR){
+    /* if(token->type == ERROR){
         suggestCorrectToken(str);
     }*/
 
