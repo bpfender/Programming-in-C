@@ -90,7 +90,11 @@ void instr_error(prog_t* program) {
 void recoverError(prog_t* program) {
     token_t* token;
 
-    program->pos++;
+    if(program->token[program->pos].word == 0){
+        program->pos++;
+    }
+
+    
     do {
         token = dequeueToken(program);
     } while (token->word != 0);
@@ -137,6 +141,7 @@ void bracket_error(prog_t* program, type_t expected, int index) {
 
     switch (expected) {
         case BRACKET:
+        printf("Hello2\n");
             if (index == 0) {
                 fprintf(stderr, "Expected '(' before statement\n");
             } else {
@@ -156,7 +161,44 @@ void bracket_error(prog_t* program, type_t expected, int index) {
             }
             break;
         case COMMA:
-                fprintf(stderr, "Arguments should be seperated with ','\n");
+            fprintf(stderr, "Arguments should be seperated with ','\n");
+            break;
+        default:
+            break;
+    }
+
+    if (INTERP) {
+        exit(EXIT_FAILURE);
+    }
+
+    recoverError(program);
+}
+
+/* Need to handle missing brackets */
+/* FIXME +1 offset is quite ugly */
+void cond_error(prog_t* program, int index) {
+    printLocation(program->instr[index + 1], program->filename);
+
+    switch (index) {
+        case 0:
+            fprintf(stderr, "Expected '(' before statement\n");
+            break;
+        case 1:
+            fprintf(stderr, "Expected STR or NUM argument\n");
+            break;
+        case 2:
+            fprintf(stderr, "Arguments should be seperated with ','\n");
+            break;
+        case 3:
+            fprintf(stderr, "Arguments must match. ");
+            if (program->instr[2]->type == STRCON || program->instr[2]->type == STRVAR) {
+                fprintf(stderr, "Expected STR argument\n");
+            } else {
+                fprintf(stderr, "Expected NUM argument\n");
+            }
+            break;
+        case 4:
+            fprintf(stderr, "Expected ')' at end of statement\n");
             break;
         default:
             break;
@@ -170,8 +212,6 @@ void bracket_error(prog_t* program, type_t expected, int index) {
 }
 
 void in2str_error(prog_t* program, int index) {
-    printLocation(program->instr[index], program->filename);
-
 }
 
 void suggestCorrectToken(char* word) {
