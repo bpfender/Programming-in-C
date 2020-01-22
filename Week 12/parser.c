@@ -177,7 +177,9 @@ void prog_abort(prog_t* program, symbol_t* symbols, mvm* files) {
 }
 
 void in2str(prog_t* program, symbol_t* symbols, mvm* files) {
-    parseBrackets(program, STRVAR, TWO_ARG_LEN);
+    if (parseBrackets(program, STRVAR, TWO_ARG_LEN)) {
+        /* ERROR */
+    }
 
     if (INTERP) {
         inter_in2str(program, symbols);
@@ -188,11 +190,13 @@ void in2str(prog_t* program, symbol_t* symbols, mvm* files) {
 
 void innum(prog_t* program, symbol_t* symbols, mvm* files) {
     if (parseBrackets(program, NUMVAR, ONE_ARG_LEN)) {
-        ERROR(program->instr[0]);
+        /* ERROR */
     }
+
     if (INTERP) {
         inter_innum(program, symbols);
     }
+
     instr(program, symbols, files);
 }
 
@@ -202,7 +206,6 @@ void ifequal(prog_t* program, symbol_t* symbols, mvm* files) {
     token_t* token = program->instr[0];
 
     if (parseCondBracket(program)) {
-        ERROR(token);
     }
 
     if (!INTERP || inter_ifequal(program, symbols)) {
@@ -216,7 +219,6 @@ void ifgreater(prog_t* program, symbol_t* symbols, mvm* files) {
     token_t* token = program->instr[0];
 
     if (parseCondBracket(program)) {
-        ERROR(token);
     }
 
     /* Relies on evaluation order */
@@ -229,8 +231,8 @@ void ifgreater(prog_t* program, symbol_t* symbols, mvm* files) {
 
 void inc(prog_t* program, symbol_t* symbols, mvm* files) {
     if (parseBrackets(program, NUMVAR, ONE_ARG_LEN)) {
-        ERROR(peekToken(program, 0));
     }
+
     if (INTERP) {
         inter_inc(program, symbols);
     }
@@ -242,7 +244,7 @@ void jump(prog_t* program, symbol_t* symbols, mvm* files) {
     token_t* token = program->instr[1];
 
     if (token->type != NUMCON) {
-        ERROR(token);
+        jump_error(program);
     }
 
     if (INTERP) {
@@ -257,7 +259,7 @@ void print(prog_t* program, symbol_t* symbols, mvm* files) {
 
     if (token->type != STRVAR && token->type != NUMVAR &&
         token->type != STRCON && token->type != NUMCON) {
-        ERROR(token);
+        print_error(program);
     }
 
     if (INTERP) {
@@ -269,8 +271,8 @@ void print(prog_t* program, symbol_t* symbols, mvm* files) {
 
 void rnd(prog_t* program, symbol_t* symbols, mvm* files) {
     if (parseBrackets(program, NUMVAR, ONE_ARG_LEN)) {
-        ERROR(program->instr[0]);
     }
+
     if (INTERP) {
         inter_rnd(program, symbols);
     }
@@ -351,19 +353,22 @@ bool_t parseCondBracketEdit(token_t* tokens[TWO_ARG_LEN]) {
     return error_flag;
 }
 
-bool_t parseCondBracket(prog_t* program){
-    token_t** tokens = program->instr+1;
+bool_t parseCondBracket(prog_t* program) {
+    token_t** tokens = program->instr + 1;
 
     if (strcmp(tokens[0]->attrib, "(")) {
+        cond_error(program, 0);
         return TRUE;
     }
 
     if (!(tokens[1]->type == STRVAR || tokens[1]->type == NUMVAR ||
           tokens[1]->type == STRCON || tokens[1]->type == NUMCON)) {
+        cond_error(program, 1);
         return TRUE;
     }
 
     if (tokens[2]->type != COMMA) {
+        cond_error(program, 2);
         return TRUE;
     }
 
@@ -371,12 +376,14 @@ bool_t parseCondBracket(prog_t* program){
         case STRVAR:
         case STRCON:
             if (!(tokens[3]->type == STRVAR || tokens[3]->type == STRCON)) {
+                cond_error(program, 3);
                 return TRUE;
             }
             break;
         case NUMVAR:
         case NUMCON:
             if (!(tokens[3]->type == NUMVAR || tokens[3]->type == NUMCON)) {
+                cond_error(program, 3);
                 return TRUE;
             }
             break;
@@ -385,6 +392,7 @@ bool_t parseCondBracket(prog_t* program){
     }
 
     if (strcmp(tokens[4]->attrib, ")")) {
+        cond_error(program, 4);
         return TRUE;
     }
 
@@ -398,27 +406,27 @@ bool_t parseBrackets(prog_t* program, type_t arg, int len) {
     token_t** tokens = program->instr + 1;
 
     if (strcmp(tokens[0]->attrib, "(")) {
-        bracket_error(program, BRACKET, 0);
+        bracket_error(program, BRACKET, 0, len);
         return TRUE;
     }
 
     for (i = 1; i < len - 2; i += 2) {
         if (tokens[i]->type != arg) {
-            bracket_error(program, arg, i);
+            bracket_error(program, arg, i, len);
             return TRUE;
         }
         if (tokens[i + 1]->type != COMMA) {
-            bracket_error(program, COMMA, i+1);
+            bracket_error(program, COMMA, i + 1, len);
             return TRUE;
         }
     }
 
     if (tokens[len - 2]->type != arg) {
-        bracket_error(program, arg, len-2);
+        bracket_error(program, arg, len - 2, len);
         return TRUE;
     }
     if (strcmp(tokens[len - 1]->attrib, ")")) {
-        bracket_error(program, BRACKET, len-1);
+        bracket_error(program, BRACKET, len - 1, len);
         return TRUE;
     }
 
