@@ -11,6 +11,8 @@ void instr_error(prog_t* program);
 void file_error(prog_t* program);
 /* FIXME this is more of a warning */
 void abort_error(prog_t* program);
+void jump_error(prog_t* program);
+void print_error(prog_t* program);
 
 void bracket_error(prog_t* program, type_t expected, int index, int len);
 void cond_error(prog_t* program, int index);

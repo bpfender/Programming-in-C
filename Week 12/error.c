@@ -212,7 +212,50 @@ void cond_error(prog_t* program, int index) {
     program->pos = program->pos - 4 + index;
 }
 
-void in2str_error(prog_t* program, int index) {
+/* FIXME can this be combined with other single args ? */
+void jump_error(prog_t* program) {
+    if (program->instr[1]->word == 0) {
+        printLocation(program->instr[0], program->filename);
+        fprintf(stderr, "Expect NUMCON jump value\n");
+        program->pos -= 1;
+    } else {
+        printLocation(program->instr[1], program->filename);
+        fprintf(stderr, "Expect NUMCON jump value\n");
+        /*recoverError(program);*/
+    }
+}
+
+void print_error(prog_t* program) {
+    if (program->instr[1]->word == 0) {
+        printLocation(program->instr[0], program->filename);
+        fprintf(stderr, "Expected VARCON print value\n");
+        program->pos -= 1;
+    } else {
+        printLocation(program->instr[1], program->filename);
+        fprintf(stderr, "Expect VARCON print value\n");
+        /*recoverError(program);*/
+    }
+}
+
+void set_error(prog_t* program, int index) {
+    printLocation(program->instr[index], program->filename);
+
+    switch (index) {
+        case 1:
+            fprintf(stderr, "Expected assignment to VAR\n");
+            break;
+        case 2:
+            if (program->instr[2]->type == STRCON || program->instr[2]->type == STRVAR) {
+                fprintf(stderr, "Requires NUM value in assignment\n");
+            } else if (program->instr[2]->type == NUMCON || program->instr[2]->type == NUMVAR) {
+                fprintf(stderr, "Requires STR value in assignment\n");
+            } else {
+                fprintf(stderr, "Expect valid value to be assigned\n");
+            }
+            break;
+        default:
+            break;
+    }
 }
 
 void suggestCorrectToken(char* word) {
