@@ -90,11 +90,10 @@ void instr_error(prog_t* program) {
 void recoverError(prog_t* program) {
     token_t* token;
 
-    if(program->token[program->pos].word == 0){
+    if (program->token[program->pos].word == 0) {
         program->pos++;
     }
 
-    
     do {
         token = dequeueToken(program);
     } while (token->word != 0);
@@ -124,6 +123,7 @@ void file_error(prog_t* program) {
         exit(EXIT_FAILURE);
     }
 
+    /* FIXME is this correct */
     recoverError(program);
 }
 
@@ -136,12 +136,12 @@ void abort_error(prog_t* program) {
 }
 
 /* FIXME this offset is ugly at the moment */
-void bracket_error(prog_t* program, type_t expected, int index) {
+void bracket_error(prog_t* program, type_t expected, int index, int len) {
     printLocation(program->instr[index + 1], program->filename);
 
     switch (expected) {
         case BRACKET:
-        printf("Hello2\n");
+            printf("Hello2\n");
             if (index == 0) {
                 fprintf(stderr, "Expected '(' before statement\n");
             } else {
@@ -171,6 +171,7 @@ void bracket_error(prog_t* program, type_t expected, int index) {
         exit(EXIT_FAILURE);
     }
 
+    program->pos -= len;
     recoverError(program);
 }
 
@@ -208,7 +209,7 @@ void cond_error(prog_t* program, int index) {
         exit(EXIT_FAILURE);
     }
 
-    recoverError(program);
+    program->pos = program->pos - 4 + index;
 }
 
 void in2str_error(prog_t* program, int index) {

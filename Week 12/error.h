@@ -12,7 +12,7 @@ void file_error(prog_t* program);
 /* FIXME this is more of a warning */
 void abort_error(prog_t* program);
 
-void bracket_error(prog_t* program, type_t expected, int index);
+void bracket_error(prog_t* program, type_t expected, int index, int len);
 void cond_error(prog_t* program, int index);
 
 void recoverError(prog_t* program);
