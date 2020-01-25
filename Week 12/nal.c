@@ -1,3 +1,4 @@
+#include "interpreter.h"
 #include "parser.h"
 
 int main(int argc, char* argv[]) {
@@ -13,6 +14,10 @@ int main(int argc, char* argv[]) {
         fprintf(stderr, "Error opening %s\n", argv[1]);
         exit(EXIT_FAILURE);
     }
+
+#ifdef INTERP
+    inter_rndSeed();
+#endif
 
     symbols = initSymbolTable();
     addFilename(symbols, argv[1], NULL);

@@ -7,7 +7,7 @@ BASE = nal
 BEXECS = parse interp
 SEXECS = parse_s interp_s
 DEXECS = parse_d interp_d
-TEXECS = tests_s
+TEXECS = test_s
 EXECS = $(BEXECS) $(SEXECS) $(DEXECS) $(TEXECS) extension
 
 all : $(BEXECS)
@@ -32,13 +32,13 @@ interp_d : $(BASE).c
 extension: $(BASE).c 
 	$(CC) $(BASE).c tokenizer.c symbols.c parser.c error.c $(CFLAGS) -o $@ -DEXTENSION
 
-tests_s: test.c
-	$(CC) test.c tokenizer.c symbols.c parser.c error.c $(DFLAGS) -o $@
+test_s: test.c
+	$(CC) test.c tokenizer.c symbols.c parser.c error.c $(SFLAGS) -o $@
 
 test : testparse testinterp
 
-testfile: tests_s
-	./tests_s
+testfile: test_s
+	./test_s
 
 testparse : parse_s parse_d
 	./parse_s test1.$(BASE)
