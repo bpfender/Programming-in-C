@@ -1,0 +1,54 @@
+Testing consists of a mix of testing functions where they can be tested and testing
+sample files. While the recursive nature of the parsing (and interpretation) make 
+testing very difficult, the structure of the program is to some extent defined
+by the grammar, meaning that by definition it has to be valid. Nonetheless testing
+consisted of several different steps.
+
+Tokenizer:
+The tokenizer has been relatively easy to test/debug. The stucture of the tokenizer
+opens the file and reads it in line by line. Each line is then analysed for tokens
+which are then added to a program queue. These functions are all relatively
+standalone making it possible to test them in the test.c file. The functions around
+reading in files (getLine() in particular) have been used and tested extensively
+previously and have not been explicitly tested here again.
+
+Testing of the tokenizer revolves mainly around ensuring that tokens are identified
+properly regardless of line formatting and that these in turn are added correctly
+to the program queue. This testing is detailed in the first section of test.c
+
+Symbols:
+As with the tokenizer, the symbol table does not use many recursive calls allowing
+return values and functions to be tested more easily. Symbols.c is based on a
+modified version of mvm.c used in previous assignments. These change return values
+and allow null pointers to be passed as data. The functions have not been tested
+seperately again but are by definition tested when calling the higher level
+functions for adding variable names and filenames to the symbol table. As above,
+testing is detailed in test.c 
+
+Parser:
+The parser has only three functions that don't enter a recursive call. These are
+fillTokenString(), parseBrackets() and parseCondBrackets() and parseSetVals(). 
+These have been tested in test.c
+
+The remaining functions in this file call each other recursively making them
+difficult to test. As such they have been tested with .nal testfiles to ensure
+the code behaves as expected. Given that the function calls are basically defined
+by the grammar, there weren't actually too many problems. The two which did present
+themselves were filename handling and {} sections.
+
+The first step was to parse all the provided .nal files which revealed an issue
+when parsing a new file. An initial implementation of the parser didn't make
+a record of which files had already been parsed, meaning a test parse of 
+escape211.nal resulted in a never-ending/stack overflow terminating loop. This
+was easily fixed by adding a record of the files previously opened in symbols.c
+to avoid parsing the same file more than once. 
+
+
+
+Bracket identification
+Never ending file loop
+
+
+Interpreter:
+
+Extension:
