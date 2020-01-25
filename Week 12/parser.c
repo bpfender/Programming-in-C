@@ -39,14 +39,16 @@
         exit(2);                                                                                               \
     }
 
-void parseFile(prog_t* program, symbol_t* symbols) {
+bool_t parseFile(prog_t* program, symbol_t* symbols) {
     prog(program, symbols);
 
     if (program->pos == program->len) {
-        printf("\n%s parsed ok\n", program->filename);
+        return TRUE;
     } else {
         tokenLeft_error(program);
+        return FALSE;
     }
+
 }
 
 void prog(prog_t* program, symbol_t* symbols) {
@@ -217,6 +219,14 @@ void ifequal(prog_t* program, symbol_t* symbols) {
 void ifgreater(prog_t* program, symbol_t* symbols) {
     if (parseCondBracket(program)) {
     }
+
+    #ifdef INTERP
+        if(inter_ifgreater(program, symbols)){
+            prog(program,symbols);
+        }
+    #else
+        prog(program,symbols);
+    #endif
 
     if (!INTERP || inter_ifgreater(program, symbols)) {
         prog(program, symbols);
