@@ -1,8 +1,10 @@
 Testing consists of a mix of testing functions where they can be tested and testing
 sample files. While the recursive nature of the parsing (and interpretation) make 
 testing very difficult, the structure of the program is to some extent defined
-by the grammar, meaning that by definition it has to be valid. Nonetheless testing
-consisted of several different steps.
+by the grammar, meaning that by definition it has to be valid. Nonetheless I did
+extensive testing creating many may .nal files to test the individual functions
+in detail. For your sanity I have decided not to package them up but please let
+me know if you want to see them.
 
 
 ----------- TOKENIZER ------------
@@ -58,12 +60,20 @@ an additional check was required that all tokens had been consumed during the
 parsing of the file. This functionality was added to parseFile(). This appears
 to handle "edge cases" that can appear.
 
+Testing is further complicated by error handling as an error can't just be returned
+due to the depth of the recursion. This makes explicit testing of invalid inputs
+somewhat difficult.
+
 In addition, the biggest (and perhaps most crucial) function in parserc is instr(),
 which uses a switch statement to direct the program towards the correct function
-to handle a particular instruction. In the end, to actually test all functions
-individually, short test .nal files were written to test particular aspects of
-each, starting by ensuring that this main switch statement works properly and then
-testing each individual function in depth.
+to handle a particular instruction. 
+
+In the end, to actually test all functions individually, short test .nal files 
+were written to test particular aspects of each, starting by ensuring that the
+main switch statement works properly allowing a single call to each function in
+various ways to check valid and invalid structures. This resulted in many many
+many .nal files which I have decided not to include both for your and my sanity.
+I can pass them on if you do want to see them though.
 
 parseFile() is effectively a wrapper to call prog(), which expects the starting
 token "{". However having parseFile() allows an additional check whether all
@@ -110,6 +120,7 @@ the INSTRUCT type to be checked against the value being assigned to it. This is
 handled in parseSetVals() and on success, again simply calls back to instr().
 
 
+
 ------------ INTERPRETER -------------
 Given that the interpreter was built on top of the parsing structure, incorporating
 interpreter function calls was not a huge issue. Indeed, there were only a few
@@ -117,11 +128,49 @@ parse statements where the interpreter actually needed to be called. With the
 exception of one or two function, the interpreter relies on a statement to be 
 parsed before it can be interpreted.
 
-Exceptions to this were in the call to a new nal file and the jump over the
+Exceptions to this were in the call to a new .nal file and the jump over the
 expression in an if statement. For the file() call in parser.c, an INTERP define
 simply overides the condition meaning the file will always be loaded. For condtional
 statements, the return value from the interpreter call defines whether the program
 flow expects a prog() call or instr() call.
+
+Again many different .nal files were created to specifically test the individual
+aspects of each function. Broken down to a function-by-function basis, Testing
+was relatively easy if frustrating and repetitive.
+
+inter_in2str() takes user input and calls the tested updateVariable() to add the 
+variable and value to the symbol table. inter_innum() handles things similarly, 
+but adds a number to the symbol table. Key with both of these functions is that
+they have to allocate space for the data before passing the pointer to 
+updateVariable(). This allows a NULL pointer to be passed which can point to either
+strings of numbers.
+
+inter_jump() calls checkJumpValue() to make sure the number is an integer and
+checkValidJump() to check the jump is to a valid point in the program. Both these
+functions are tested in test.c. If both tests passed, program pos is changed to 
+jump location.
+
+inter_print() checks the type of the argument. If its a VAR, tries to retrieve it
+from the symbol table and casts a successful return to either a char* or double.
+Then prints value plus \n depending on value of PRINT or PRINTN.
+
+inter_rnd() simply generates random number and calls the tested updateVariable()
+function to update or add the variable.
+
+inter_ifequal() and inter_ifgreater() first gets pointers to the two arguments from
+getArg(). This function also check for valid variable names. Depending on the
+TYPE of the argument, the function either casts the pointers as char* or double*
+to compare the values. Then if the condition evaluates to false, findElseJump()
+is called to find the program position after the conditional statement. This is
+probably the most complicated part of the interpreter.
+
+inter_inc() is very similar to previous structures checking for a varibale with the
+tested getVariable(). If it doesn't exist, an error is thrown, if it does, the
+returned data val is cast to double* and incremented.
+
+inter_set() simply switches according to the assignment value, checking for the 
+variable in the case of VARS or simply using the CON if constants and casting
+appropriately.
 
 
 ------------ EXTENSION --------------
