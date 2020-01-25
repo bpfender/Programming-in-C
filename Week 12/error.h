@@ -3,7 +3,13 @@
 
 #include "tokenizer.h"
 
+/* FIXME this limit needs to be defined somewhere */
 #define MATR_SIZE 50
+
+
+#define ON_ERROR(STR)     \
+    fprintf(stderr, STR); \
+    exit(EXIT_FAILURE)
 
 void printLocation(token_t* token, char* filename);
 void prog_error(prog_t* program);
@@ -16,6 +22,8 @@ void print_error(prog_t* program);
 
 void bracket_error(prog_t* program, type_t expected, int index, int len);
 void cond_error(prog_t* program, int index);
+void dequeue_error(prog_t* program);
+void tokenLeft_error(prog_t* program);
 
 void recoverError(prog_t* program);
 void suggestCorrectToken(char* word);

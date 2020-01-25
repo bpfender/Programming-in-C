@@ -6,16 +6,12 @@
 
 #define RND_RANGE 100
 
+/* FIXME need to convert escape characters */
 void inter_rndSeed(void) {
     srand(time(NULL));
 }
 
 void inter_file(void) {
-}
-
-void inter_abort(void) {
-    printf("Program ended\n");
-    exit(EXIT_SUCCESS);
 }
 
 double* allocNumber(void) {
@@ -77,6 +73,11 @@ void inter_innum(prog_t* program, symbol_t* symbols) {
     }
 
     updateVariable(symbols, program->instr[2]->attrib, num);
+}
+
+void inter_abort(void) {
+    printf("\nPROGRAM END: Program has ended\n");
+    exit(EXIT_SUCCESS);
 }
 
 void inter_jump(prog_t* program) {

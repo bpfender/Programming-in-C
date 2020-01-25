@@ -310,7 +310,6 @@ bool_t parseSetVals(prog_t* program) {
 }
 
 
-
 bool_t parseCondBracket(prog_t* program) {
     token_t** instr = program->instr;
 

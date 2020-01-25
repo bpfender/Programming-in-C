@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "interpreter.h"
 #include "parser.h"
@@ -14,7 +15,6 @@ int main(void) {
     prog_t* program;
     symbol_t* symbols = initSymbolTable();
     char filename[500];
-    ast_t* ast;
 
     symbol_t* symboltab;
     mvm* files;
@@ -29,7 +29,7 @@ int main(void) {
     }
     printf("\n");
 
-    program = tokenizeFile("./Files/test5.nal", symbols);
+    program = tokenizeFile("test5.nal");
     for (i = 0; i < program->len; i++) {
         printInstr(program->token[i].type);
         printf(" Line: %d Word: %d", program->token[i].line, program->token[i].word);
@@ -41,18 +41,20 @@ int main(void) {
 
     printf("PARSE TEST\n");
 
-    strcpy(filename, "./Files/escape211.nal");
+    strcpy(filename, "testmore.nal");
     symboltab = initSymbolTable();
     files = tok_filesinit();
-    program = tokenizeFile(filename, symboltab);
+    program = tokenizeFile(filename);
+    if (!program) {
+        fprintf(stderr, "Failed to open file\n");
+        exit(EXIT_FAILURE);
+    }
     tok_insertfilename(files, filename, program);
-    ast = initAST();
 
-    parseFile(program, symboltab, files);
+    parseFile(program, symboltab);
 
     tok_freefilenames(files);
     freeSymbolTable(symboltab);
-    freeAST(ast);
 
     printf("Testing end...\n");
 

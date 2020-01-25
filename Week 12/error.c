@@ -16,7 +16,7 @@ typedef struct token_err_t {
 
 bool_t isINSTR(token_t* token) {
     switch (token->type) {
-        case FILE_:
+        case FILE_REF:
         case ABORT:
         case IN2STR:
         case INNUM:
@@ -137,7 +137,7 @@ void abort_error(prog_t* program) {
 
 /* FIXME this offset is ugly at the moment */
 void bracket_error(prog_t* program, type_t expected, int index, int len) {
-    printLocation(program->instr[index + 1], program->filename);
+    printLocation(program->instr[index], program->filename);
 
     switch (expected) {
         case BRACKET:
@@ -176,9 +176,8 @@ void bracket_error(prog_t* program, type_t expected, int index, int len) {
 }
 
 /* Need to handle missing brackets */
-/* FIXME +1 offset is quite ugly */
 void cond_error(prog_t* program, int index) {
-    printLocation(program->instr[index + 1], program->filename);
+    printLocation(program->instr[index], program->filename);
 
     switch (index) {
         case 0:
@@ -257,6 +256,18 @@ void set_error(prog_t* program, int index) {
             break;
     }
 }
+
+void dequeue_error(prog_t* program) {
+    fprintf(stderr, "No tokens left\n");
+    exit(EXIT_FAILURE);
+}
+
+void tokenLeft_error(prog_t* program){
+        fprintf(stderr, "Tokens left\n");
+    exit(EXIT_FAILURE);
+}
+
+/* FIXME $ % incorrect capitalisation, "." missing number */
 
 void suggestCorrectToken(char* word) {
     unsigned int i;

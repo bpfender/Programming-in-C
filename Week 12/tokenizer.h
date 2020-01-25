@@ -3,8 +3,7 @@
 
 #include <stdio.h>
 
-/* FIXME this can be removed */
-#include "mvmedit.h"
+#include "symbols.h"
 
 #define INTERP 0
 
@@ -138,6 +137,7 @@ line_t parseBufferWords(char** pos);
 
 /* ------ TOKEN IDENTIFICATION FUNCTIONS ------- */
 type_t tokenType(char* word);
+
 bool_t isFILE(char* word);
 bool_t isABORT(char* word);
 bool_t isIN2STR(char* word);
