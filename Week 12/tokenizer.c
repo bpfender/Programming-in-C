@@ -5,124 +5,80 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* FIXME need to check these terminators */
-#define LINE_SIZE 50
+/* Initilisation values for line buffer */
+#define LINE_SIZE 256
 #define FACTOR 2
-#define WHITESPACE " \t\n\v\f\r"
-#define TERMINATORS "(){},=#\" \t\n\v\f\r"
-#define STRING_TERMINATORS "\"\n"
 
+/* Macro defines maximum value of line_t type */
+#define LINE_T_MAX (line_t) ~0
+
+/* Definitions of terminators for identifying individual tokens */
+/* FIXME need to check these terminators */
+#define WHITESPACE " \t\n\v\f\r"
+#define TERMINATORS "(){},=#\" \t\n\v\f\r\0"
+#define STRING_TERMINATORS "\"\n\0"
+#define QUOTE_LEN 2
+
+/* Initialisation value for program size */
 #define PROG_LENGTH 500
 
+/* FIXME might not be needed here */
 #define ROT5 5
 #define ROT13 13
 #define ALPHA 26
 #define DIGIT 10
 
-/* Macro defines maximum value of line_t type */
-#define LINE_T_MAX (line_t) ~0
-
-#define ON_ERROR(STR)     \
-    fprintf(stderr, STR); \
-    exit(EXIT_FAILURE)
-
-mvm* tok_filesinit(void) {
-    return mvm_init();
-}
-
-mvmcell* tok_fileexists(mvm* files, char* filename) {
-    return mvm_search(files, filename);
-}
-
-void tok_insertfilename(mvm* files, char* filename, prog_t* prog) {
-    mvm_insert(files, filename, prog);
-}
-
-void tok_freefilenames(mvm* files) {
-    mvmcell* node = files->head;
-    tok_unloadlist(node);
-    free(files);
-}
-
-void tok_unloadlist(mvmcell* node) {
-    if (!node) {
-        return;
-    }
-    tok_unloadlist(node->next);
-    free(node->key);
-    freeProgQueue(node->data);
-    free(node);
-}
-
-/* FIXME tokenizer has no lexical analysis on errors yet */
-FILE* openFile(char* filename) {
-    FILE* file = fopen(filename, "r");
-
-    if (!file) {
-        fprintf(stderr, "%s\n", filename);
-        ON_ERROR("Cannot open file\n");
-    }
-    return file;
-}
-
+/* ------- TOKEN RETURN FUNCTIONS ------ */
 token_t* dequeueToken(prog_t* program) {
     token_t* token;
 
     if (program->pos >= program->len) {
-        fprintf(stderr, "No tokens left\n");
-        exit(EXIT_FAILURE);
+        dequeue_error(program);
     }
 
     token = program->token + program->pos;
     program->pos++;
-    /*printInstr(token->type);*/
-    printf(" Line %d word %d\n", token->line + 1, token->word + 1);
+
     return token;
 }
 
 token_t* peekToken(prog_t* program, int dist) {
-    if (program->pos >= program->len) {
-        fprintf(stderr, "No tokens left\n");
-        exit(EXIT_FAILURE);
+    if (program->pos + dist >= program->len) {
+        dequeue_error(program);
     }
 
-    if (program->pos + dist >= program->len) {
-        return NULL;
-    }
     return program->token + (program->pos + dist);
 }
 
-prog_t* tokenizeFile(char* filename, symbol_t* symbols) {
-    prog_t* program = initProgQueue(filename);
-    FILE* file = fopen(filename, "r");
-    /*FILE* file = openFile(filename);*/
-
+/* ------- TOKENIZATION FUNCTIONS ------ */
+prog_t* tokenizeFile(char* filename) {
+    FILE* file;
+    prog_t* program;
 
     char* buffer = NULL;
-    char* pos;
+    char* line_pos;
     line_t size;
     line_t line_len, word_len;
-    int line = 0, word;
-    
-    if (!file) {
+    int line_num = 0, word_num;
+
+    if (!(file = fopen(filename, "r"))) {
         return NULL;
     }
+    program = initProgQueue(filename);
 
-    printf("\nOPENING %s\n\n", filename);
-
+    /* Return lines in the file */
     while ((line_len = getLine(&buffer, &size, file))) {
         truncateLineEnd(buffer, &line_len);
-        pos = buffer;
-
-        word = 0;
+        line_pos = buffer;
+        word_num = 0;
 
         /* Parse through words in the line */
-        while ((word_len = parseBufferWords(&pos))) {
-            enqueueToken(program, symbols, pos, word_len, line, word);
-            pos += word_len;
-            word++;
+        while ((word_len = parseBufferWords(&line_pos))) {
+            enqueueToken(program, line_pos, word_len, line_num, word_num);
+            line_pos += word_len;
+            word_num++;
         }
-        line++;
+        line_num++;
     }
 
     free(buffer);
@@ -130,36 +86,120 @@ prog_t* tokenizeFile(char* filename, symbol_t* symbols) {
     return program;
 }
 
-/* FIXME this does not deal with \" chars yet */
-line_t parseBufferWords(char** pos) {
-    if (*pos[0] == '\0') {
-        return 0;
+void enqueueToken(prog_t* program, char* attrib, int len, int line, int word) {
+    int i = program->len;
+
+    if (i >= program->size) {
+        expandProgQueue(program);
     }
-    /* Remove leading whitespace */
-    *pos += strspn(*pos, WHITESPACE);
 
-    switch (*pos[0]) {
-        case '(':
-        case ')':
-        case '{':
-        case '}':
-        case '=':
-        case ',':
-            return 1;
-            break;
-        case '"':
-        case '#':
-            /* FIXME a little bit dirty at the moment */
-            /*return strchr(*pos + 1, *pos[0]) - *pos + 1;*/
+    buildToken(program->token + i, attrib, len, line, word);
+    program->len++;
+}
 
-            return strcspn(*pos + 1, STRING_TERMINATORS) + 2;
-            break;
-        default:
-            return strcspn(*pos, TERMINATORS);
-            break;
+void buildToken(token_t* token, char* attrib, int len, int line, int word) {
+    /* Allocate space for attrib and copy. Memcpy is used as string is not NULL
+    terminated */
+    char* str = (char*)malloc(sizeof(char) * (len + 1));
+    if (!str) {
+        ON_ERROR("Error allocating space for token attribute\n");
+    }
+    memcpy(str, attrib, sizeof(char) * len);
+    str[len] = '\0';
+
+    token->type = tokenType(str);
+    token->line = line;
+    token->word = word;
+
+    /* Converts ROT18 encoded strings. Only converts string constants if they
+    are to be interpreted. Otherwise, only filenames are required */
+    if (token->type == FILE_REF || ((token->type == STRCON) && INTERP)) {
+        /* getSTRCON converts string in place */
+        tok_getSTRCON(str);
+    }
+
+    token->attrib = str;
+}
+
+/* decode strconsts in place */
+/* FIXME could covert escape characters here */
+/* FIXME rename tok */
+/* FIXME does't need first if statemtn */
+void tok_getSTRCON(char* word) {
+    int len;
+    if (word[0] == '"' || word[0] == '#') {
+        len = strlen(word);
+        /* Truncate " or # */
+        word[len - 1] = '\0';
+
+        if (word[0] == '#') {
+            tok_rot18(word + 1);
+        }
+
+        /* Memmove is compatible with in place shifting */
+        memmove(word, word + 1, strlen(word + 1) + 1);
     }
 }
 
+/* FIXME rename tok */
+void tok_rot18(char* s) {
+    int i;
+    for (i = 0; s[i] != '\0'; i++) {
+        if (isupper(s[i])) {
+            s[i] = 'A' + (s[i] - 'A' + ROT13) % ALPHA;
+        } else if (islower(s[i])) {
+            s[i] = 'a' + (s[i] - 'a' + ROT13) % ALPHA;
+        } else if (isdigit(s[i])) {
+            s[i] = '0' + (s[i] - '0' + ROT5) % DIGIT;
+        }
+    }
+}
+
+/* ------ TOKEN STREAM INITIALISATION FUNCTIONS ------ */
+/* FIXME maybe clean up mallocs */
+prog_t* initProgQueue(char* filename) {
+    prog_t* tmp = (prog_t*)malloc(sizeof(prog_t));
+    if (!tmp) {
+        ON_ERROR("Error allocating program struct\n");
+    }
+
+    tmp->filename = (char*)malloc(sizeof(char) * (strlen(filename) + 1));
+    if (!tmp->filename) {
+        ON_ERROR("Error allocating memory for filename\n");
+    }
+    strcpy(tmp->filename, filename);
+
+    tmp->token = (token_t*)malloc(sizeof(token_t) * PROG_LENGTH);
+    if (!tmp->token) {
+        ON_ERROR("Error allocating memory for program queue\n");
+    }
+
+    tmp->size = PROG_LENGTH;
+    tmp->pos = 0;
+    tmp->len = 0;
+
+    return tmp;
+}
+
+void expandProgQueue(prog_t* program) {
+    program->size *= FACTOR;
+    program->token = (token_t*)realloc(program->token, program->size);
+    if (!program->token) {
+        ON_ERROR("Error resizing program queue\n");
+    }
+}
+
+void freeProgQueue(prog_t* program) {
+    int i;
+    for (i = 0; i < program->len; i++) {
+        free(program->token[i].attrib);
+    }
+    free(program->filename);
+    free(program->token);
+    free(program);
+}
+
+/* ------ FILE & LINE HANDLING FUNCTIONS ------ */
 line_t getLine(char** buffer, line_t* size, FILE* file) {
     line_t i = 0;
     long int file_pos = ftell(file);
@@ -202,6 +242,7 @@ line_t getLine(char** buffer, line_t* size, FILE* file) {
     return 0;
 }
 
+/* FIXME THis might not actually be needed */
 void truncateLineEnd(char* buffer, line_t* len) {
     line_t size = *len;
     /* FIXME magic numbers */
@@ -228,91 +269,41 @@ char* bufferAllocHandler(char* buffer, line_t size) {
     return tmp;
 }
 
-prog_t* initProgQueue(char* filename) {
-    prog_t* tmp = (prog_t*)malloc(sizeof(prog_t));
-    if (!tmp) {
-        ON_ERROR("Error allocating program struct\n");
+line_t parseBufferWords(char** pos) {
+    if (*pos[0] == '\0') {
+        return 0;
     }
+    /* Remove leading whitespace */
+    *pos += strspn(*pos, WHITESPACE);
 
-    tmp->filename = (char*)malloc(sizeof(char) * (strlen(filename) + 1));
-    if (!tmp->filename) {
-        ON_ERROR("Error allocating memory for filename\n");
-    }
-    strcpy(tmp->filename, filename);
-
-    tmp->token = (token_t*)malloc(sizeof(token_t) * PROG_LENGTH);
-    if (!tmp->token) {
-        ON_ERROR("Error allocating memory for program queue\n");
-    }
-
-    tmp->size = PROG_LENGTH;
-    tmp->pos = 0;
-    tmp->len = 0;
-
-    return tmp;
-}
-
-void enqueueToken(prog_t* program, symbol_t* symbols, char* attrib, int len, int line, int word) {
-    int i = program->len;
-
-    if (i >= program->size) {
-        expandProgQueue(program);
-    }
-
-    buildToken(program->token + i, attrib, len, line, word);
-
-    /* FIXME possibly better not to add var declaractions here */
-    if (program->token[i].type == STRVAR || program->token[i].type == NUMVAR) {
-        /* Empty symbol table entry as record */
-        /*   addVariable(symbols, program->token[i].attrib);*/
-    }
-
-    program->len++;
-}
-
-void buildToken(token_t* token, char* attrib, int len, int line, int word) {
-    char* str = (char*)malloc(sizeof(char) * (len + 1));
-    if (!str) {
-        ON_ERROR("Error allocating space of token attribute\n");
-    }
-    memcpy(str, attrib, sizeof(char) * len);
-    str[len] = '\0';
-
-    token->type = tokenType(str);
-    token->line = line;
-    token->word = word;
-
-    /* if(token->type == ERROR){
-        suggestCorrectToken(str);
-    }*/
-
-    if (token->type == FILE_ || (token->type == STRCON && INTERP)) {
-        tok_getSTRCON(str);
-    }
-    token->attrib = str;
-}
-
-void expandProgQueue(prog_t* program) {
-    program->size *= FACTOR;
-    program->token = (token_t*)realloc(program->token, program->size);
-    if (!program->token) {
-        ON_ERROR("Error resizing program queue\n");
+    /* Return len 1 on single character tokens. For " or #, need to offset by 1
+    so that it doesn't stop on first char. It will return len up to " or #, so +2
+    len is required. Other tokens can simply be read up to terminator */
+    switch (*pos[0]) {
+        case '(':
+        case ')':
+        case '{':
+        case '}':
+        case '=':
+        case ',':
+            return 1;
+            break;
+        case '"':
+        case '#':
+            return strcspn(*pos + 1, STRING_TERMINATORS) + QUOTE_LEN;
+            break;
+        default:
+            return strcspn(*pos, TERMINATORS);
+            break;
     }
 }
 
-void freeProgQueue(prog_t* program) {
-    int i;
-    for (i = 0; i < program->len; i++) {
-        free(program->token[i].attrib);
-    }
-    free(program->filename);
-    free(program->token);
-    free(program);
-}
+
+/* ------- TOKEN IDENTIFICATION FUNCTIONS ------ */
 
 type_t tokenType(char* word) {
     if (isFILE(word)) {
-        return FILE_;
+        return FILE_REF;
     }
     if (isABORT(word)) {
         return ABORT;
@@ -452,6 +443,7 @@ bool_t isNUMCON(char* word) {
     int i;
     bool_t dot = FALSE;
 
+    /* Checks that there is only one decimal point in string */
     for (i = 0; word[i] != '\0'; i++) {
         if (!isdigit(word[i])) {
             if (word[i] == '.' && dot == FALSE) {
@@ -482,7 +474,6 @@ bool_t isCOMMA(char* word) {
     return strcmp(word, ",") ? FALSE : TRUE;
 }
 
-/* FIXME Error handling of invalid variable name */
 bool_t isStrUpper(char* word) {
     int i;
     for (i = 1; word[i] != '\0'; i++) {
@@ -495,7 +486,7 @@ bool_t isStrUpper(char* word) {
 
 void printInstr(type_t instr) {
     switch (instr) {
-        case FILE_:
+        case FILE_REF:
             printf("FILE");
             break;
         case ABORT:
@@ -558,30 +549,30 @@ void printInstr(type_t instr) {
     }
 }
 
-/* decode strconsts in place */
-void tok_getSTRCON(char* word) {
-    int len;
-    if (word[0] == '"' || word[0] == '#') {
-        len = strlen(word);
-        word[len - 1] = '\0';
-
-        if (word[0] == '#') {
-            tok_rot18(word + 1);
-        }
-
-        memmove(word, word + 1, sizeof(char) * len - 1);
-    }
+mvm* tok_filesinit(void) {
+    return mvm_init();
 }
 
-void tok_rot18(char* s) {
-    int i;
-    for (i = 0; s[i] != '\0'; i++) {
-        if (isupper(s[i])) {
-            s[i] = 'A' + (s[i] - 'A' + ROT13) % ALPHA;
-        } else if (islower(s[i])) {
-            s[i] = 'a' + (s[i] - 'a' + ROT13) % ALPHA;
-        } else if (isdigit(s[i])) {
-            s[i] = '0' + (s[i] - '0' + ROT5) % DIGIT;
-        }
+mvmcell* tok_fileexists(mvm* files, char* filename) {
+    return mvm_search(files, filename);
+}
+
+void tok_insertfilename(mvm* files, char* filename, prog_t* prog) {
+    mvm_insert(files, filename, prog);
+}
+
+void tok_freefilenames(mvm* files) {
+    mvmcell* node = files->head;
+    tok_unloadlist(node);
+    free(files);
+}
+
+void tok_unloadlist(mvmcell* node) {
+    if (!node) {
+        return;
     }
+    tok_unloadlist(node->next);
+    free(node->key);
+    freeProgQueue(node->data);
+    free(node);
 }
