@@ -4,7 +4,8 @@ testing very difficult, the structure of the program is to some extent defined
 by the grammar, meaning that by definition it has to be valid. Nonetheless testing
 consisted of several different steps.
 
-Tokenizer:
+
+----------- TOKENIZER ------------
 The tokenizer has been relatively easy to test/debug. The stucture of the tokenizer
 opens the file and reads it in line by line. Each line is then analysed for tokens
 which are then added to a program queue. These functions are all relatively
@@ -16,7 +17,8 @@ Testing of the tokenizer revolves mainly around ensuring that tokens are identif
 properly regardless of line formatting and that these in turn are added correctly
 to the program queue. This testing is detailed in the first section of test.c
 
-Symbols:
+
+----------- SYMBOLS -------------
 As with the tokenizer, the symbol table does not use many recursive calls allowing
 return values and functions to be tested more easily. Symbols.c is based on a
 modified version of mvm.c used in previous assignments. These change return values
@@ -25,16 +27,20 @@ seperately again but are by definition tested when calling the higher level
 functions for adding variable names and filenames to the symbol table. As above,
 testing is detailed in test.c 
 
-Parser:
+
+----------- PARSER -------------
 The parser has only three functions that don't enter a recursive call. These are
 fillTokenString(), parseBrackets() and parseCondBrackets() and parseSetVals(). 
-These have been tested in test.c
+These have been tested in test.c. Indeed if a function doesn't check brackets, it
+only checks one argument which is trivial to verify. Aside from that, the grammar
+clearly defines what the next expected token is, making the construction of the
+recursive call relatively intuitive.
 
-The remaining functions in this file call each other recursively making them
+The recursive nature of the majority of fucntions written makes them
 difficult to test. As such they have been tested with .nal testfiles to ensure
 the code behaves as expected. Given that the function calls are basically defined
 by the grammar, there weren't actually too many problems. The two which did present
-themselves were filename handling and {} sections.
+themselves and were not initially obvious were filename handling and {} sections.
 
 The first step was to parse all the provided .nal files which revealed an issue
 when parsing a new file. An initial implementation of the parser didn't make
@@ -43,12 +49,80 @@ escape211.nal resulted in a never-ending/stack overflow terminating loop. This
 was easily fixed by adding a record of the files previously opened in symbols.c
 to avoid parsing the same file more than once. 
 
+At some point, either accidentally or due to paying attention I realised that I
+had no handling for an error where there is no }, which would indicated the end of
+the recursive call and allow the functions to return again. This required me to 
+add error checking to the dequeueToken() function to ensure tokens weren't read
+out of the bounds of the program queue. Likewise, this also made me realise that
+an additional check was required that all tokens had been consumed during the
+parsing of the file. This functionality was added to parseFile(). This appears
+to handle "edge cases" that can appear.
+
+In addition, the biggest (and perhaps most crucial) function in parserc is instr(),
+which uses a switch statement to direct the program towards the correct function
+to handle a particular instruction. In the end, to actually test all functions
+individually, short test .nal files were written to test particular aspects of
+each, starting by ensuring that this main switch statement works properly and then
+testing each individual function in depth.
+
+parseFile() is effectively a wrapper to call prog(), which expects the starting
+token "{". However having parseFile() allows an additional check whether all
+tokens have been consumed and True or False to be returned as a flag.
+
+prog() consumes one token and checks whether it is the expected starting token {.
+dequeueToken() is a well tested function as seen in test.c.
+
+instr() as discussed above determines what kind of INSTRUCT is being handled. 
+Depending on the first token read (which based on the grammar determines absolutely
+what INSTRUCT is being handled), the number of tokens that form part of that
+INSTRUCT are read into the progrom->instr buffer for further handling in the 
+corresponding function call. This copy somewhat simplifies parsing of the line.
+Each INSTRUCT type is then handled, before calling back to instr() (or prog() 
+in the case of an IFCOND). Only instr() can end the recursion by returning without
+a further function call when it encounters an "}". (Errors can also terminate 
+the program).
+
+file() checks that the argument passed is a STRCON, and then checks if that
+corresponds to a file already read. If it doesn't it tries to tokenize that file
+and if successful parses the file, before moving on to the next instr() call.
+
+prog_abort() by itself is already valid as the grammar doesn't define what should
+come after an abort. However, the extension may throw a warning if abort isn't
+followed by a } as anything after the abort won't be executed (unless a JUMP 
+points to just after the ABORT)
+
+in2str() innum() rnd() inc() all rely on bracket parsing, which checks the correct
+format and argument in the bracket string before returing, allowing the functions
+to call the next instr().
+
+Similarly jump() print() simply require the argument to be checked for type
+before calling back to instr().
+
+IFCONDS (ifgreater() ifequal()) require a call to parseCondBrackets() to check
+for valid tokens. This involved perhaps the biggest conceptual step, that the 
+{ expected after an IFCOND is effectively a new PROGRAM, allowing a call
+to prog() which will continue recusively to the next } before returning to the 
+function, where instr() can then be called on the next statement outside the 
+conditional statement.
+
+Finally, set() is the only function which requires the first token that defines 
+the INSTRUCT type to be checked against the value being assigned to it. This is 
+handled in parseSetVals() and on success, again simply calls back to instr().
 
 
-Bracket identification
-Never ending file loop
+------------ INTERPRETER -------------
+Given that the interpreter was built on top of the parsing structure, incorporating
+interpreter function calls was not a huge issue. Indeed, there were only a few
+parse statements where the interpreter actually needed to be called. With the
+exception of one or two function, the interpreter relies on a statement to be 
+parsed before it can be interpreted.
+
+Exceptions to this were in the call to a new nal file and the jump over the
+expression in an if statement. For the file() call in parser.c, an INTERP define
+simply overides the condition meaning the file will always be loaded. For condtional
+statements, the return value from the interpreter call defines whether the program
+flow expects a prog() call or instr() call.
 
 
-Interpreter:
-
-Extension:
+------------ EXTENSION --------------
+Detailed in extension.txt
