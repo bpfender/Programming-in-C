@@ -1,0 +1,21 @@
+{   
+    "HELLO" = "HELLO"
+    PRINTN "HELLO WORLD"
+    PRNT "HELLO WORLD"
+    = 3
+    IN2STR( $A, fafw 
+    IFEQUAL ( 3 , "HELLO" {
+        ABORT
+    }
+    RND(%A)
+    JUMP
+    JUMP huih
+    JUMP 5
+    JUMP %s
+    PRINT 4
+    PRINT "HELLO how are you"
+    PRINTN hjljh
+    PRINT "h"
+    %H = 
+}
+    
