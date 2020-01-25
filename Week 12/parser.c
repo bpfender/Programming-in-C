@@ -10,21 +10,24 @@
 
 #define ARG_INDEX 1
 
+/* Index definitions for bracketed arguments */
+#define BRKT_OPEN 1
+#define BRKT_ARG1 2
+#define BRKT_1ARGCLOSE 3
+#define BRKT_COMMA 3
+#define BRKT_ARG2 4
+#define BRKT_2ARGCLOSE 5
+
+/* Lengths for populating instr line */
 #define SECT_LEN 1
 #define ABORT_LEN 1
 #define SET_LEN 3
 #define SINGLE_ARG_LEN 2
-#define SINGLE_BRACKET_LEN 4
-#define DOUBLE_BRACKET_LEN 6
+#define SINGLE_BRKT_LEN 4
+#define DOUBLE_BRKT_LEN 6
 
-#define TWO_ARG_LEN 5
-#define ONE_ARG_LEN 3
 
-#define RND_ARGS 1
-#define IFCOND_ARGS 2
-#define IN2STR_ARGS 2
-#define INNUM_ARGS 1
-#define INC_ARGS 1
+
 
 #define ON_ERROR(STR)     \
     fprintf(stderr, STR); \
@@ -70,23 +73,23 @@ void instr(prog_t* program, symbol_t* symbols) {
             return;
             break;
         case IN2STR:
-            fillTokenString(program, program->instr, DOUBLE_BRACKET_LEN);
+            fillTokenString(program, program->instr, DOUBLE_BRKT_LEN);
             in2str(program, symbols);
             break;
         case INNUM:
-            fillTokenString(program, program->instr, SINGLE_BRACKET_LEN);
+            fillTokenString(program, program->instr, SINGLE_BRKT_LEN);
             innum(program, symbols);
             break;
         case IFEQUAL:
-            fillTokenString(program, program->instr, DOUBLE_BRACKET_LEN);
+            fillTokenString(program, program->instr, DOUBLE_BRKT_LEN);
             ifequal(program, symbols);
             break;
         case IFGREATER:
-            fillTokenString(program, program->instr, DOUBLE_BRACKET_LEN);
+            fillTokenString(program, program->instr, DOUBLE_BRKT_LEN);
             ifgreater(program, symbols);
             break;
         case INC:
-            fillTokenString(program, program->instr, SINGLE_BRACKET_LEN);
+            fillTokenString(program, program->instr, SINGLE_BRKT_LEN);
             inc(program, symbols);
             break;
         case JUMP:
@@ -99,7 +102,7 @@ void instr(prog_t* program, symbol_t* symbols) {
             print(program, symbols);
             break;
         case RND:
-            fillTokenString(program, program->instr, SINGLE_BRACKET_LEN);
+            fillTokenString(program, program->instr, SINGLE_BRKT_LEN);
             rnd(program, symbols);
             break;
         case STRVAR:
@@ -176,7 +179,7 @@ void prog_abort(prog_t* program, symbol_t* symbols) {
 }
 
 void in2str(prog_t* program, symbol_t* symbols) {
-    if (parseBrackets(program, STRVAR, TWO_ARG_LEN)) {
+    if (parseBrackets(program, STRVAR, DOUBLE)) {
         /* ERROR */
     }
 
@@ -188,7 +191,7 @@ void in2str(prog_t* program, symbol_t* symbols) {
 }
 
 void innum(prog_t* program, symbol_t* symbols) {
-    if (parseBrackets(program, NUMVAR, ONE_ARG_LEN)) {
+    if (parseBrackets(program, NUMVAR, SINGLE)) {
         /* ERROR */
     }
 
@@ -223,7 +226,7 @@ void ifgreater(prog_t* program, symbol_t* symbols) {
 }
 
 void inc(prog_t* program, symbol_t* symbols) {
-    if (parseBrackets(program, NUMVAR, ONE_ARG_LEN)) {
+    if (parseBrackets(program, NUMVAR, SINGLE)) {
     }
 
     if (INTERP) {
@@ -263,11 +266,23 @@ void print(prog_t* program, symbol_t* symbols) {
 }
 
 void rnd(prog_t* program, symbol_t* symbols) {
-    if (parseBrackets(program, NUMVAR, ONE_ARG_LEN)) {
+    if (parseBrackets(program, NUMVAR, SINGLE)) {
     }
 
     if (INTERP) {
         inter_rnd(program, symbols);
+    }
+
+    instr(program, symbols);
+}
+
+void set(prog_t* program, symbol_t* symbols) {
+    if (!parseSetVals(program)) {
+        ERROR(program->instr[0]);
+    }
+
+    if (INTERP) {
+        inter_set(program, symbols);
     }
 
     instr(program, symbols);
@@ -294,49 +309,41 @@ bool_t parseSetVals(prog_t* program) {
     }
 }
 
-void set(prog_t* program, symbol_t* symbols) {
-    if (!parseSetVals(program)) {
-        ERROR(program->instr[0]);
-    }
 
-    if (INTERP) {
-        inter_set(program, symbols);
-    }
-
-    instr(program, symbols);
-}
 
 bool_t parseCondBracket(prog_t* program) {
-    token_t** tokens = program->instr + 1;
+    token_t** instr = program->instr;
 
-    if (strcmp(tokens[0]->attrib, "(")) {
+    if (strcmp(instr[BRKT_OPEN]->attrib, "(")) {
         cond_error(program, 0);
         return TRUE;
     }
 
-    if (!(tokens[1]->type == STRVAR || tokens[1]->type == NUMVAR ||
-          tokens[1]->type == STRCON || tokens[1]->type == NUMCON)) {
-        cond_error(program, 1);
+    if (!(instr[BRKT_ARG1]->type == STRVAR || instr[BRKT_ARG1]->type == NUMVAR ||
+          instr[BRKT_ARG1]->type == STRCON || instr[BRKT_ARG1]->type == NUMCON)) {
+        cond_error(program, BRKT_ARG1);
         return TRUE;
     }
 
-    if (tokens[2]->type != COMMA) {
-        cond_error(program, 2);
+    if (instr[BRKT_COMMA]->type != COMMA) {
+        cond_error(program, BRKT_COMMA);
         return TRUE;
     }
 
-    switch (tokens[1]->type) {
+    /* Depending on the initial argument, the second argument has to be of the 
+    same type */
+    switch (instr[BRKT_ARG1]->type) {
         case STRVAR:
         case STRCON:
-            if (!(tokens[3]->type == STRVAR || tokens[3]->type == STRCON)) {
-                cond_error(program, 3);
+            if (!(instr[BRKT_ARG2]->type == STRVAR || instr[BRKT_ARG2]->type == STRCON)) {
+                cond_error(program, BRKT_ARG2);
                 return TRUE;
             }
             break;
         case NUMVAR:
         case NUMCON:
-            if (!(tokens[3]->type == NUMVAR || tokens[3]->type == NUMCON)) {
-                cond_error(program, 3);
+            if (!(instr[BRKT_ARG2]->type == NUMVAR || instr[BRKT_ARG2]->type == NUMCON)) {
+                cond_error(program, BRKT_ARG2);
                 return TRUE;
             }
             break;
@@ -344,45 +351,57 @@ bool_t parseCondBracket(prog_t* program) {
             break;
     }
 
-    if (strcmp(tokens[4]->attrib, ")")) {
-        cond_error(program, 4);
+    if (strcmp(instr[BRKT_2ARGCLOSE]->attrib, ")")) {
+        cond_error(program, BRKT_2ARGCLOSE);
         return TRUE;
     }
 
     return FALSE;
 }
 
-/* FIXME magic number problems and numbers passed*/
-bool_t parseBrackets(prog_t* program, type_t arg, int len) {
-    int i;
-    /* FIXME this is cludgy */
-    token_t** tokens = program->instr + 1;
 
-    if (strcmp(tokens[0]->attrib, "(")) {
-        bracket_error(program, BRACKET, 0, len);
+bool_t parseBrackets(prog_t* program, type_t arg, brkt_t brkt) {
+    token_t** instr = program->instr;
+
+    if (strcmp(instr[BRKT_OPEN]->attrib, "(")) {
+        bracket_error(program, BRACKET, BRKT_OPEN, brkt);
         return TRUE;
     }
 
-    for (i = 1; i < len - 2; i += 2) {
-        if (tokens[i]->type != arg) {
-            bracket_error(program, arg, i, len);
-            return TRUE;
-        }
-        if (tokens[i + 1]->type != COMMA) {
-            bracket_error(program, COMMA, i + 1, len);
-            return TRUE;
-        }
-    }
-
-    if (tokens[len - 2]->type != arg) {
-        bracket_error(program, arg, len - 2, len);
-        return TRUE;
-    }
-    if (strcmp(tokens[len - 1]->attrib, ")")) {
-        bracket_error(program, BRACKET, len - 1, len);
+    if (instr[BRKT_ARG1]->type != arg) {
+        bracket_error(program, arg, BRKT_ARG1, brkt);
         return TRUE;
     }
 
+    /* Parse according to single or double bracket */
+    switch (brkt) {
+        case SINGLE:
+            if (strcmp(instr[BRKT_1ARGCLOSE]->attrib, ")")) {
+                bracket_error(program, arg, BRKT_1ARGCLOSE, brkt);
+                return TRUE;
+            }
+            break;
+        case DOUBLE:
+            if (instr[BRKT_COMMA]->type != COMMA) {
+                bracket_error(program, COMMA, BRKT_COMMA, brkt);
+                return TRUE;
+            }
+
+            if (instr[BRKT_ARG2]->type != arg) {
+                bracket_error(program, arg, BRKT_2ARGCLOSE, brkt);
+                return TRUE;
+            }
+
+            if (strcmp(instr[BRKT_2ARGCLOSE]->attrib, ")")) {
+                bracket_error(program, BRACKET, BRKT_2ARGCLOSE, brkt);
+                return TRUE;
+            }
+            break;
+        default:
+            /*FIXME random error message */
+            ON_ERROR("Something went wrong\n");
+            break;
+    }
     return FALSE;
 }
 

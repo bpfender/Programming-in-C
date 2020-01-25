@@ -4,6 +4,10 @@
 #include "symbols.h"
 #include "tokenizer.h"
 
+/* FIXME fix magic numbers here */
+typedef enum brkt_t { SINGLE = 3,
+                      DOUBLE = 5 } brkt_t;
+
 /* Starting function for parsing file. If it returns correctly, file has parsed
  * successfully
  */
@@ -31,7 +35,7 @@ void rnd(prog_t* program, symbol_t* symbols);
 void set(prog_t* program, symbol_t* symbols);
 
 bool_t parseCondBracket(prog_t* program);
-bool_t parseBrackets(prog_t* program, type_t arg, int len);
+bool_t parseBrackets(prog_t* program, type_t arg, brkt_t brkt);
 bool_t parseSetVals(prog_t* program);
 
 void fillTokenString(prog_t* program, token_t* tokens[], int len);
