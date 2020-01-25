@@ -46,9 +46,10 @@ void prog_error(prog_t* program) {
     printLocation(program->instr[0], program->filename);
     fprintf(stderr, "Expected \"{\"\n");
 
-    if (INTERP) {
-        exit(EXIT_FAILURE);
-    }
+#if defined INTERP || !defined EXTENSION
+    exit(EXIT_FAILURE);
+#endif
+
     program->pos--;
 }
 
@@ -78,9 +79,9 @@ void instr_error(prog_t* program) {
             break;
     }
 
-    if (INTERP) {
-        exit(EXIT_FAILURE);
-    }
+#if defined INTERP || !defined EXTENSION
+    exit(EXIT_FAILURE);
+#endif
 
     /* Parse to next line, can the same line be interpreted? */
     /* FIXME functionise as recoved error */
@@ -119,9 +120,9 @@ void file_error(prog_t* program) {
             break;
     }
 
-    if (INTERP) {
-        exit(EXIT_FAILURE);
-    }
+#if defined INTERP || !defined EXTENSION
+    exit(EXIT_FAILURE);
+#endif
 
     /* FIXME is this correct */
     recoverError(program);
@@ -129,10 +130,10 @@ void file_error(prog_t* program) {
 
 /* This is more of a warning */
 void abort_error(prog_t* program) {
-    if (!INTERP) {
-        printLocation(program->instr[0], program->filename);
-        fprintf(stderr, "WARNING. Code after abort may not be executed\n");
-    }
+#ifndef INTERP
+    printLocation(program->instr[0], program->filename);
+    fprintf(stderr, "WARNING. Code after abort may not be executed\n");
+#endif
 }
 
 /* FIXME this offset is ugly at the moment */
@@ -167,9 +168,9 @@ void bracket_error(prog_t* program, type_t expected, int index, int len) {
             break;
     }
 
-    if (INTERP) {
-        exit(EXIT_FAILURE);
-    }
+#if defined INTERP || !defined EXTENSION
+    exit(EXIT_FAILURE);
+#endif
 
     program->pos -= len;
     recoverError(program);
@@ -204,9 +205,9 @@ void cond_error(prog_t* program, int index) {
             break;
     }
 
-    if (INTERP) {
-        exit(EXIT_FAILURE);
-    }
+#if defined INTERP || !defined EXTENSION
+    exit(EXIT_FAILURE);
+#endif
 
     program->pos = program->pos - 4 + index;
 }
@@ -262,8 +263,8 @@ void dequeue_error(prog_t* program) {
     exit(EXIT_FAILURE);
 }
 
-void tokenLeft_error(prog_t* program){
-        fprintf(stderr, "Tokens left\n");
+void tokenLeft_error(prog_t* program) {
+    fprintf(stderr, "Tokens left\n");
     exit(EXIT_FAILURE);
 }
 
