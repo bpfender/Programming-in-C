@@ -17,7 +17,13 @@ int main(void) {
 
     token_t tst_token;
     token_t* token;
+    char* str;
+    double* num;
 
+    symbol_t* symbols;
+    mvmcell* cell;
+
+    /* Testing of TOKENIZER */
     program = initProgQueue("TEST");
     assert(strcmp(program->filename, "TEST") == 0);
     assert(program->len == 0);
@@ -194,7 +200,7 @@ int main(void) {
 
     freeProgQueue(program);
 
-    assert(tokenizeFile("error")==NULL);
+    assert(tokenizeFile("error") == NULL);
     program = tokenizeFile("test1.nal");
     assert(program->len == 4);
     assert(program->token[0].type == SECTION);
@@ -203,9 +209,118 @@ int main(void) {
     assert(program->token[3].type == SECTION);
 
     freeProgQueue(program);
-    
-    
-    
+
+    /* Testing of SYMBOLS */
+    symbols = initSymbolTable();
+    assert(symbols->files->head == NULL);
+    assert(symbols->files->numkeys == 0);
+    assert(symbols->vars->head == NULL);
+    assert(symbols->vars->numkeys == 0);
+
+    freeSymbolTable(symbols);
+
+    symbols = initSymbolTable();
+
+    assert(getVariable(symbols, "invalid") == NULL);
+    assert(getFilename(symbols, "invalid") == NULL);
+
+    addVariable(symbols, "VAR1");
+    cell = getVariable(symbols, "VAR1");
+    assert(cell);
+    assert(cell->data == NULL);
+    assert(cell->next == NULL);
+
+    updateVariable(symbols, "VAR2", NULL);
+    cell = getVariable(symbols, "VAR2");
+    assert(cell);
+    assert(cell->data == NULL);
+    assert(cell->next != NULL);
+    assert(symbols->vars->head == cell);
+
+    num = (double*)malloc(sizeof(double));
+    if (!num) {
+        fprintf(stderr, "ERROR\n");
+    }
+    *num = 5;
+
+    str = (char*)malloc(sizeof(char) * 50);
+    if (!str) {
+        fprintf(stderr, "ERROR\n");
+    }
+    strcpy(str, "TESTSTRING");
+
+    updateVariable(symbols, "VAR1", num);
+    cell = getVariable(symbols, "VAR1");
+    assert(*(double*)(cell->data) == 5);
+
+    updateVariable(symbols, "VAR2", str);
+    cell = getVariable(symbols, "VAR2");
+    assert(strcmp(cell->data, "TESTSTRING") == 0);
+
+    /* Testing direct adding to symbol table vars */
+    num = (double*)malloc(sizeof(double));
+    if (!num) {
+        fprintf(stderr, "ERROR\n");
+    }
+    *num = 10;
+
+    str = (char*)malloc(sizeof(char) * 50);
+    if (!str) {
+        fprintf(stderr, "ERROR\n");
+    }
+    strcpy(str, "teststring");
+
+    updateVariable(symbols, "VAR3", num);
+    updateVariable(symbols, "VAR4", str);
+    cell = getVariable(symbols, "VAR3");
+    assert(*(double*)(cell->data) == 10);
+    cell = getVariable(symbols, "VAR4");
+    assert(strcmp(cell->data, "teststring") == 0);
+
+    addFilename(symbols, "file1", NULL);
+    cell = getFilename(symbols, "file1");
+    assert(strcmp(cell->key, "file1") == 0);
+
+    freeSymbolTable(symbols);
+
+    /* Testing some PARSING functions */
+    program = tokenizeFile("./dblbrkt.nal");
+    fillTokenString(program, 6);
+    assert(program->instr[1]->type == BRACKET);
+    assert(program->instr[2]->type == STRVAR);
+    assert(program->instr[3]->type == COMMA);
+    assert(program->instr[4]->type == STRVAR);
+    assert(program->instr[5]->type == BRACKET);
+    assert(parseBrackets(program, STRVAR, DOUBLE) == FALSE);
+    freeProgQueue(program);
+
+    program = tokenizeFile("./snglbrkt.nal");
+    fillTokenString(program, 4);
+    assert(program->instr[1]->type == BRACKET);
+    assert(program->instr[2]->type == NUMVAR);
+    assert(program->instr[3]->type == BRACKET);
+    assert(parseBrackets(program, NUMVAR, SINGLE) == FALSE);
+    freeProgQueue(program);
+
+    program = tokenizeFile("./condbrkt.nal");
+    fillTokenString(program, 6);
+    assert(program->instr[1]->type == BRACKET);
+    assert(program->instr[2]->type == STRVAR);
+    assert(program->instr[3]->type == COMMA);
+    assert(program->instr[4]->type == STRCON);
+    assert(program->instr[5]->type == BRACKET);
+    assert(parseCondBracket(program) == FALSE);
+    freeProgQueue(program);
+
+    program = tokenizeFile("./set.nal");
+    fillTokenString(program, 3);
+    assert(program->instr[0]->type == STRVAR);
+    assert(program->instr[1]->type == SET);
+    assert(program->instr[2]->type == STRCON);
+    assert(parseSetVals(program) == FALSE);
+
+    freeProgQueue(program);
+
     /*
 
 
