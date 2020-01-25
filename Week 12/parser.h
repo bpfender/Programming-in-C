@@ -11,7 +11,7 @@ typedef enum brkt_t { SINGLE = 3,
 /* Starting function for parsing file. If it returns correctly, file has parsed
  * successfully
  */
-void parseFile(prog_t* program, symbol_t* SYMBOLS_H);
+bool_t parseFile(prog_t* program, symbol_t* SYMBOLS_H);
 
 /* Check that first token is { */
 void prog(prog_t* program, symbol_t* symbols);

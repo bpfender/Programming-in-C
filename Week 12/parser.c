@@ -26,9 +26,6 @@
 #define SINGLE_BRKT_LEN 4
 #define DOUBLE_BRKT_LEN 6
 
-
-
-
 #define ON_ERROR(STR)     \
     fprintf(stderr, STR); \
     exit(EXIT_FAILURE)
@@ -48,7 +45,6 @@ bool_t parseFile(prog_t* program, symbol_t* symbols) {
         tokenLeft_error(program);
         return FALSE;
     }
-
 }
 
 void prog(prog_t* program, symbol_t* symbols) {
@@ -140,13 +136,18 @@ void file(prog_t* program, symbol_t* symbols) {
     token_t* token = program->instr[ARG_INDEX];
     prog_t* next_program;
     char* filename;
+    int interp_flag = 0;
 
     if (token->type == STRCON) {
         filename = token->attrib;
 
         /* If filename is in the symbol table, file doesn't need to be parsed again.
         However, if interpreting, file needs to be opened again */
-        if (!getFilename(symbols, filename) || INTERP) {
+#ifdef INTERP
+        interp_flag = 0;
+#endif
+
+        if (!getFilename(symbols, filename) || interp_flag) {
             if (!(next_program = tokenizeFile(filename))) {
                 file_error(program);
             } else {
@@ -173,9 +174,9 @@ void prog_abort(prog_t* program, symbol_t* symbols) {
         abort_error(program);
     }
 
-    if (INTERP) {
-        inter_abort();
-    }
+#ifdef INTERP
+    inter_abort();
+#endif
 
     instr(program, symbols);
 }
@@ -185,9 +186,9 @@ void in2str(prog_t* program, symbol_t* symbols) {
         /* ERROR */
     }
 
-    if (INTERP) {
-        inter_in2str(program, symbols);
-    }
+#ifdef INTERP
+    inter_in2str(program, symbols);
+#endif
 
     instr(program, symbols);
 }
@@ -197,9 +198,9 @@ void innum(prog_t* program, symbol_t* symbols) {
         /* ERROR */
     }
 
-    if (INTERP) {
-        inter_innum(program, symbols);
-    }
+#ifdef INTERP
+    inter_innum(program, symbols);
+#endif
 
     instr(program, symbols);
 }
@@ -209,9 +210,13 @@ void ifequal(prog_t* program, symbol_t* symbols) {
     if (parseCondBracket(program)) {
     }
 
-    if (!INTERP || inter_ifequal(program, symbols)) {
+#ifdef INTERP
+    if (inter_ifgreater(program, symbols)) {
         prog(program, symbols);
     }
+#else
+    prog(program, symbols);
+#endif
 
     instr(program, symbols);
 }
@@ -220,17 +225,13 @@ void ifgreater(prog_t* program, symbol_t* symbols) {
     if (parseCondBracket(program)) {
     }
 
-    #ifdef INTERP
-        if(inter_ifgreater(program, symbols)){
-            prog(program,symbols);
-        }
-    #else
-        prog(program,symbols);
-    #endif
-
-    if (!INTERP || inter_ifgreater(program, symbols)) {
+#ifdef INTERP
+    if (inter_ifgreater(program, symbols)) {
         prog(program, symbols);
     }
+#else
+    prog(program, symbols);
+#endif
 
     instr(program, symbols);
 }
@@ -239,9 +240,9 @@ void inc(prog_t* program, symbol_t* symbols) {
     if (parseBrackets(program, NUMVAR, SINGLE)) {
     }
 
-    if (INTERP) {
-        inter_inc(program, symbols);
-    }
+#ifdef INTERP
+    inter_inc(program, symbols);
+#endif
 
     instr(program, symbols);
 }
@@ -253,9 +254,9 @@ void jump(prog_t* program, symbol_t* symbols) {
         jump_error(program);
     }
 
-    if (INTERP) {
-        inter_jump(program);
-    }
+#ifdef INTERP
+    inter_jump(program);
+#endif
 
     instr(program, symbols);
 }
@@ -268,9 +269,9 @@ void print(prog_t* program, symbol_t* symbols) {
         print_error(program);
     }
 
-    if (INTERP) {
-        inter_print(program, symbols);
-    }
+#ifdef INTERP
+    inter_print(program, symbols);
+#endif
 
     instr(program, symbols);
 }
@@ -279,9 +280,9 @@ void rnd(prog_t* program, symbol_t* symbols) {
     if (parseBrackets(program, NUMVAR, SINGLE)) {
     }
 
-    if (INTERP) {
-        inter_rnd(program, symbols);
-    }
+#ifdef INTERP
+    inter_rnd(program, symbols);
+#endif
 
     instr(program, symbols);
 }
@@ -291,9 +292,9 @@ void set(prog_t* program, symbol_t* symbols) {
         ERROR(program->instr[0]);
     }
 
-    if (INTERP) {
-        inter_set(program, symbols);
-    }
+#ifdef INTERP
+    inter_set(program, symbols);
+#endif
 
     instr(program, symbols);
 }
@@ -318,7 +319,6 @@ bool_t parseSetVals(prog_t* program) {
             return FALSE;
     }
 }
-
 
 bool_t parseCondBracket(prog_t* program) {
     token_t** instr = program->instr;
@@ -367,7 +367,6 @@ bool_t parseCondBracket(prog_t* program) {
 
     return FALSE;
 }
-
 
 bool_t parseBrackets(prog_t* program, type_t arg, brkt_t brkt) {
     token_t** instr = program->instr;
