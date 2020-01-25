@@ -36,17 +36,17 @@ mvmcell* getVariable(symbol_t* symbols, char* var) {
 }
 
 /* FIXME this needs to be modified */
-mvmcell* updateVariable(symbol_t* symbols, char* var, void* val) {
+void updateVariable(symbol_t* symbols, char* var, void* val) {
     mvmcell* cell = mvm_search(symbols->vars, var);
     if (cell) {
         /* QUESTION Ok to call free on nulled data? */
-        if(cell->data){
-        free(cell->data);
+        if (cell->data) {
+            free(cell->data);
         }
         cell->data = val;
-        return cell;
+    } else {
+        mvm_insert(symbols->vars, var, val);
     }
-    return NULL;
 }
 
 /* FIXME This is not pretty at the moment */
@@ -56,9 +56,6 @@ void addVariable(symbol_t* symbols, char* var) {
     }
 }
 
-
-
-
 /* ------- FILENAME HANDLING ------- */
 mvmcell* getFilename(symbol_t* symbols, char* filename) {
     return mvm_search(symbols->files, filename);
@@ -67,7 +64,6 @@ mvmcell* getFilename(symbol_t* symbols, char* filename) {
 void addFilename(symbol_t* symbols, char* filename, void* prog) {
     mvm_insert(symbols->files, filename, prog);
 }
-
 
 /* ------- MVM UPDATE FUNCTIONS ------ */
 /* Initialises mvm ADT and zeros all values

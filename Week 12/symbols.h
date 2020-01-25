@@ -41,7 +41,7 @@ mvmcell* getVariable(symbol_t* symbols, char* var);
 
 /* Adds key value to symbol table */
 void addVariable(symbol_t* symbols, char* var);
-mvmcell* updateVariable(symbol_t* symbols, char* var, void* val);
+void updateVariable(symbol_t* symbols, char* var, void* val);
 
 /* ------ FILENAME HANDLING ------ */
 /* Returns NULL if filename is not found in files map. Actual data value stored

@@ -1,33 +1,19 @@
-#include "interpreter.h"
+
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+#include "error.h"
+#include "interpreter.h"
 #include "symbols.h"
 
 #define RND_RANGE 100
 
 /* FIXME need to convert escape characters */
-void inter_rndSeed(void) {
-    srand(time(NULL));
-}
 
-void inter_file(void) {
-}
-
-double* allocNumber(void) {
-    double* tmp = (double*)malloc(sizeof(double));
-    if (!tmp) {
-        ON_ERROR("Memory allocation error\n");
-    }
-    return tmp;
-}
-
-char* allocString(size_t len) {
-    char* tmp = (char*)malloc(sizeof(char) * (len + 1));
-    if (!tmp) {
-        ON_ERROR("Memory allocation error\n");
-    }
-    return tmp;
+void inter_abort(void) {
+    printf("\nPROGRAM END: Program has ended\n");
+    exit(EXIT_SUCCESS);
 }
 
 /* FIXME not doing any handling on buffer lengths currently */
@@ -39,17 +25,18 @@ void inter_in2str(prog_t* program, symbol_t* symbols) {
 
     char *w1, *w2;
 
-    addVariable(symbols, program->instr[2]->attrib);
-    addVariable(symbols, program->instr[4]->attrib);
+    /* addVariable(symbols, program->instr[2]->attrib);
+    addVariable(symbols, program->instr[4]->attrib);*/
 
     if (fgets(line, sizeof(line), stdin)) {
-        if (sscanf(line, "%s %s", word1, word2) == 2) {
+        if (sscanf(line, " %s %s ", word1, word2) == 2) {
             w1 = allocString(strlen(word1));
             w2 = allocString(strlen(word2));
 
             strcpy(w1, word1);
             strcpy(w2, word2);
         } else {
+            /* FIXME proper error handlign */
             ON_ERROR("Input error\n");
         }
     }
@@ -58,12 +45,13 @@ void inter_in2str(prog_t* program, symbol_t* symbols) {
     updateVariable(symbols, program->instr[4]->attrib, w2);
 }
 
+/* FIXME no handling of buffer lengths currently */
 void inter_innum(prog_t* program, symbol_t* symbols) {
     char line[256];
 
     double* num = allocNumber();
 
-    addVariable(symbols, program->instr[2]->attrib);
+    /* addVariable(symbols, program->instr[2]->attrib);*/
 
     if (fgets(line, sizeof(line), stdin)) {
         if (sscanf(line, "%lf", num) == 1) {
@@ -73,11 +61,6 @@ void inter_innum(prog_t* program, symbol_t* symbols) {
     }
 
     updateVariable(symbols, program->instr[2]->attrib, num);
-}
-
-void inter_abort(void) {
-    printf("\nPROGRAM END: Program has ended\n");
-    exit(EXIT_SUCCESS);
 }
 
 void inter_jump(prog_t* program) {
@@ -99,7 +82,7 @@ bool_t checkValidJump(prog_t* program, int pos) {
         return FALSE;
     }
 
-    if (program->token[pos].word != 0) {
+    if (!isINSTR(&program->token[pos])) {
         return FALSE;
     }
     return TRUE;
@@ -110,12 +93,6 @@ bool_t checkJumpValue(char* num) {
     bool_t dot = FALSE;
     for (i = 0; num[i] != '\0'; i++) {
         if (num[i] == '.') {
-            /* FIXME bit of a naughty edit here */
-            num[i] = '\0';
-            dot = TRUE;
-            i++;
-        }
-        if (dot == TRUE && num[i] != 0) {
             return FALSE;
         }
     }
@@ -130,6 +107,7 @@ void inter_print(prog_t* program, symbol_t* symbols) {
         case NUMVAR:
             cell = getVariable(symbols, program->instr[1]->attrib);
             if (!cell) {
+                printf("%s ", program->instr[1]->attrib);
                 ON_ERROR("Variable has not been initialised\n");
             }
             printf("%f", *(double*)cell->data);
@@ -137,6 +115,7 @@ void inter_print(prog_t* program, symbol_t* symbols) {
         case STRVAR:
             cell = getVariable(symbols, program->instr[1]->attrib);
             if (!cell) {
+                printf("%s ", program->instr[1]->attrib);
                 ON_ERROR("Variable has not been initialised\n");
             }
             printf("%s ", (char*)cell->data);
@@ -182,6 +161,7 @@ bool_t inter_ifequal(prog_t* program, symbol_t* symbols) {
             break;
         case NUMVAR:
         case NUMCON:
+            /*FIXME this might not be right. Add tolerance ? */
             if (*(double*)arg1 == *(double*)arg2) {
                 return TRUE;
             } else {
@@ -255,6 +235,7 @@ void* getArg(token_t* token, symbol_t* symbols) {
         case STRVAR:
             cell = getVariable(symbols, token->attrib);
             if (!cell) {
+                printf("%s ", token->attrib);
                 ON_ERROR("Variable not yet initialised\n");
             }
             return cell->data;
@@ -275,6 +256,7 @@ void* getArg(token_t* token, symbol_t* symbols) {
 void inter_inc(prog_t* program, symbol_t* symbols) {
     mvmcell* cell = getVariable(symbols, program->instr[2]->attrib);
     if (!cell) {
+        printf("%s ", program->instr[2]->attrib);
         fprintf(stderr, "Variable not initialised\n");
         exit(EXIT_FAILURE);
     }
@@ -298,6 +280,7 @@ void inter_set(prog_t* program, symbol_t* symbols) {
         case STRVAR:
             cell = getVariable(symbols, program->instr[2]->attrib);
             if (!cell) {
+                printf("%s ", program->instr[2]->attrib);
                 ON_ERROR("Variable not initialised\n");
             }
             str = allocString(strlen((char*)cell->data));
@@ -312,6 +295,7 @@ void inter_set(prog_t* program, symbol_t* symbols) {
         case NUMVAR:
             cell = getVariable(symbols, program->instr[2]->attrib);
             if (!cell) {
+                printf("%s ", program->instr[2]->attrib);
                 ON_ERROR("Variable not initialised\n");
             }
             num = allocNumber();
@@ -321,4 +305,25 @@ void inter_set(prog_t* program, symbol_t* symbols) {
         default:
             ON_ERROR("Something went wrong\n");
     }
+}
+
+/* FIXME don't forget to call seed */
+void inter_rndSeed(void) {
+    srand(time(NULL));
+}
+
+double* allocNumber(void) {
+    double* tmp = (double*)malloc(sizeof(double));
+    if (!tmp) {
+        ON_ERROR("Memory allocation error\n");
+    }
+    return tmp;
+}
+
+char* allocString(size_t len) {
+    char* tmp = (char*)malloc(sizeof(char) * (len + 1));
+    if (!tmp) {
+        ON_ERROR("Memory allocation error\n");
+    }
+    return tmp;
 }

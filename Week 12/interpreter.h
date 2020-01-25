@@ -21,4 +21,9 @@ void inter_jump(prog_t* program);
 bool_t checkJumpValue(char* num);
 bool_t checkValidJump(prog_t* program, int pos);
 
+void inter_rndSeed(void);
+
+double* allocNumber(void);
+char* allocString(size_t len);
+
 #endif

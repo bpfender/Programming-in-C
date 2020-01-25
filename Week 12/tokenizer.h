@@ -5,7 +5,7 @@
 
 #include "symbols.h"
 
-#define INTERP 0
+#define INTERP 1
 
 /* Max number of tokens expected in an INSTRUCT */
 #define MAX_TOKENS 6

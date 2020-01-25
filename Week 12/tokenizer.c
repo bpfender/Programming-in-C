@@ -16,7 +16,7 @@
 /* FIXME need to check these terminators */
 #define WHITESPACE " \t\n\v\f\r"
 #define TERMINATORS "(){},=#\" \t\n\v\f\r\0"
-#define STRING_TERMINATORS "\"\n\0"
+#define STRING_TERMINATORS "#\"\n\0"
 #define QUOTE_LEN 2
 
 /* Initialisation value for program size */
@@ -113,7 +113,9 @@ void buildToken(token_t* token, char* attrib, int len, int line, int word) {
 
     /* Converts ROT18 encoded strings. Only converts string constants if they
     are to be interpreted. Otherwise, only filenames are required */
-    if (token->type == FILE_REF || ((token->type == STRCON) && INTERP)) {
+    /* FIXME this is a bit dirty */
+    if ((token->type == STRCON && (token - 1)->type == FILE_REF) ||
+        ((token->type == STRCON) && INTERP)) {
         /* getSTRCON converts string in place */
         tok_getSTRCON(str);
     }
@@ -297,7 +299,6 @@ line_t parseBufferWords(char** pos) {
             break;
     }
 }
-
 
 /* ------- TOKEN IDENTIFICATION FUNCTIONS ------ */
 
