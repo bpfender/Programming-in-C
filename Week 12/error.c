@@ -4,6 +4,7 @@
 
 #include "error.h"
 #include "interpreter.h"
+#include "parser.h"
 
 typedef struct token_err_t {
     int err;
@@ -22,7 +23,7 @@ void err_prog(prog_t* program) {
     exit(EXIT_FAILURE);
 #endif
 
-    program->pos--;
+    program->pos -= SECT_LEN;
 }
 
 void err_instr(prog_t* program) {
@@ -30,13 +31,17 @@ void err_instr(prog_t* program) {
 
     switch (program->instr[0]->type) {
         case ERROR:
-            /*FIXME HERE Extra error handling*/
-            suggestCorrectToken(program->instr[0]->attrib);
+            if (strlen(program->instr[0]->attrib) < MATR_SIZE) {
+                suggestCorrectToken(program->instr[0]->attrib);
+            } else {
+                fprintf(stderr, "Invalid token string\n");
+            }
             break;
         case SECTION:
             fprintf(stderr, "Did you mean \"}\"?\n");
             break;
         case SET:
+            /* If first token is =, might be missing the VAR */
             fprintf(stderr, "Missing assignment variable\n");
             break;
         case STRCON:
@@ -45,9 +50,10 @@ void err_instr(prog_t* program) {
             break;
         case BRACKET:
         case COMMA:
-            fprintf(stderr, "Invalid character\n");
+            fprintf(stderr, "Invalid character here\n");
             break;
         default:
+            fprintf(stderr, "Undefined error\n");
             break;
     }
 
@@ -55,26 +61,26 @@ void err_instr(prog_t* program) {
     exit(EXIT_FAILURE);
 #endif
 
-    /* Parse to next line, can the same line be interpreted? */
-    /* FIXME functionise as recoved error */
+    /* Parse to next line and continue parsing */
     err_recoverError(program);
 }
 
 void err_file(prog_t* program) {
-    char* attrib = program->instr[1]->attrib;
+    char* attrib = program->instr[ARG_INDEX]->attrib;
 
-    err_printLocation(program->instr[1], program->filename);
+    err_printLocation(program->instr[ARG_INDEX], program->filename);
 
-    switch (program->instr[1]->type) {
+    switch (program->instr[ARG_INDEX]->type) {
         case STRCON:
-            fprintf(stderr, "Unable to open file specified as '%s'\n", program->instr[1]->attrib);
+            fprintf(stderr, "Unable to open file specified as '%s'\n",
+                    program->instr[1]->attrib);
             break;
         default:
             if (attrib[0] == '"' || attrib[strlen(attrib) - 1] == '"' ||
                 attrib[0] == '#' || attrib[strlen(attrib) - 1] == '#') {
                 fprintf(stderr, "String may be missing '\"' or '#'\n");
             } else {
-                fprintf(stderr, "Expected string referencing filename\n");
+                fprintf(stderr, "FILE expected STRVAR referencing filename\n");
             }
             break;
     }
@@ -84,6 +90,7 @@ void err_file(prog_t* program) {
 #endif
 
     /* FIXME is this correct */
+    program->pos -= (SINGLE_ARG_LEN - 1);
     err_recoverError(program);
 }
 
