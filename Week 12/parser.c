@@ -21,6 +21,8 @@
         exit(2);                                                                                               \
     }
 
+/* ------- PARSING FUNCTIONS ------- */
+
 bool_t parseFile(prog_t* program, symbol_t* symbols) {
     prog(program, symbols);
 
@@ -130,7 +132,7 @@ void file(prog_t* program, symbol_t* symbols) {
         /* If filename is in the symbol table, file doesn't need to be parsed again.
         However, if interpreting, file needs to be opened again */
 #ifdef INTERP
-        interp_flag = 0;
+        interp_flag = 1;
 #endif
 
         if (!getFilename(symbols, filename) || interp_flag) {
@@ -190,7 +192,7 @@ void ifequal(prog_t* program, symbol_t* symbols) {
     parseCondBracket(program);
 
 #ifdef INTERP
-    if (inter_ifgreater(program, symbols)) {
+    if (inter_ifequal(program, symbols)) {
         prog(program, symbols);
     }
 #else
@@ -272,6 +274,8 @@ void set(prog_t* program, symbol_t* symbols) {
 
     instr(program, symbols);
 }
+
+/* -------- HELPER FUNCTIONS --------- */
 
 bool_t parseCondBracket(prog_t* program) {
     token_t** instr = program->instr;

@@ -25,6 +25,7 @@
 typedef enum brkt_t { SINGLE = SINGLE_BRKT_TOKENS,
                       DOUBLE = DOUBLE_BRKT_TOKENS } brkt_t;
 
+/* ------- PARSING FUNCTIONS ------- */
 /* Starting function for parsing file. If it returns correctly, file has parsed
  * successfully
  */
@@ -63,6 +64,11 @@ void print(prog_t* program, symbol_t* symbols);
  */
 void set(prog_t* program, symbol_t* symbols);
 
+/* ------- HELPER FUNCTIONS ------- */
+/* The functions below are used to parse INSTRUCT statements that use brackets.
+ * this packages the parsing so the function just has to be called with the 
+ * appropriate argument from the corresponding parsing function
+ */
 bool_t parseCondBracket(prog_t* program);
 bool_t parseBrackets(prog_t* program, type_t arg, brkt_t brkt);
 bool_t parseSetVals(prog_t* program);

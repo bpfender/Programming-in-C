@@ -7,6 +7,9 @@
 #include "interpreter.h"
 #include "parser.h"
 
+#define INPUT_BUFF 5
+#define FACTOR 2
+
 #define RND_MOD 100
 
 #define INPUT_LEN 256
@@ -33,13 +36,13 @@ void inter_in2str(prog_t* program, symbol_t* symbols) {
 
             strcpy(w1, word1);
             strcpy(w2, word2);
-        } else {
-            ON_ERROR("INTERPRETER: Expected two input strings\n");
-        }
-    }
 
-    updateVariable(symbols, program->instr[BRKT_ARG1]->attrib, w1);
-    updateVariable(symbols, program->instr[BRKT_ARG2]->attrib, w2);
+            updateVariable(symbols, program->instr[BRKT_ARG1]->attrib, w1);
+            updateVariable(symbols, program->instr[BRKT_ARG2]->attrib, w2);
+        }
+    } else {
+        ON_ERROR("INTERPRETER: Expected two input strings\n");
+    }
 }
 
 void inter_innum(prog_t* program, symbol_t* symbols) {
@@ -49,17 +52,17 @@ void inter_innum(prog_t* program, symbol_t* symbols) {
 
     if (fgets(line, sizeof(line), stdin)) {
         if (sscanf(line, "%lf", num) == 1) {
+            updateVariable(symbols, program->instr[BRKT_ARG1]->attrib, num);
         } else {
             ON_ERROR("INTERPRETER: Expected single number input\n");
         }
     }
-
-    updateVariable(symbols, program->instr[BRKT_ARG1]->attrib, num);
 }
 
 bool_t inter_ifequal(prog_t* program, symbol_t* symbols) {
-    void* arg1 = getArg(program->instr[BRKT_ARG1], symbols);
-    void* arg2 = getArg(program->instr[BRKT_ARG2], symbols);
+    double tmp_num;
+    void* arg1 = getArg(program->instr[BRKT_ARG1], symbols, &tmp_num);
+    void* arg2 = getArg(program->instr[BRKT_ARG2], symbols, &tmp_num);
 
     switch (program->instr[BRKT_ARG1]->type) {
         case STRVAR:
