@@ -32,15 +32,21 @@ void file(prog_t* program, symbol_t* symbols);
  */
 void prog_abort(prog_t* program, symbol_t* symbols);
 
-/* All functions below parse brackets and identify errors in bracket string */
+/* All functions below parse brackets and identify errors in bracket string 
+ */
 void in2str(prog_t* program, symbol_t* symbols);
 void innum(prog_t* program, symbol_t* symbols);
 void ifequal(prog_t* program, symbol_t* symbols);
 void ifgreater(prog_t* program, symbol_t* symbols);
 void inc(prog_t* program, symbol_t* symbols);
+void rnd(prog_t* program, symbol_t* symbols);
+
+
 void jump(prog_t* program, symbol_t* symbols);
 void print(prog_t* program, symbol_t* symbols);
-void rnd(prog_t* program, symbol_t* symbols);
+
+/* Set is parsed with parseSetVals 
+ */
 void set(prog_t* program, symbol_t* symbols);
 
 bool_t parseCondBracket(prog_t* program);
