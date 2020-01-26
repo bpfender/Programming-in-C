@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -23,7 +24,7 @@ void err_prog(prog_t* program) {
     exit(EXIT_FAILURE);
 #endif
 
-    program->pos -= SECT_LEN;
+    program->pos--;
 }
 
 void err_instr(prog_t* program) {
@@ -89,26 +90,23 @@ void err_file(prog_t* program) {
     exit(EXIT_FAILURE);
 #endif
 
-    /* FIXME is this correct */
-    program->pos -= (SINGLE_ARG_LEN - 1);
     err_recoverError(program);
 }
 
-/* Need to handle missing brackets */
 void err_cond(prog_t* program, int index) {
     err_printLocation(program->instr[index], program->filename);
 
     switch (index) {
-        case 0:
+        case BRKT_OPEN:
             fprintf(stderr, "Expected '(' before statement\n");
             break;
-        case 1:
+        case BRKT_ARG1:
             fprintf(stderr, "Expected STR or NUM argument\n");
             break;
-        case 2:
+        case BRKT_COMMA:
             fprintf(stderr, "Arguments should be seperated with ','\n");
             break;
-        case 3:
+        case BRKT_ARG2:
             fprintf(stderr, "Arguments must match. ");
             if (program->instr[2]->type == STRCON || program->instr[2]->type == STRVAR) {
                 fprintf(stderr, "Expected STR argument\n");
@@ -116,11 +114,11 @@ void err_cond(prog_t* program, int index) {
                 fprintf(stderr, "Expected NUM argument\n");
             }
             break;
-        case 4:
+        case BRKT_2ARGCLOSE:
             fprintf(stderr, "Expected ')' at end of statement\n");
             break;
         default:
-            printf("\n");
+            printf("Undefined condition error\n");
             break;
     }
 
@@ -128,28 +126,27 @@ void err_cond(prog_t* program, int index) {
     exit(EXIT_FAILURE);
 #endif
 
-    program->pos = program->pos - 4 + index;
+    err_recoverError(program);
 }
 
-void err_bracket(prog_t* program, type_t expected, int index, int len) {
+void err_bracket(prog_t* program, type_t expected, int index) {
     err_printLocation(program->instr[index], program->filename);
 
     switch (expected) {
         case BRACKET:
-            printf("Hello2\n");
-            if (index == 0) {
+            if (index == BRKT_OPEN) {
                 fprintf(stderr, "Expected '(' before statement\n");
             } else {
                 fprintf(stderr, "Expected ')' at end of statement\n");
             }
             break;
         case NUMVAR:
-            if (index == 1) {
+            if (index == BRKT_ARG1 || index == BRKT_ARG2) {
                 fprintf(stderr, "Expected NUMVAR argument\n");
             }
             break;
         case STRVAR:
-            if (index == 1) {
+            if (index == BRKT_ARG1 || index == BRKT_ARG2) {
                 fprintf(stderr, "Expected STRVAR argument\n");
             } else {
                 fprintf(stderr, "Arguments must match and both be STRVAR\n");
@@ -159,7 +156,7 @@ void err_bracket(prog_t* program, type_t expected, int index, int len) {
             fprintf(stderr, "Arguments should be seperated with ','\n");
             break;
         default:
-            fprintf(stderr, "Undefined error\n");
+            fprintf(stderr, "Undefined bracket error\n");
             printf("\n");
             break;
     }
@@ -168,76 +165,54 @@ void err_bracket(prog_t* program, type_t expected, int index, int len) {
     exit(EXIT_FAILURE);
 #endif
 
-    program->pos -= len;
     err_recoverError(program);
 }
 
-/* FIXME can this be combined with other single args ? */
 void err_jump(prog_t* program) {
-    if (program->instr[1]->word == 0) {
-        err_printLocation(program->instr[0], program->filename);
-        fprintf(stderr, "Expect NUMCON jump value\n");
-        program->pos -= 1;
-    } else {
-        err_printLocation(program->instr[1], program->filename);
-        fprintf(stderr, "Expect NUMCON jump value\n");
-        /*err_recoverError(program);*/
-    }
+    err_printLocation(program->instr[ARG_INDEX], program->filename);
+    fprintf(stderr, "Expected NUMCON jump value\n");
+    err_recoverError(program);
 }
 
 void err_print(prog_t* program) {
-    if (program->instr[1]->word == 0) {
-        err_printLocation(program->instr[0], program->filename);
-        fprintf(stderr, "Expected VARCON print value\n");
-        program->pos -= 1;
-    } else {
-        err_printLocation(program->instr[1], program->filename);
-        fprintf(stderr, "Expect VARCON print value\n");
-        /*err_recoverError(program);*/
-    }
+    err_printLocation(program->instr[ARG_INDEX], program->filename);
+    fprintf(stderr, "Expected VARCON print value\n");
+    err_recoverError(program);
 }
 
 void err_set(prog_t* program, int index) {
     err_printLocation(program->instr[index], program->filename);
 
     switch (index) {
-        case 1:
-            fprintf(stderr, "Expected assignment to VAR\n");
+        case SET_OP:
+            fprintf(stderr, "Expected VAR to assign value to\n");
             break;
-        case 2:
-            if (program->instr[2]->type == STRCON || program->instr[2]->type == STRVAR) {
+        case SET_VAL:
+            if (program->instr[SET_VAL]->type == STRCON ||
+                program->instr[SET_VAL]->type == STRVAR) {
                 fprintf(stderr, "Requires NUM value in assignment\n");
-            } else if (program->instr[2]->type == NUMCON || program->instr[2]->type == NUMVAR) {
+            } else if (program->instr[SET_VAL]->type == NUMCON ||
+                       program->instr[SET_VAL]->type == NUMVAR) {
                 fprintf(stderr, "Requires STR value in assignment\n");
             } else {
-                fprintf(stderr, "Expect valid value to be assigned\n");
+                fprintf(stderr, "Expected valid value to be assigned\n");
             }
             break;
         default:
-            fprintf(stderr, "This is an error\n");
+            fprintf(stderr, "Undefined SET error\n");
             break;
     }
+    err_recoverError(program);
 }
 
 void err_nextToken(void) {
-    fprintf(stderr, "No tokens left\n");
+    fprintf(stderr, "ERROR: No tokens left. SECTION brackets missing in file\n");
     exit(EXIT_FAILURE);
 }
 
 void err_extraTokens(void) {
-    fprintf(stderr, "Tokens left\n");
+    fprintf(stderr, "ERROR: Tokens left in file to parse\n");
     exit(EXIT_FAILURE);
-}
-
-void err_lex(prog_t* program, char* filename) {
-    err_printLocation(program->instr[1], program->filename);
-    fprintf(stderr, "Failed to open %s\n", filename);
-
-#if defined INTERP || !defined EXTENSION
-    exit(EXIT_FAILURE);
-#endif
-
-    err_recoverError(program);
 }
 
 /* ------- INTERPRETER ERROR FUNCTIONS ------- */
@@ -277,45 +252,49 @@ void err_interCond(prog_t* program) {
     ON_ERROR("INTERPRETER: Error in conditional statement brackets.\n");
 }
 
-/* ------- GENERAL ERROR FUNCTION -------- */
+/* ------- GENERAL ERROR FUNCTIONS -------- */
 
 void err_printLocation(token_t* token, char* filename) {
-    fprintf(stderr, "ERROR: In file \"%s\", line %d, word %d, \'%s\'. ",
-            filename, token->line + 1, token->word + 1, token->attrib);
+    fprintf(stderr, "ERROR: In file \"%s\", line %d, word %d. ",
+            filename, token->line + 1, token->word + 1);
 }
 
 void err_recoverError(prog_t* program) {
     token_t* token;
 
-    if (program->token[program->pos].word == 0) {
-        program->pos++;
+    /* Rewind to beginning of line */
+    while (program->token[program->pos].word != 0) {
+        program->pos--;
     }
+    program->pos++;
 
+    /* Move through tokens until new line is reached */
     do {
         token = nextToken(program);
     } while (token->word != 0);
     program->pos--;
 }
 
-/* FIXME $ % incorrect capitalisation, "." missing number */
 void suggestCorrectToken(char* word) {
     unsigned int i;
-    int dist = 100;
+    int dist = INT_MAX;
     int new_dist;
     unsigned int index;
     size_t cost[MATR_SIZE][MATR_SIZE];
-    const char instructions[][MATR_SIZE] = {"FILE", "ABORT", "IN2STR", "INNUM", "JUMP", "PRINT", "PRINTN", "RND", "IFEQUAL", "IFCOND", "INC"};
+    const char instructions[][MATR_SIZE] =
+        {"FILE", "ABORT", "IN2STR", "INNUM", "JUMP",
+         "PRINT", "PRINTN", "RND", "IFEQUAL", "IFCOND", "INC"};
 
     if (word[0] == '"' || word[strlen(word) - 1] == '"') {
-        printf("Did you mean to type a string\n");
+        fprintf(stderr, "Did you mean to type a string\n");
         return;
     }
     if (word[0] == '#' || word[strlen(word) - 1] == '#') {
-        printf("Did you mean to type a string\n");
+        fprintf(stderr, "Did you mean to type a string\n");
         return;
     }
     if (strlen(word) == 1) {
-        printf("Undefined character\n");
+        fprintf(stderr, "Undefined character\n");
         return;
     }
 
@@ -325,7 +304,7 @@ void suggestCorrectToken(char* word) {
             index = i;
         }
     }
-    printf("Did you mean %s\n", instructions[index]);
+    fprintf(stderr, "Did you mean %s\n", instructions[index]);
 }
 
 /* Based on https://en.wikipedia.org/wiki/Wagner%E2%80%93Fischer_algorithm

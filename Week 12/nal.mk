@@ -60,7 +60,7 @@ testbase_d: $(TBASE).c $(INTERPD)
 
 
 # CALL TESTING #
-test: testfile testparse testinterp
+testfull: testfile testparse testinterp
 
 testfile: testbase_s testbase_d
 	./testbase_s

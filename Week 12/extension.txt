@@ -3,3 +3,8 @@ Would have liked to do ast, semantic, multi-pass
 (Had I implemented this differently,
 I would have parsed each file in turn, making a record of each further file to be
 parsed)
+Would have like to do proper warnings for abort but requires multipass assessment
+
+Tokens left does not check for closed brackets
+
+Doesn't parse closing } well

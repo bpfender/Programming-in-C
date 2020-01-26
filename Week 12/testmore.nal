@@ -4,9 +4,9 @@
     PRNT "HELLO WORLD"
     = 3
     IN2STR( $A, fafw 
-    IFEQUAL ( 3 , "HELLO" {
+    IFEQUAL ( 3 , "HELLO") {
         ABORT
-    }
+    
     RND(%A)
     JUMP
     JUMP huih
@@ -17,5 +17,6 @@
     PRINTN hjljh
     PRINT "h"
     %H = 
+    PRINT "HELLO"
 }
     

@@ -18,12 +18,8 @@
 #define BRKT_ARG2 4
 #define BRKT_2ARGCLOSE 5
 
-/* FIXME this isn't super pretty */
-#define SINGLE_BRKT_TOKENS 3
-#define DOUBLE_BRKT_TOKENS 5
-
-typedef enum brkt_t { SINGLE = SINGLE_BRKT_TOKENS,
-                      DOUBLE = DOUBLE_BRKT_TOKENS } brkt_t;
+typedef enum brkt_t { SINGLE,
+                      DOUBLE} brkt_t;
 
 /* ------- PARSING FUNCTIONS ------- */
 /* Starting function for parsing file. If it returns correctly, file has parsed

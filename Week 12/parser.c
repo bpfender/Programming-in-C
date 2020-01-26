@@ -44,8 +44,9 @@ void prog(prog_t* program, symbol_t* symbols) {
 }
 
 void instr(prog_t* program, symbol_t* symbols) {
-    /* Check next token to determine instruction type */
-    token_t* token = peekToken(program, 0);
+    /* Check next token to determine instruction type. Populated for error
+    handling */
+    token_t* token = program->instr[0] = peekToken(program, 0);
 
     switch (token->type) {
         case FILE_REF:
@@ -137,7 +138,7 @@ void file(prog_t* program, symbol_t* symbols) {
 
         if (!getFilename(symbols, filename) || interp_flag) {
             if (!(next_program = tokenizeFile(filename))) {
-                err_lex(program, filename);
+                err_file(program);
             } else {
                 addFilename(symbols, filename, NULL);
 
@@ -274,7 +275,7 @@ bool_t parseCondBracket(prog_t* program) {
     token_t** instr = program->instr;
 
     if (strcmp(instr[BRKT_OPEN]->attrib, "(")) {
-        err_cond(program, 0);
+        err_cond(program, BRKT_OPEN);
         return TRUE;
     }
 
@@ -322,12 +323,12 @@ bool_t parseBrackets(prog_t* program, type_t arg, brkt_t brkt) {
     token_t** instr = program->instr;
 
     if (strcmp(instr[BRKT_OPEN]->attrib, "(")) {
-        err_bracket(program, BRACKET, BRKT_OPEN, brkt);
+        err_bracket(program, BRACKET, BRKT_OPEN);
         return TRUE;
     }
 
     if (instr[BRKT_ARG1]->type != arg) {
-        err_bracket(program, arg, BRKT_ARG1, brkt);
+        err_bracket(program, arg, BRKT_ARG1);
         return TRUE;
     }
 
@@ -335,23 +336,23 @@ bool_t parseBrackets(prog_t* program, type_t arg, brkt_t brkt) {
     switch (brkt) {
         case SINGLE:
             if (strcmp(instr[BRKT_1ARGCLOSE]->attrib, ")")) {
-                err_bracket(program, arg, BRKT_1ARGCLOSE, brkt);
+                err_bracket(program, arg, BRKT_1ARGCLOSE);
                 return TRUE;
             }
             break;
         case DOUBLE:
             if (instr[BRKT_COMMA]->type != COMMA) {
-                err_bracket(program, COMMA, BRKT_COMMA, brkt);
+                err_bracket(program, COMMA, BRKT_COMMA);
                 return TRUE;
             }
 
             if (instr[BRKT_ARG2]->type != arg) {
-                err_bracket(program, arg, BRKT_2ARGCLOSE, brkt);
+                err_bracket(program, arg, BRKT_2ARGCLOSE);
                 return TRUE;
             }
 
             if (strcmp(instr[BRKT_2ARGCLOSE]->attrib, ")")) {
-                err_bracket(program, BRACKET, BRKT_2ARGCLOSE, brkt);
+                err_bracket(program, BRACKET, BRKT_2ARGCLOSE);
                 return TRUE;
             }
             break;

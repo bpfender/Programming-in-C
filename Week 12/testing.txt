@@ -71,9 +71,10 @@ to handle a particular instruction.
 In the end, to actually test all functions individually, short test .nal files 
 were written to test particular aspects of each, starting by ensuring that the
 main switch statement works properly allowing a single call to each function in
-various ways to check valid and invalid structures. This resulted in many many
-many .nal files which I have decided not to include both for your and my sanity.
-I can pass them on if you do want to see them though.
+various ways to check valid and invalid structures
+
+This resulted in many many many .nal files which I have decided not to include 
+both for your and my sanity. I can pass them on if you do want to see them though.
 
 parseFile() is effectively a wrapper to call prog(), which expects the starting
 token "{". However having parseFile() allows an additional check whether all
@@ -127,6 +128,13 @@ interpreter function calls was not a huge issue. Indeed, there were only a few
 parse statements where the interpreter actually needed to be called. With the
 exception of one or two function, the interpreter relies on a statement to be 
 parsed before it can be interpreted.
+
+The interpreter does have some peculiarities in that it can enter an infinite loop
+which can be difficult to diagnose. Indeed, while I considered doing some error
+checking for this, it may even be part of the intentional design of a progrem.
+However, such infinite loops are difficult to test for correctness and
+eventually lead to a stack overflow, meaning that some assumptions about correctness
+had to be made here.
 
 Exceptions to this were in the call to a new .nal file and the jump over the
 expression in an if statement. For the file() call in parser.c, an INTERP define
