@@ -3,12 +3,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* FIXME ifdef on interpreter.h */
 #include "error.h"
 #include "interpreter.h"
 #include "parser.h"
 
+/* Index definition for not bracketed args */
 #define ARG_INDEX 1
+#define SET_VAR 0
+#define SET_VAL 2
+#define SET_OP 1
 
 /* Index definitions for bracketed arguments */
 #define BRKT_OPEN 1
@@ -25,10 +28,6 @@
 #define SINGLE_ARG_LEN 2
 #define SINGLE_BRKT_LEN 4
 #define DOUBLE_BRKT_LEN 6
-
-#define ON_ERROR(STR)     \
-    fprintf(stderr, STR); \
-    exit(EXIT_FAILURE)
 
 #define ERROR(TOKEN)                                                                                           \
     {                                                                                                          \
@@ -48,7 +47,7 @@ bool_t parseFile(prog_t* program, symbol_t* symbols) {
 }
 
 void prog(prog_t* program, symbol_t* symbols) {
-    token_t* token = program->instr[0] = dequeueToken(program);
+    token_t* token = dequeueToken(program);
 
     if (strcmp(token->attrib, "{")) {
         prog_error(program);
@@ -62,57 +61,56 @@ void instr(prog_t* program, symbol_t* symbols) {
 
     switch (token->type) {
         case FILE_REF:
-            fillTokenString(program, program->instr, SINGLE_ARG_LEN);
+            fillTokenString(program, SINGLE_ARG_LEN);
             file(program, symbols);
             break;
         case ABORT:
-            fillTokenString(program, program->instr, ABORT_LEN);
+            fillTokenString(program, ABORT_LEN);
             prog_abort(program, symbols);
             return;
             break;
         case IN2STR:
-            fillTokenString(program, program->instr, DOUBLE_BRKT_LEN);
+            fillTokenString(program, DOUBLE_BRKT_LEN);
             in2str(program, symbols);
             break;
         case INNUM:
-            fillTokenString(program, program->instr, SINGLE_BRKT_LEN);
+            fillTokenString(program, SINGLE_BRKT_LEN);
             innum(program, symbols);
             break;
         case IFEQUAL:
-            fillTokenString(program, program->instr, DOUBLE_BRKT_LEN);
+            fillTokenString(program, DOUBLE_BRKT_LEN);
             ifequal(program, symbols);
             break;
         case IFGREATER:
-            fillTokenString(program, program->instr, DOUBLE_BRKT_LEN);
+            fillTokenString(program, DOUBLE_BRKT_LEN);
             ifgreater(program, symbols);
             break;
         case INC:
-            fillTokenString(program, program->instr, SINGLE_BRKT_LEN);
+            fillTokenString(program, SINGLE_BRKT_LEN);
             inc(program, symbols);
             break;
         case JUMP:
-            fillTokenString(program, program->instr, SINGLE_ARG_LEN);
+            fillTokenString(program, SINGLE_ARG_LEN);
             jump(program, symbols);
             break;
         case PRINT:
         case PRINTN:
-            fillTokenString(program, program->instr, SINGLE_ARG_LEN);
+            fillTokenString(program, SINGLE_ARG_LEN);
             print(program, symbols);
             break;
         case RND:
-            fillTokenString(program, program->instr, SINGLE_BRKT_LEN);
+            fillTokenString(program, SINGLE_BRKT_LEN);
             rnd(program, symbols);
             break;
         case STRVAR:
         case NUMVAR:
-            fillTokenString(program, program->instr, SET_LEN);
+            fillTokenString(program, SET_LEN);
             set(program, symbols);
             break;
         case SECTION:
-            fillTokenString(program, program->instr, SECT_LEN);
+            fillTokenString(program, SECT_LEN);
             if (strcmp(token->attrib, "}")) {
                 instr_error(program);
-                /* FIXME could this be part of instr_error()? */
                 /* If instr_error doesn't abort program, continue parsing */
                 instr(program, symbols);
             }
@@ -134,8 +132,10 @@ void instr(prog_t* program, symbol_t* symbols) {
 
 void file(prog_t* program, symbol_t* symbols) {
     token_t* token = program->instr[ARG_INDEX];
+
     prog_t* next_program;
     char* filename;
+
     int interp_flag = 0;
 
     if (token->type == STRCON) {
@@ -149,13 +149,11 @@ void file(prog_t* program, symbol_t* symbols) {
 
         if (!getFilename(symbols, filename) || interp_flag) {
             if (!(next_program = tokenizeFile(filename))) {
-                file_error(program);
+                lex_error(program, filename);
             } else {
-                /* Add filename to symbol table to signify that it's been processed */
                 addFilename(symbols, filename, NULL);
 
                 parseFile(next_program, symbols);
-
                 freeProgQueue(next_program);
             }
         }
@@ -166,11 +164,11 @@ void file(prog_t* program, symbol_t* symbols) {
     instr(program, symbols);
 }
 
-/* FIXME Is this the right condition for prog_abort? */
 void prog_abort(prog_t* program, symbol_t* symbols) {
     token_t* token = peekToken(program, 0);
 
     if (strcmp(token->attrib, "}")) {
+        /* This call only gives a warning when the extension is enabled. */
         abort_error(program);
     }
 
@@ -182,9 +180,7 @@ void prog_abort(prog_t* program, symbol_t* symbols) {
 }
 
 void in2str(prog_t* program, symbol_t* symbols) {
-    if (parseBrackets(program, STRVAR, DOUBLE)) {
-        /* ERROR */
-    }
+    parseBrackets(program, STRVAR, DOUBLE);
 
 #ifdef INTERP
     inter_in2str(program, symbols);
@@ -194,9 +190,8 @@ void in2str(prog_t* program, symbol_t* symbols) {
 }
 
 void innum(prog_t* program, symbol_t* symbols) {
-    if (parseBrackets(program, NUMVAR, SINGLE)) {
-        /* ERROR */
-    }
+    parseBrackets(program, NUMVAR, SINGLE);
+    
 
 #ifdef INTERP
     inter_innum(program, symbols);
@@ -207,8 +202,7 @@ void innum(prog_t* program, symbol_t* symbols) {
 
 /* FIXME ifequal and ifgreater are identical */
 void ifequal(prog_t* program, symbol_t* symbols) {
-    if (parseCondBracket(program)) {
-    }
+    parseCondBracket(program);
 
 #ifdef INTERP
     if (inter_ifgreater(program, symbols)) {
@@ -222,8 +216,7 @@ void ifequal(prog_t* program, symbol_t* symbols) {
 }
 
 void ifgreater(prog_t* program, symbol_t* symbols) {
-    if (parseCondBracket(program)) {
-    }
+    parseCondBracket(program);
 
 #ifdef INTERP
     if (inter_ifgreater(program, symbols)) {
@@ -237,8 +230,7 @@ void ifgreater(prog_t* program, symbol_t* symbols) {
 }
 
 void inc(prog_t* program, symbol_t* symbols) {
-    if (parseBrackets(program, NUMVAR, SINGLE)) {
-    }
+    parseBrackets(program, NUMVAR, SINGLE);
 
 #ifdef INTERP
     inter_inc(program, symbols);
@@ -248,7 +240,7 @@ void inc(prog_t* program, symbol_t* symbols) {
 }
 
 void jump(prog_t* program, symbol_t* symbols) {
-    token_t* token = program->instr[1];
+    token_t* token = program->instr[ARG_INDEX];
 
     if (token->type != NUMCON) {
         jump_error(program);
@@ -262,7 +254,7 @@ void jump(prog_t* program, symbol_t* symbols) {
 }
 
 void print(prog_t* program, symbol_t* symbols) {
-    token_t* token = program->instr[1];
+    token_t* token = program->instr[ARG_INDEX];
 
     if (token->type != STRVAR && token->type != NUMVAR &&
         token->type != STRCON && token->type != NUMCON) {
@@ -277,8 +269,7 @@ void print(prog_t* program, symbol_t* symbols) {
 }
 
 void rnd(prog_t* program, symbol_t* symbols) {
-    if (parseBrackets(program, NUMVAR, SINGLE)) {
-    }
+    parseBrackets(program, NUMVAR, SINGLE);
 
 #ifdef INTERP
     inter_rnd(program, symbols);
@@ -288,36 +279,13 @@ void rnd(prog_t* program, symbol_t* symbols) {
 }
 
 void set(prog_t* program, symbol_t* symbols) {
-    if (!parseSetVals(program)) {
-        ERROR(program->instr[0]);
-    }
+    parseSetVals(program);
 
 #ifdef INTERP
     inter_set(program, symbols);
 #endif
 
     instr(program, symbols);
-}
-
-bool_t parseSetVals(prog_t* program) {
-    switch (program->instr[0]->type) {
-        case STRVAR:
-            if (program->instr[1]->type == SET) {
-                if (program->instr[2]->type == STRCON || program->instr[2]->type == STRVAR) {
-                    return TRUE;
-                }
-            }
-            return FALSE;
-        case NUMVAR:
-            if (program->instr[1]->type == SET) {
-                if (program->instr[2]->type == NUMVAR || program->instr[2]->type == NUMCON) {
-                    return TRUE;
-                }
-            }
-            return FALSE;
-        default:
-            return FALSE;
-    }
 }
 
 bool_t parseCondBracket(prog_t* program) {
@@ -405,17 +373,43 @@ bool_t parseBrackets(prog_t* program, type_t arg, brkt_t brkt) {
                 return TRUE;
             }
             break;
-        default:
-            /*FIXME random error message */
-            ON_ERROR("Something went wrong\n");
-            break;
     }
     return FALSE;
 }
 
-void fillTokenString(prog_t* program, token_t* tokens[], int len) {
+bool_t parseSetVals(prog_t* program) {
+    int index;
+    switch (program->instr[SET_VAR]->type) {
+        case STRVAR:
+            index = SET_OP;
+            if (program->instr[SET_OP]->type == SET) {
+                index = SET_VAL;
+                if (program->instr[SET_VAL]->type == STRCON ||
+                    program->instr[SET_VAL]->type == STRVAR) {
+                    return FALSE;
+                }
+            }
+            set_error(program, index);
+            return TRUE;
+        case NUMVAR:
+            index = SET_OP;
+            if (program->instr[SET_OP]->type == SET) {
+                index = SET_VAL;
+                if (program->instr[SET_VAL]->type == NUMVAR ||
+                    program->instr[SET_VAL]->type == NUMCON) {
+                    return FALSE;
+                }
+            }
+            set_error(program, index);
+            return TRUE;
+        default:
+            return TRUE;
+    }
+}
+
+void fillTokenString(prog_t* program, int len) {
     int i;
     for (i = 0; i < len; i++) {
-        tokens[i] = dequeueToken(program);
+        program->instr[i] = dequeueToken(program);
     }
 }
