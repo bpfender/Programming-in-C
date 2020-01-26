@@ -28,7 +28,7 @@ int main(int argc, char* argv[]) {
         printf("Parse Error\n");
     }
 
-    freeProgQueue(program);
+    freeProgram(program);
     freeSymbolTable(symbols);
 
     return 0;

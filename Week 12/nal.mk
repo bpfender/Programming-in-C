@@ -1,44 +1,70 @@
 # A single file (nal.c) is used to build both the parser & interpreter
 CFLAGS = -Wall -Wextra -pedantic -ansi -O2 -lm
-SFLAGS = -fsanitize=address -fsanitize=undefined -g3 -lm
+SFLAGS = -fsanitize=address -fsanitize=undefined -g3 -pedantic -ansi -Wall -Wextra -lm
 DFLAGS = -Wall -Wextra -pedantic -ansi -g3 -lm
 CC = clang
+
 BASE = nal
-BEXECS = parse interp
-SEXECS = parse_s interp_s
-DEXECS = parse_d interp_d
-TEXECS = test_s
-EXECS = $(BEXECS) $(SEXECS) $(DEXECS) $(TEXECS) extension
+TBASE = test
+PARSEF = tokenizer.c symbols.c parser.c error.c
+PARSED = $(PARSEF) symbols.h parser.c parser.h error.c error.h
+INTERPF = $(PARSEF) interpreter.c
+INTERPD = $(PARSED) interpreter.c interpreter.h
+EXTF = $(PARSEF)
+EXTD = $(PARSED)
 
-all : $(BEXECS)
+BEXECS = parse interp extension
+SEXECS = parse_s interp_s extension_s
+DEXECS = parse_d interp_d extension_d
+TEXECS = test test_s test_d
 
-# I use mvm created previously to store variables ?!
-parse : $(BASE).c
-	$(CC) $(BASE).c tokenizer.c symbols.c parser.c error.c $(CFLAGS) -o $@
-parse_s : $(BASE).c
-	$(CC) $(BASE).c tokenizer.c symbols.c parser.c error.c $(SFLAGS) -o $@
-parse_d : $(BASE).c 
-	$(CC) $(BASE).c tokenizer.c symbols.c parser.c error.c $(DFLAGS) -o $@
+EXECS = $(BEXECS) $(SEXECS) $(DEXECS) $(TEXECS)
 
-# I #define INTERP (via this makefile) so that only the extra code for
-# the interpreter is inside #ifdef INTERP / #endif 'brackets'
-interp : $(BASE).c 
-	$(CC) $(BASE).c tokenizer.c symbols.c parser.c interpreter.c error.c $(CFLAGS) -o $@ -DINTERP
-interp_s : $(BASE).c 
-	$(CC) $(BASE).c tokenizer.c symbols.c parser.c interpreter.c error.c $(SFLAGS) -o $@ -DINTERP
-interp_d : $(BASE).c 
-	$(CC) $(BASE).c tokenizer.c symbols.c parser.c interpreter.c error.c $(DFLAGS) -o $@ -DINTERP
+all: $(BEXECS)
 
-extension: $(BASE).c 
-	$(CC) $(BASE).c tokenizer.c symbols.c parser.c error.c $(CFLAGS) -o $@ -DEXTENSION
+# PARSE RULES #
+parse : $(BASE).c $(PARSED)
+	$(CC) $(BASE).c $(PARSEF) $(CFLAGS) -o $@
+parse_s : $(BASE).c $(PARSED)
+	$(CC) $(BASE).c $(PARSEF) $(SFLAGS) -o $@
+parse_d : $(BASE).c $(PARSED)
+	$(CC) $(BASE).c $(PARSEF) $(DFLAGS) -o $@
 
-test_s: test.c
-	$(CC) test.c tokenizer.c symbols.c parser.c error.c $(SFLAGS) -o $@
+# INTERP RULES #
+interp : $(BASE).c $(INTERPD)
+	$(CC) $(BASE).c $(INTERPF) $(CFLAGS) -o $@ -DINTERP
+interp_s : $(BASE).c $(INTERPD)
+	$(CC) $(BASE).c $(INTERPF) $(SFLAGS) -o $@ -DINTERP
+interp_d : $(BASE).c $(INTERPD)
+	$(CC) $(BASE).c $(INTERPF) $(DFLAGS) -o $@ -DINTERP
 
-test : testparse testinterp
+# EXTENSION RULES #
+extension: $(BASE).c $(EXTD)
+	$(CC) $(BASE).c $(EXTF) $(CFLAGS) -o $@ -DEXTENSION
 
-testfile: test_s
-	./test_s
+extension_s: $(BASE).c $(EXTD)
+	$(CC) $(BASE).c $(EXTF) $(SFLAGS) -o $@ -DEXTENSION
+
+extension_d: $(BASE).c $(EXTD)
+	$(CC) $(BASE).c $(EXTF) $(DFLAGS) -o $@ -DEXTENSION
+
+# TESTFILE RULES #
+testbase: $(TBASE).c $(INTERPD)
+	$(CC) $(TBASE).c $(INTERPF) $(CFLAGS) -o $@
+
+testbase_s: $(TBASE).c $(INTERPD)
+	$(CC) $(TBASE).c $(INTERPF) $(SFLAGS) -o $@
+
+testbase_d: $(TBASE).c $(INTERPD)
+	$(CC) $(TBASE).c $(INTERPF) $(DFLAGS) -o $@
+
+
+# CALL TESTING #
+test: testfile testparse testinterp
+
+testfile: testbase_s testbase_d
+	./testbase_s
+	valgrind ./testbase_d
 
 testparse : parse_s parse_d
 	./parse_s test1.$(BASE)
