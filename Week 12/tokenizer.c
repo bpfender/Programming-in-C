@@ -32,7 +32,7 @@ token_t* nextToken(prog_t* program) {
     token_t* token;
 
     if (program->pos >= program->len) {
-        err_nextToken(program);
+        err_nextToken();
     }
 
     token = program->token + program->pos;
@@ -43,7 +43,7 @@ token_t* nextToken(prog_t* program) {
 
 token_t* peekToken(prog_t* program, int dist) {
     if (program->pos + dist >= program->len) {
-        err_nextToken(program);
+        err_nextToken();
     }
 
     return program->token + (program->pos + dist);

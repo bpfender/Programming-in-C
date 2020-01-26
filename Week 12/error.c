@@ -12,33 +12,7 @@ typedef struct token_err_t {
 
 #define STR_END(s) (s == '\0' || s == '\n')
 
-bool_t isINSTR(token_t* token) {
-    switch (token->type) {
-        case FILE_REF:
-        case ABORT:
-        case IN2STR:
-        case INNUM:
-        case JUMP:
-        case PRINT:
-        case PRINTN:
-        case RND:
-        case IFEQUAL:
-        case IFGREATER:
-        case INC:
-        case STRVAR:
-        case NUMVAR:
-            return TRUE;
-            break;
-        default:
-            return FALSE;
-            break;
-    }
-}
-
-void err_printLocation(token_t* token, char* filename) {
-    fprintf(stderr, "ERROR: In file \"%s\", line %d, word %d, \'%s\'. ",
-            filename, token->line + 1, token->word + 1, token->attrib);
-}
+/* ------- PARSING ERROR FUNCTIONS ------- */
 
 void err_prog(prog_t* program) {
     err_printLocation(program->instr[0], program->filename);
@@ -49,17 +23,6 @@ void err_prog(prog_t* program) {
 #endif
 
     program->pos--;
-}
-
-void err_lex(prog_t* program, char* filename) {
-    err_printLocation(program->instr[1], program->filename);
-    fprintf(stderr, "Failed to open %s\n", filename);
-
-#if defined INTERP || !defined EXTENSION
-    exit(EXIT_FAILURE);
-#endif
-
-    err_recoverError(program);
 }
 
 void err_instr(prog_t* program) {
@@ -97,19 +60,6 @@ void err_instr(prog_t* program) {
     err_recoverError(program);
 }
 
-void err_recoverError(prog_t* program) {
-    token_t* token;
-
-    if (program->token[program->pos].word == 0) {
-        program->pos++;
-    }
-
-    do {
-        token = nextToken(program);
-    } while (token->word != 0);
-    program->pos--;
-}
-
 void err_file(prog_t* program) {
     char* attrib = program->instr[1]->attrib;
 
@@ -137,12 +87,41 @@ void err_file(prog_t* program) {
     err_recoverError(program);
 }
 
-/* This is more of a warning */
-void err_abort(prog_t* program) {
-#if defined EXTENSION && !defined INTERP
-    err_printLocation(program->instr[0], program->filename);
-    fprintf(stderr, "WARNING. Code after abort may not be executed\n");
+/* Need to handle missing brackets */
+void err_cond(prog_t* program, int index) {
+    err_printLocation(program->instr[index], program->filename);
+
+    switch (index) {
+        case 0:
+            fprintf(stderr, "Expected '(' before statement\n");
+            break;
+        case 1:
+            fprintf(stderr, "Expected STR or NUM argument\n");
+            break;
+        case 2:
+            fprintf(stderr, "Arguments should be seperated with ','\n");
+            break;
+        case 3:
+            fprintf(stderr, "Arguments must match. ");
+            if (program->instr[2]->type == STRCON || program->instr[2]->type == STRVAR) {
+                fprintf(stderr, "Expected STR argument\n");
+            } else {
+                fprintf(stderr, "Expected NUM argument\n");
+            }
+            break;
+        case 4:
+            fprintf(stderr, "Expected ')' at end of statement\n");
+            break;
+        default:
+            printf("\n");
+            break;
+    }
+
+#if defined INTERP || !defined EXTENSION
+    exit(EXIT_FAILURE);
 #endif
+
+    program->pos = program->pos - 4 + index;
 }
 
 void err_bracket(prog_t* program, type_t expected, int index, int len) {
@@ -184,43 +163,6 @@ void err_bracket(prog_t* program, type_t expected, int index, int len) {
 
     program->pos -= len;
     err_recoverError(program);
-}
-
-/* Need to handle missing brackets */
-void err_cond(prog_t* program, int index) {
-    err_printLocation(program->instr[index], program->filename);
-
-    switch (index) {
-        case 0:
-            fprintf(stderr, "Expected '(' before statement\n");
-            break;
-        case 1:
-            fprintf(stderr, "Expected STR or NUM argument\n");
-            break;
-        case 2:
-            fprintf(stderr, "Arguments should be seperated with ','\n");
-            break;
-        case 3:
-            fprintf(stderr, "Arguments must match. ");
-            if (program->instr[2]->type == STRCON || program->instr[2]->type == STRVAR) {
-                fprintf(stderr, "Expected STR argument\n");
-            } else {
-                fprintf(stderr, "Expected NUM argument\n");
-            }
-            break;
-        case 4:
-            fprintf(stderr, "Expected ')' at end of statement\n");
-            break;
-        default:
-            printf("\n");
-            break;
-    }
-
-#if defined INTERP || !defined EXTENSION
-    exit(EXIT_FAILURE);
-#endif
-
-    program->pos = program->pos - 4 + index;
 }
 
 /* FIXME can this be combined with other single args ? */
@@ -270,18 +212,85 @@ void err_set(prog_t* program, int index) {
     }
 }
 
-void err_nextToken(prog_t* program) {
+void err_nextToken(void) {
     fprintf(stderr, "No tokens left\n");
     exit(EXIT_FAILURE);
 }
 
-void err_extraTokens(prog_t* program) {
+void err_extraTokens(void) {
     fprintf(stderr, "Tokens left\n");
     exit(EXIT_FAILURE);
 }
 
-/* FIXME $ % incorrect capitalisation, "." missing number */
+void err_lex(prog_t* program, char* filename) {
+    err_printLocation(program->instr[1], program->filename);
+    fprintf(stderr, "Failed to open %s\n", filename);
 
+#if defined INTERP || !defined EXTENSION
+    exit(EXIT_FAILURE);
+#endif
+
+    err_recoverError(program);
+}
+
+/* ------- INTERPRETER ERROR FUNCTIONS ------- */
+void err_interVAR(prog_t* program, int index) {
+    err_printLocation(program->instr[index], program->filename);
+    fprintf(stderr, "INTERPRETER: VAR %s not initialised.", program->instr[index]->attrib);
+    exit(EXIT_FAILURE);
+}
+
+void err_interInput(prog_t* program, type_t type) {
+    err_printLocation(program->instr[0], program->filename);
+
+    switch (type) {
+        case INNUM:
+            fprintf(stderr, "INTERPRETER: Expected single number input.\n");
+            break;
+        case IN2STR:
+            fprintf(stderr, "INTERPRETER: Expected two input strings.\n");
+            break;
+        case ERROR:
+            fprintf(stderr, "INTERPRETER: Input string may not be longer than %d", MAX_INPUT_LEN);
+            break;
+        default:
+            fprintf(stderr, "INTERPRETER: Undefined error.\n");
+            break;
+    }
+    exit(EXIT_FAILURE);
+}
+
+void err_interUndef(prog_t* program) {
+    err_printLocation(program->instr[0], program->filename);
+    ON_ERROR("INTERPRETER: Undefined error.\n");
+}
+
+void err_interCond(prog_t* program) {
+    err_printLocation(program->instr[0], program->filename);
+    ON_ERROR("INTERPRETER: Error in conditional statement brackets.\n");
+}
+
+/* ------- GENERAL ERROR FUNCTION -------- */
+
+void err_printLocation(token_t* token, char* filename) {
+    fprintf(stderr, "ERROR: In file \"%s\", line %d, word %d, \'%s\'. ",
+            filename, token->line + 1, token->word + 1, token->attrib);
+}
+
+void err_recoverError(prog_t* program) {
+    token_t* token;
+
+    if (program->token[program->pos].word == 0) {
+        program->pos++;
+    }
+
+    do {
+        token = nextToken(program);
+    } while (token->word != 0);
+    program->pos--;
+}
+
+/* FIXME $ % incorrect capitalisation, "." missing number */
 void suggestCorrectToken(char* word) {
     unsigned int i;
     int dist = 100;
@@ -347,38 +356,25 @@ size_t getMin(size_t a, size_t b, size_t c) {
     return tmp < c ? tmp : c;
 }
 
-void err_interVAR(prog_t* program, int index) {
-    err_printLocation(program->instr[index], program->filename);
-    fprintf(stderr, "INTERPRETER: VAR %s not initialised.", program->instr[index]->attrib);
-    exit(EXIT_FAILURE);
-}
-
-void err_interInput(prog_t* program, type_t type) {
-    err_printLocation(program->instr[0], program->filename);
-
-    switch (type) {
-        case INNUM:
-            fprintf(stderr, "INTERPRETER: Expected single number input.\n");
-            break;
+bool_t isINSTR(token_t* token) {
+    switch (token->type) {
+        case FILE_REF:
+        case ABORT:
         case IN2STR:
-            fprintf(stderr, "INTERPRETER: Expected two input strings.\n");
-            break;
-        case ERROR:
-            fprintf(stderr, "INTERPRETER: Input string may not be longer than %d", MAX_INPUT_LEN);
+        case INNUM:
+        case JUMP:
+        case PRINT:
+        case PRINTN:
+        case RND:
+        case IFEQUAL:
+        case IFGREATER:
+        case INC:
+        case STRVAR:
+        case NUMVAR:
+            return TRUE;
             break;
         default:
-            fprintf(stderr, "INTERPRETER: Undefined error.\n");
+            return FALSE;
             break;
     }
-    exit(EXIT_FAILURE);
-}
-
-void err_interUndef(prog_t* program) {
-    err_printLocation(program->instr[0], program->filename);
-    ON_ERROR("INTERPRETER: Undefined error.\n");
-}
-
-void err_interCond(prog_t* program) {
-    err_printLocation(program->instr[0], program->filename);
-    ON_ERROR("INTERPRETER: Error in conditional statement brackets.\n");
 }

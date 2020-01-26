@@ -29,7 +29,7 @@ bool_t parseFile(prog_t* program, symbol_t* symbols) {
     if (program->pos == program->len) {
         return TRUE;
     } else {
-        err_extraTokens(program);
+        err_extraTokens();
         return FALSE;
     }
 }
@@ -153,13 +153,6 @@ void file(prog_t* program, symbol_t* symbols) {
 }
 
 void prog_abort(prog_t* program, symbol_t* symbols) {
-    token_t* token = peekToken(program, 0);
-
-    if (strcmp(token->attrib, "}")) {
-        /* This call only gives a warning when the extension is enabled. */
-        err_abort(program);
-    }
-
 #ifdef INTERP
     inter_abort();
 #endif
