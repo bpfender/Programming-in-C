@@ -7,20 +7,6 @@
 #include "interpreter.h"
 #include "parser.h"
 
-/* Index definition for not bracketed args */
-#define ARG_INDEX 1
-#define SET_VAR 0
-#define SET_VAL 2
-#define SET_OP 1
-
-/* Index definitions for bracketed arguments */
-#define BRKT_OPEN 1
-#define BRKT_ARG1 2
-#define BRKT_1ARGCLOSE 3
-#define BRKT_COMMA 3
-#define BRKT_ARG2 4
-#define BRKT_2ARGCLOSE 5
-
 /* Lengths for populating instr line */
 #define SECT_LEN 1
 #define ABORT_LEN 1
@@ -41,16 +27,16 @@ bool_t parseFile(prog_t* program, symbol_t* symbols) {
     if (program->pos == program->len) {
         return TRUE;
     } else {
-        tokenLeft_error(program);
+        err_extraTokens(program);
         return FALSE;
     }
 }
 
 void prog(prog_t* program, symbol_t* symbols) {
-    token_t* token = dequeueToken(program);
+    token_t* token = program->instr[0] = nextToken(program);
 
     if (strcmp(token->attrib, "{")) {
-        prog_error(program);
+        err_prog(program);
     }
     instr(program, symbols);
 }
@@ -110,8 +96,8 @@ void instr(prog_t* program, symbol_t* symbols) {
         case SECTION:
             fillTokenString(program, SECT_LEN);
             if (strcmp(token->attrib, "}")) {
-                instr_error(program);
-                /* If instr_error doesn't abort program, continue parsing */
+                err_instr(program);
+                /* If err_instr doesn't abort program, continue parsing */
                 instr(program, symbols);
             }
             /* If }, should be end of a section and recursion for this section 
@@ -124,7 +110,7 @@ void instr(prog_t* program, symbol_t* symbols) {
         case BRACKET:
         case COMMA:
         default:
-            instr_error(program);
+            err_instr(program);
             instr(program, symbols);
             break;
     }
@@ -149,16 +135,16 @@ void file(prog_t* program, symbol_t* symbols) {
 
         if (!getFilename(symbols, filename) || interp_flag) {
             if (!(next_program = tokenizeFile(filename))) {
-                lex_error(program, filename);
+                err_lex(program, filename);
             } else {
                 addFilename(symbols, filename, NULL);
 
                 parseFile(next_program, symbols);
-                freeProgQueue(next_program);
+                freeProgram(next_program);
             }
         }
     } else {
-        file_error(program);
+        err_file(program);
     }
 
     instr(program, symbols);
@@ -169,7 +155,7 @@ void prog_abort(prog_t* program, symbol_t* symbols) {
 
     if (strcmp(token->attrib, "}")) {
         /* This call only gives a warning when the extension is enabled. */
-        abort_error(program);
+        err_abort(program);
     }
 
 #ifdef INTERP
@@ -191,7 +177,6 @@ void in2str(prog_t* program, symbol_t* symbols) {
 
 void innum(prog_t* program, symbol_t* symbols) {
     parseBrackets(program, NUMVAR, SINGLE);
-    
 
 #ifdef INTERP
     inter_innum(program, symbols);
@@ -243,7 +228,7 @@ void jump(prog_t* program, symbol_t* symbols) {
     token_t* token = program->instr[ARG_INDEX];
 
     if (token->type != NUMCON) {
-        jump_error(program);
+        err_jump(program);
     }
 
 #ifdef INTERP
@@ -258,7 +243,7 @@ void print(prog_t* program, symbol_t* symbols) {
 
     if (token->type != STRVAR && token->type != NUMVAR &&
         token->type != STRCON && token->type != NUMCON) {
-        print_error(program);
+        err_print(program);
     }
 
 #ifdef INTERP
@@ -292,18 +277,18 @@ bool_t parseCondBracket(prog_t* program) {
     token_t** instr = program->instr;
 
     if (strcmp(instr[BRKT_OPEN]->attrib, "(")) {
-        cond_error(program, 0);
+        err_cond(program, 0);
         return TRUE;
     }
 
     if (!(instr[BRKT_ARG1]->type == STRVAR || instr[BRKT_ARG1]->type == NUMVAR ||
           instr[BRKT_ARG1]->type == STRCON || instr[BRKT_ARG1]->type == NUMCON)) {
-        cond_error(program, BRKT_ARG1);
+        err_cond(program, BRKT_ARG1);
         return TRUE;
     }
 
     if (instr[BRKT_COMMA]->type != COMMA) {
-        cond_error(program, BRKT_COMMA);
+        err_cond(program, BRKT_COMMA);
         return TRUE;
     }
 
@@ -313,14 +298,14 @@ bool_t parseCondBracket(prog_t* program) {
         case STRVAR:
         case STRCON:
             if (!(instr[BRKT_ARG2]->type == STRVAR || instr[BRKT_ARG2]->type == STRCON)) {
-                cond_error(program, BRKT_ARG2);
+                err_cond(program, BRKT_ARG2);
                 return TRUE;
             }
             break;
         case NUMVAR:
         case NUMCON:
             if (!(instr[BRKT_ARG2]->type == NUMVAR || instr[BRKT_ARG2]->type == NUMCON)) {
-                cond_error(program, BRKT_ARG2);
+                err_cond(program, BRKT_ARG2);
                 return TRUE;
             }
             break;
@@ -329,7 +314,7 @@ bool_t parseCondBracket(prog_t* program) {
     }
 
     if (strcmp(instr[BRKT_2ARGCLOSE]->attrib, ")")) {
-        cond_error(program, BRKT_2ARGCLOSE);
+        err_cond(program, BRKT_2ARGCLOSE);
         return TRUE;
     }
 
@@ -340,12 +325,12 @@ bool_t parseBrackets(prog_t* program, type_t arg, brkt_t brkt) {
     token_t** instr = program->instr;
 
     if (strcmp(instr[BRKT_OPEN]->attrib, "(")) {
-        bracket_error(program, BRACKET, BRKT_OPEN, brkt);
+        err_bracket(program, BRACKET, BRKT_OPEN, brkt);
         return TRUE;
     }
 
     if (instr[BRKT_ARG1]->type != arg) {
-        bracket_error(program, arg, BRKT_ARG1, brkt);
+        err_bracket(program, arg, BRKT_ARG1, brkt);
         return TRUE;
     }
 
@@ -353,23 +338,23 @@ bool_t parseBrackets(prog_t* program, type_t arg, brkt_t brkt) {
     switch (brkt) {
         case SINGLE:
             if (strcmp(instr[BRKT_1ARGCLOSE]->attrib, ")")) {
-                bracket_error(program, arg, BRKT_1ARGCLOSE, brkt);
+                err_bracket(program, arg, BRKT_1ARGCLOSE, brkt);
                 return TRUE;
             }
             break;
         case DOUBLE:
             if (instr[BRKT_COMMA]->type != COMMA) {
-                bracket_error(program, COMMA, BRKT_COMMA, brkt);
+                err_bracket(program, COMMA, BRKT_COMMA, brkt);
                 return TRUE;
             }
 
             if (instr[BRKT_ARG2]->type != arg) {
-                bracket_error(program, arg, BRKT_2ARGCLOSE, brkt);
+                err_bracket(program, arg, BRKT_2ARGCLOSE, brkt);
                 return TRUE;
             }
 
             if (strcmp(instr[BRKT_2ARGCLOSE]->attrib, ")")) {
-                bracket_error(program, BRACKET, BRKT_2ARGCLOSE, brkt);
+                err_bracket(program, BRACKET, BRKT_2ARGCLOSE, brkt);
                 return TRUE;
             }
             break;
@@ -389,7 +374,7 @@ bool_t parseSetVals(prog_t* program) {
                     return FALSE;
                 }
             }
-            set_error(program, index);
+            err_set(program, index);
             return TRUE;
         case NUMVAR:
             index = SET_OP;
@@ -400,7 +385,7 @@ bool_t parseSetVals(prog_t* program) {
                     return FALSE;
                 }
             }
-            set_error(program, index);
+            err_set(program, index);
             return TRUE;
         default:
             return TRUE;
@@ -410,6 +395,6 @@ bool_t parseSetVals(prog_t* program) {
 void fillTokenString(prog_t* program, int len) {
     int i;
     for (i = 0; i < len; i++) {
-        program->instr[i] = dequeueToken(program);
+        program->instr[i] = nextToken(program);
     }
 }

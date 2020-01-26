@@ -37,13 +37,13 @@ bool_t isINSTR(token_t* token) {
     }
 }
 
-void printLocation(token_t* token, char* filename) {
+void err_printLocation(token_t* token, char* filename) {
     fprintf(stderr, "ERROR: In file \"%s\", line %d, word %d, \'%s\'. ",
             filename, token->line + 1, token->word + 1, token->attrib);
 }
 
-void prog_error(prog_t* program) {
-    printLocation(program->instr[0], program->filename);
+void err_prog(prog_t* program) {
+    err_printLocation(program->instr[0], program->filename);
     fprintf(stderr, "Expected \"{\"\n");
 
 #if defined INTERP || !defined EXTENSION
@@ -53,8 +53,19 @@ void prog_error(prog_t* program) {
     program->pos--;
 }
 
-void instr_error(prog_t* program) {
-    printLocation(program->instr[0], program->filename);
+void err_lex(prog_t* program, char* filename) {
+    err_printLocation(program->instr[1], program->filename);
+    fprintf(stderr, "Failed to open %s\n", filename);
+
+#if defined INTERP || !defined EXTENSION
+    exit(EXIT_FAILURE);
+#endif
+
+    err_recoverError(program);
+}
+
+void err_instr(prog_t* program) {
+    err_printLocation(program->instr[0], program->filename);
 
     switch (program->instr[0]->type) {
         case ERROR:
@@ -85,10 +96,10 @@ void instr_error(prog_t* program) {
 
     /* Parse to next line, can the same line be interpreted? */
     /* FIXME functionise as recoved error */
-    recoverError(program);
+    err_recoverError(program);
 }
 
-void recoverError(prog_t* program) {
+void err_recoverError(prog_t* program) {
     token_t* token;
 
     if (program->token[program->pos].word == 0) {
@@ -96,15 +107,15 @@ void recoverError(prog_t* program) {
     }
 
     do {
-        token = dequeueToken(program);
+        token = nextToken(program);
     } while (token->word != 0);
     program->pos--;
 }
 
-void file_error(prog_t* program) {
+void err_file(prog_t* program) {
     char* attrib = program->instr[1]->attrib;
 
-    printLocation(program->instr[1], program->filename);
+    err_printLocation(program->instr[1], program->filename);
 
     switch (program->instr[1]->type) {
         case STRCON:
@@ -125,20 +136,19 @@ void file_error(prog_t* program) {
 #endif
 
     /* FIXME is this correct */
-    recoverError(program);
+    err_recoverError(program);
 }
 
 /* This is more of a warning */
-void abort_error(prog_t* program) {
-#ifndef INTERP
-    printLocation(program->instr[0], program->filename);
+void err_abort(prog_t* program) {
+#if defined EXTENSION && !defined INTERP
+    err_printLocation(program->instr[0], program->filename);
     fprintf(stderr, "WARNING. Code after abort may not be executed\n");
 #endif
 }
 
-/* FIXME this offset is ugly at the moment */
-void bracket_error(prog_t* program, type_t expected, int index, int len) {
-    printLocation(program->instr[index], program->filename);
+void err_bracket(prog_t* program, type_t expected, int index, int len) {
+    err_printLocation(program->instr[index], program->filename);
 
     switch (expected) {
         case BRACKET:
@@ -165,6 +175,8 @@ void bracket_error(prog_t* program, type_t expected, int index, int len) {
             fprintf(stderr, "Arguments should be seperated with ','\n");
             break;
         default:
+            fprintf(stderr, "Undefined error\n");
+            printf("\n");
             break;
     }
 
@@ -173,12 +185,12 @@ void bracket_error(prog_t* program, type_t expected, int index, int len) {
 #endif
 
     program->pos -= len;
-    recoverError(program);
+    err_recoverError(program);
 }
 
 /* Need to handle missing brackets */
-void cond_error(prog_t* program, int index) {
-    printLocation(program->instr[index], program->filename);
+void err_cond(prog_t* program, int index) {
+    err_printLocation(program->instr[index], program->filename);
 
     switch (index) {
         case 0:
@@ -202,6 +214,7 @@ void cond_error(prog_t* program, int index) {
             fprintf(stderr, "Expected ')' at end of statement\n");
             break;
         default:
+            printf("\n");
             break;
     }
 
@@ -213,32 +226,32 @@ void cond_error(prog_t* program, int index) {
 }
 
 /* FIXME can this be combined with other single args ? */
-void jump_error(prog_t* program) {
+void err_jump(prog_t* program) {
     if (program->instr[1]->word == 0) {
-        printLocation(program->instr[0], program->filename);
+        err_printLocation(program->instr[0], program->filename);
         fprintf(stderr, "Expect NUMCON jump value\n");
         program->pos -= 1;
     } else {
-        printLocation(program->instr[1], program->filename);
+        err_printLocation(program->instr[1], program->filename);
         fprintf(stderr, "Expect NUMCON jump value\n");
-        /*recoverError(program);*/
+        /*err_recoverError(program);*/
     }
 }
 
-void print_error(prog_t* program) {
+void err_print(prog_t* program) {
     if (program->instr[1]->word == 0) {
-        printLocation(program->instr[0], program->filename);
+        err_printLocation(program->instr[0], program->filename);
         fprintf(stderr, "Expected VARCON print value\n");
         program->pos -= 1;
     } else {
-        printLocation(program->instr[1], program->filename);
+        err_printLocation(program->instr[1], program->filename);
         fprintf(stderr, "Expect VARCON print value\n");
-        /*recoverError(program);*/
+        /*err_recoverError(program);*/
     }
 }
 
-void set_error(prog_t* program, int index) {
-    printLocation(program->instr[index], program->filename);
+void err_set(prog_t* program, int index) {
+    err_printLocation(program->instr[index], program->filename);
 
     switch (index) {
         case 1:
@@ -254,16 +267,17 @@ void set_error(prog_t* program, int index) {
             }
             break;
         default:
+            fprintf(stderr, "This is an error\n");
             break;
     }
 }
 
-void dequeue_error(prog_t* program) {
+void err_nextToken(prog_t* program) {
     fprintf(stderr, "No tokens left\n");
     exit(EXIT_FAILURE);
 }
 
-void tokenLeft_error(prog_t* program) {
+void err_extraTokens(prog_t* program) {
     fprintf(stderr, "Tokens left\n");
     exit(EXIT_FAILURE);
 }

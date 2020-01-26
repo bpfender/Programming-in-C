@@ -4,6 +4,21 @@
 #include "symbols.h"
 #include "tokenizer.h"
 
+/* Index definition for not bracketed args */
+#define ARG_INDEX 1
+#define SET_VAR 0
+#define SET_VAL 2
+#define SET_OP 1
+
+/* Index definitions for bracketed arguments */
+#define BRKT_OPEN 1
+#define BRKT_ARG1 2
+#define BRKT_1ARGCLOSE 3
+#define BRKT_COMMA 3
+#define BRKT_ARG2 4
+#define BRKT_2ARGCLOSE 5
+
+/* FIXME this isn't super pretty */
 #define SINGLE_BRKT_TOKENS 3
 #define DOUBLE_BRKT_TOKENS 5
 
@@ -41,7 +56,6 @@ void ifgreater(prog_t* program, symbol_t* symbols);
 void inc(prog_t* program, symbol_t* symbols);
 void rnd(prog_t* program, symbol_t* symbols);
 
-
 void jump(prog_t* program, symbol_t* symbols);
 void print(prog_t* program, symbol_t* symbols);
 
@@ -56,6 +70,6 @@ bool_t parseSetVals(prog_t* program);
 /* Fills program->instr with number of tokens as called from instr(). Allows
  * for easier analysis of syntax 
  */
-void fillTokenString(prog_t* program,  int len);
+void fillTokenString(prog_t* program, int len);
 
 #endif
