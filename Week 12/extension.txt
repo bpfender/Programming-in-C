@@ -1,0 +1,5 @@
+Would have liked to do ast, semantic, multi-pass
+
+(Had I implemented this differently,
+I would have parsed each file in turn, making a record of each further file to be
+parsed)
