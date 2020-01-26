@@ -67,7 +67,6 @@ prog_t* tokenizeFile(char* filename) {
 
     /* Return lines in the file */
     while ((line_len = getLine(&buffer, &size, file))) {
-       /* truncateLineEnd(buffer, &line_len);*/
         line_pos = buffer;
         word_num = 0;
 
@@ -110,19 +109,14 @@ void buildToken(token_t* token, char* attrib, int len, int line, int word) {
     token->line = line;
     token->word = word;
 
-    /* Converts ROT18 encoded strings. COnverts strings as default */
-    /* FIXME this is a bit dirty */
     if (token->type == STRCON) {
-        /* getSTRCON converts string in place */
+        /* getSTRCON converts "" or ## to string without quotes*/
         getSTRCON(str);
     }
 
     token->attrib = str;
 }
 
-/* decode strconsts in place */
-/* FIXME could covert escape characters here */
-/* FIXME does't need first if statemtn */
 void getSTRCON(char* word) {
     int len;
 
@@ -138,7 +132,6 @@ void getSTRCON(char* word) {
     memmove(word, word + 1, strlen(word + 1) + 1);
 }
 
-/* FIXME rename tok */
 void rot18(char* s) {
     int i;
     for (i = 0; s[i] != '\0'; i++) {
@@ -153,7 +146,6 @@ void rot18(char* s) {
 }
 
 /* ------ TOKEN STREAM INITIALISATION FUNCTIONS ------ */
-/* FIXME maybe clean up mallocs */
 prog_t* initProgQueue(char* filename) {
     prog_t* tmp = (prog_t*)malloc(sizeof(prog_t));
     if (!tmp) {
@@ -237,21 +229,6 @@ line_t getLine(char** buffer, line_t* size, FILE* file) {
     /* Returns 0 on eof or error. This should be the only case where 0 can be
     returned as newlines will always include at least the line ending chars */
     return 0;
-}
-
-/* FIXME THis might not actually be needed */
-void truncateLineEnd(char* buffer, line_t* len) {
-    line_t size = *len;
-    /* FIXME magic numbers */
-    if (size && buffer[size - 1] == '\n') {
-        if (size >= 2 && buffer[size - 2] == '\r') {
-            buffer[size - 2] = '\0';
-            *len = size - 2;
-        } else {
-            buffer[size - 1] = '\0';
-            *len = size - 1;
-        }
-    }
 }
 
 char* bufferAllocHandler(char* buffer, line_t size) {
