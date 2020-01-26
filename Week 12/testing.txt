@@ -54,7 +54,7 @@ to avoid parsing the same file more than once.
 At some point, either accidentally or due to paying attention I realised that I
 had no handling for an error where there is no }, which would indicated the end of
 the recursive call and allow the functions to return again. This required me to 
-add error checking to the dequeueToken() function to ensure tokens weren't read
+add error checking to the nextToken() function to ensure tokens weren't read
 out of the bounds of the program queue. Likewise, this also made me realise that
 an additional check was required that all tokens had been consumed during the
 parsing of the file. This functionality was added to parseFile(). This appears
@@ -80,7 +80,7 @@ token "{". However having parseFile() allows an additional check whether all
 tokens have been consumed and True or False to be returned as a flag.
 
 prog() consumes one token and checks whether it is the expected starting token {.
-dequeueToken() is a well tested function as seen in test.c.
+nextToken() is a well tested function as seen in test.c.
 
 instr() as discussed above determines what kind of INSTRUCT is being handled. 
 Depending on the first token read (which based on the grammar determines absolutely
