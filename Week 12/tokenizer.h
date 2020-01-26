@@ -56,7 +56,7 @@ typedef unsigned int line_t;
 
 /* ------- TOKEN RETURN FUNCTIONS ------- */
 /* Returns pointer to current token and increments position in program queue */
-token_t* dequeueToken(prog_t* program);
+token_t* nextToken(prog_t* program);
 
 /* Returns pointer to current token without incrementing program position */
 token_t* peekToken(prog_t* program, int dist);
@@ -69,7 +69,7 @@ prog_t* tokenizeFile(char* filename);
 /* Handles adding token to stream. Resizes token array if necesarry and then
  * calls build token to create token entry in table
  */
-void enqueueToken(prog_t* program, char* attrib, int len, int line, int word);
+void addToken(prog_t* program, char* attrib, int len, int line, int word);
 
 /* Is passed pointer to token_t* point in stream to build token. Attrib points
  * to beginning of "attrib" but is not null terminated. "len" allows the string
@@ -90,7 +90,7 @@ void rot18(char* s);
 /* ------ TOKEN STREAM INITIALISATION FUNCTIONS ------ */
 /* Allocates memory for a prog_t struct to hold token stream 
  */
-prog_t* initProgQueue(char* filename);
+prog_t* initProgram(char* filename);
 
 /* Resizes array for token stream if when full 
  */
@@ -98,7 +98,7 @@ void expandProgQueue(prog_t* program);
 
 /* Frees all alloced memory for token stream 
  */
-void freeProgQueue(prog_t* program);
+void freeProgram(prog_t* program);
 
 /* ------ FILE & LINE HANDLING FUNCTIONS ------ */
 /* Reads line from a file. Function returns number of characters in the string

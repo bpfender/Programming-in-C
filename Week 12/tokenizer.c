@@ -28,11 +28,11 @@
 #define DIGIT 10
 
 /* ------- TOKEN RETURN FUNCTIONS ------ */
-token_t* dequeueToken(prog_t* program) {
+token_t* nextToken(prog_t* program) {
     token_t* token;
 
     if (program->pos >= program->len) {
-        dequeue_error(program);
+        err_nextToken(program);
     }
 
     token = program->token + program->pos;
@@ -43,7 +43,7 @@ token_t* dequeueToken(prog_t* program) {
 
 token_t* peekToken(prog_t* program, int dist) {
     if (program->pos + dist >= program->len) {
-        dequeue_error(program);
+        err_nextToken(program);
     }
 
     return program->token + (program->pos + dist);
@@ -63,7 +63,7 @@ prog_t* tokenizeFile(char* filename) {
     if (!(file = fopen(filename, "r"))) {
         return NULL;
     }
-    program = initProgQueue(filename);
+    program = initProgram(filename);
 
     /* Return lines in the file */
     while ((line_len = getLine(&buffer, &size, file))) {
@@ -72,7 +72,7 @@ prog_t* tokenizeFile(char* filename) {
 
         /* Parse through words in the line */
         while ((word_len = parseBufferWords(&line_pos))) {
-            enqueueToken(program, line_pos, word_len, line_num, word_num);
+            addToken(program, line_pos, word_len, line_num, word_num);
             line_pos += word_len;
             word_num++;
         }
@@ -84,7 +84,7 @@ prog_t* tokenizeFile(char* filename) {
     return program;
 }
 
-void enqueueToken(prog_t* program, char* attrib, int len, int line, int word) {
+void addToken(prog_t* program, char* attrib, int len, int line, int word) {
     int i = program->len;
 
     if (i >= program->size) {
@@ -146,7 +146,7 @@ void rot18(char* s) {
 }
 
 /* ------ TOKEN STREAM INITIALISATION FUNCTIONS ------ */
-prog_t* initProgQueue(char* filename) {
+prog_t* initProgram(char* filename) {
     prog_t* tmp = (prog_t*)malloc(sizeof(prog_t));
     if (!tmp) {
         ON_ERROR("Error allocating program struct\n");
@@ -178,7 +178,7 @@ void expandProgQueue(prog_t* program) {
     }
 }
 
-void freeProgQueue(prog_t* program) {
+void freeProgram(prog_t* program) {
     int i;
     for (i = 0; i < program->len; i++) {
         free(program->token[i].attrib);
