@@ -5,13 +5,9 @@
 
 #include "symbols.h"
 
-#define INTERP 1
-
-/* Max number of tokens expected in an INSTRUCT */
+/* Max number of tokens  in an INSTRUCT */
 #define MAX_TOKENS 6
 
-/* FIXME add bracket open /close options etc. */
-/*FIXME better alternative for INSTR_FILE */
 typedef enum type_t { FILE_REF,
                       ABORT,
                       IN2STR,
@@ -41,7 +37,6 @@ typedef struct token_t {
     char* attrib;
     int line;
     int word;
-    int instruction;
 } token_t;
 
 typedef struct prog_t {
@@ -87,10 +82,10 @@ void buildToken(token_t* token, char* attrib, int len, int line, int word);
 /* Converts STRCON string i.e. "" or ## into normal string without quotes or 
  * hashes. If hashes are identified, rot18 is called to convert the string
  */
-void tok_getSTRCON(char* word);
+void getSTRCON(char* word);
 
 /* Decodes ROT18 encoding */
-void tok_rot18(char* s);
+void rot18(char* s);
 
 
 
@@ -158,14 +153,5 @@ bool_t isBRACKET(char* word);
 bool_t isSECTION(char* word);
 bool_t isCOMMA(char* word);
 bool_t isStrUpper(char* word);
-
-void printInstr(type_t instr);
-
-/* FIXME to be removed */
-void tok_insertfilename(mvm* files, char* filename, prog_t* prog);
-mvmcell* tok_fileexists(mvm* files, char* filename);
-mvm* tok_filesinit(void);
-void tok_freefilenames(mvm* files);
-void tok_unloadlist(mvmcell* node);
 
 #endif

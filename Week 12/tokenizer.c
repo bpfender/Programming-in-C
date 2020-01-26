@@ -13,7 +13,6 @@
 #define LINE_T_MAX (line_t) ~0
 
 /* Definitions of terminators for identifying individual tokens */
-/* FIXME need to check these terminators */
 #define WHITESPACE " \t\n\v\f\r"
 #define TERMINATORS "(){},=#\" \t\n\v\f\r\0"
 #define STRING_TERMINATORS "#\"\n\0"
@@ -22,7 +21,7 @@
 /* Initialisation value for program size */
 #define PROG_LENGTH 500
 
-/* FIXME might not be needed here */
+/* Constants for ROT18 Encoding */
 #define ROT5 5
 #define ROT13 13
 #define ALPHA 26
@@ -68,7 +67,7 @@ prog_t* tokenizeFile(char* filename) {
 
     /* Return lines in the file */
     while ((line_len = getLine(&buffer, &size, file))) {
-        truncateLineEnd(buffer, &line_len);
+       /* truncateLineEnd(buffer, &line_len);*/
         line_pos = buffer;
         word_num = 0;
 
@@ -111,13 +110,11 @@ void buildToken(token_t* token, char* attrib, int len, int line, int word) {
     token->line = line;
     token->word = word;
 
-    /* Converts ROT18 encoded strings. Only converts string constants if they
-    are to be interpreted. Otherwise, only filenames are required */
+    /* Converts ROT18 encoded strings. COnverts strings as default */
     /* FIXME this is a bit dirty */
-    if ((token->type == STRCON && (token - 1)->type == FILE_REF) ||
-        ((token->type == STRCON) && INTERP)) {
+    if (token->type == STRCON) {
         /* getSTRCON converts string in place */
-        tok_getSTRCON(str);
+        getSTRCON(str);
     }
 
     token->attrib = str;
@@ -125,26 +122,24 @@ void buildToken(token_t* token, char* attrib, int len, int line, int word) {
 
 /* decode strconsts in place */
 /* FIXME could covert escape characters here */
-/* FIXME rename tok */
 /* FIXME does't need first if statemtn */
-void tok_getSTRCON(char* word) {
+void getSTRCON(char* word) {
     int len;
-    if (word[0] == '"' || word[0] == '#') {
-        len = strlen(word);
-        /* Truncate " or # */
-        word[len - 1] = '\0';
 
-        if (word[0] == '#') {
-            tok_rot18(word + 1);
-        }
+    len = strlen(word);
+    /* Truncate " or # */
+    word[len - 1] = '\0';
 
-        /* Memmove is compatible with in place shifting */
-        memmove(word, word + 1, strlen(word + 1) + 1);
+    if (word[0] == '#') {
+        rot18(word + 1);
     }
+
+    /* Memmove is compatible with in place shifting */
+    memmove(word, word + 1, strlen(word + 1) + 1);
 }
 
 /* FIXME rename tok */
-void tok_rot18(char* s) {
+void rot18(char* s) {
     int i;
     for (i = 0; s[i] != '\0'; i++) {
         if (isupper(s[i])) {
@@ -301,7 +296,6 @@ line_t parseBufferWords(char** pos) {
 }
 
 /* ------- TOKEN IDENTIFICATION FUNCTIONS ------ */
-
 type_t tokenType(char* word) {
     if (isFILE(word)) {
         return FILE_REF;
@@ -429,7 +423,6 @@ bool_t isNUMVAR(char* word) {
     return FALSE;
 }
 
-/* FIXME Error messages for strings? */
 bool_t isSTRCON(char* word) {
     int len = strlen(word);
     if (((word[0] == '"') && (word[len - 1] == '"')) ||
@@ -439,7 +432,6 @@ bool_t isSTRCON(char* word) {
     return FALSE;
 }
 
-/* QUESTION Does the first digit have to be a number? */
 bool_t isNUMCON(char* word) {
     int i;
     bool_t dot = FALSE;
@@ -483,97 +475,4 @@ bool_t isStrUpper(char* word) {
         }
     }
     return TRUE;
-}
-
-void printInstr(type_t instr) {
-    switch (instr) {
-        case FILE_REF:
-            printf("FILE");
-            break;
-        case ABORT:
-            printf("ABORT");
-            break;
-        case IN2STR:
-            printf("IN2STR");
-            break;
-        case INNUM:
-            printf("INNUM");
-            break;
-        case IFEQUAL:
-            printf("IFEQUAL");
-            break;
-        case IFGREATER:
-            printf("IFGREATER");
-            break;
-        case INC:
-            printf("INC");
-            break;
-        case SET:
-            printf("SET");
-            break;
-        case JUMP:
-            printf("JUMP");
-            break;
-        case PRINT:
-            printf("PRINT");
-            break;
-        case PRINTN:
-            printf("PRINTN");
-            break;
-        case RND:
-            printf("RND");
-            break;
-        case STRVAR:
-            printf("STRVAR");
-            break;
-        case NUMVAR:
-            printf("NUMVAR");
-            break;
-        case STRCON:
-            printf("STRCON");
-            break;
-        case NUMCON:
-            printf("NUMCON");
-            break;
-        case BRACKET:
-            printf("BRACK");
-            break;
-        case SECTION:
-            printf("SECT");
-            break;
-        case COMMA:
-            printf("COMM");
-            break;
-        case ERROR:
-            printf("ERR");
-            break;
-    }
-}
-
-mvm* tok_filesinit(void) {
-    return mvm_init();
-}
-
-mvmcell* tok_fileexists(mvm* files, char* filename) {
-    return mvm_search(files, filename);
-}
-
-void tok_insertfilename(mvm* files, char* filename, prog_t* prog) {
-    mvm_insert(files, filename, prog);
-}
-
-void tok_freefilenames(mvm* files) {
-    mvmcell* node = files->head;
-    tok_unloadlist(node);
-    free(files);
-}
-
-void tok_unloadlist(mvmcell* node) {
-    if (!node) {
-        return;
-    }
-    tok_unloadlist(node->next);
-    free(node->key);
-    freeProgQueue(node->data);
-    free(node);
 }
