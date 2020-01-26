@@ -1,8 +1,9 @@
-#include "error.h"
-
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "error.h"
+#include "interpreter.h"
 
 typedef struct token_err_t {
     int err;
@@ -347,4 +348,40 @@ size_t calculateMSD(const char* sample, char* data, size_t cost[MATR_SIZE][MATR_
 size_t getMin(size_t a, size_t b, size_t c) {
     size_t tmp = a < b ? a : b;
     return tmp < c ? tmp : c;
+}
+
+void err_interVAR(prog_t* program, int index) {
+    err_printLocation(program->instr[index], program->filename);
+    fprintf(stderr, "INTERPRETER: VAR %s not initialised.", program->instr[index]->attrib);
+    exit(EXIT_FAILURE);
+}
+
+void err_interInput(prog_t* program, type_t type) {
+    err_printLocation(program->instr[0], program->filename);
+
+    switch (type) {
+        case INNUM:
+            fprintf(stderr, "INTERPRETER: Expected single number input.\n");
+            break;
+        case IN2STR:
+            fprintf(stderr, "INTERPRETER: Expected two input strings.\n");
+            break;
+        case ERROR:
+            fprintf(stderr, "INTERPRETER: Input string may not be longer than %d", MAX_INPUT_LEN);
+            break;
+        default:
+            fprintf(stderr, "INTERPRETER: Undefined error.\n");
+            break;
+    }
+    exit(EXIT_FAILURE);
+}
+
+void err_interUndef(prog_t* program) {
+    err_printLocation(program->instr[0], program->filename);
+    ON_ERROR("INTERPRETER: Undefined error.\n");
+}
+
+void err_interCond(prog_t* program) {
+    err_printLocation(program->instr[0], program->filename);
+    ON_ERROR("INTERPRETER: Error in conditional statement brackets.\n");
 }

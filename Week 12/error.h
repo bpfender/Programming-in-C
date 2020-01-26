@@ -14,6 +14,7 @@ void err_printLocation(token_t* token, char* filename);
 void err_prog(prog_t* program);
 void err_instr(prog_t* program);
 void err_file(prog_t* program);
+
 /* FIXME this is more of a warning */
 void err_abort(prog_t* program);
 void err_jump(prog_t* program);
@@ -31,5 +32,10 @@ void suggestCorrectToken(char* word);
 size_t calculateMSD(const char* sample, char* data, size_t cost[MATR_SIZE][MATR_SIZE]);
 size_t getMin(size_t a, size_t b, size_t c);
 bool_t isINSTR(token_t* token);
+
+void err_interVAR(prog_t* program, int index);
+void err_interInput(prog_t* program, type_t type);
+void err_interUndef(prog_t* program);
+void err_interCond(prog_t* program);
 
 #endif
