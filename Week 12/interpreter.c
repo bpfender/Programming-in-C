@@ -1,4 +1,3 @@
-
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -7,8 +6,11 @@
 #include "interpreter.h"
 #include "parser.h"
 
-#define INPUT_BUFF 5
-#define FACTOR 2
+/* Error handling for the interpreter is done in this file rather than expanding
+ * the extension file needlessly. Given that the interpreter will quit as soon
+ * as an error is encountered, it seemed pointless to call extra functions that
+ * would just call exit() straight away
+ */
 
 #define RND_MOD 100
 
@@ -21,7 +23,11 @@ void inter_abort(void) {
     exit(EXIT_SUCCESS);
 }
 
-/* FIXME this input is not fab */
+/* Input checking on this is not currently fantastic. But for the scope of this
+ * it will do. Would have like to do a dynamic buffer but got held up on other
+ * things. However, my getLine() function demonstrates the concept 
+ */
+/* FIXME use strtok instead */
 void inter_in2str(prog_t* program, symbol_t* symbols) {
     char line[INPUT_LEN];
     char word1[INPUT_LEN];
@@ -31,6 +37,9 @@ void inter_in2str(prog_t* program, symbol_t* symbols) {
 
     if (fgets(line, sizeof(line), stdin)) {
         if (sscanf(line, " %s %s ", word1, word2) == 2) {
+            if (strlen(word1) > MAX_INPUT_LEN || strlen(word2) > MAX_INPUT_LEN) {
+                err_interInput(program, ERROR);
+            }
             w1 = allocString(strlen(word1));
             w2 = allocString(strlen(word2));
 
@@ -41,7 +50,7 @@ void inter_in2str(prog_t* program, symbol_t* symbols) {
             updateVariable(symbols, program->instr[BRKT_ARG2]->attrib, w2);
         }
     } else {
-        ON_ERROR("INTERPRETER: Expected two input strings\n");
+        err_interInput(program, IN2STR);
     }
 }
 
@@ -52,17 +61,28 @@ void inter_innum(prog_t* program, symbol_t* symbols) {
 
     if (fgets(line, sizeof(line), stdin)) {
         if (sscanf(line, "%lf", num) == 1) {
+            if (strlen(line) > MAX_INPUT_LEN) {
+                err_interInput(program, ERROR);
+            }
             updateVariable(symbols, program->instr[BRKT_ARG1]->attrib, num);
         } else {
-            ON_ERROR("INTERPRETER: Expected single number input\n");
+            err_interInput(program, INNUM);
         }
     }
 }
 
 bool_t inter_ifequal(prog_t* program, symbol_t* symbols) {
     double tmp_num;
+
     void* arg1 = getArg(program->instr[BRKT_ARG1], symbols, &tmp_num);
     void* arg2 = getArg(program->instr[BRKT_ARG2], symbols, &tmp_num);
+
+    if (!arg1) {
+        err_interVAR(program, BRKT_ARG1);
+    }
+    if (!arg2) {
+        err_interVAR(program, BRKT_ARG2);
+    }
 
     switch (program->instr[BRKT_ARG1]->type) {
         case STRVAR:
@@ -87,7 +107,8 @@ bool_t inter_ifequal(prog_t* program, symbol_t* symbols) {
             }
             break;
         default:
-            ON_ERROR("Something went wrong\n");
+            err_interUndef(program);
+            exit(EXIT_FAILURE);
             break;
     }
 }
@@ -99,6 +120,13 @@ bool_t inter_ifgreater(prog_t* program, symbol_t* symbols) {
 
     void* arg1 = getArg(program->instr[BRKT_ARG1], symbols, &tmp_num);
     void* arg2 = getArg(program->instr[BRKT_ARG2], symbols, &tmp_num);
+
+    if (!arg1) {
+        err_interVAR(program, BRKT_ARG1);
+    }
+    if (!arg2) {
+        err_interVAR(program, BRKT_ARG2);
+    }
 
     switch (program->instr[BRKT_ARG1]->type) {
         case STRVAR:
@@ -120,7 +148,8 @@ bool_t inter_ifgreater(prog_t* program, symbol_t* symbols) {
             }
             break;
         default:
-            ON_ERROR("Something went wrong\n");
+            err_interUndef(program);
+            exit(EXIT_FAILURE);
             break;
     }
 }
@@ -128,9 +157,7 @@ bool_t inter_ifgreater(prog_t* program, symbol_t* symbols) {
 void inter_inc(prog_t* program, symbol_t* symbols) {
     mvmcell* cell = getVariable(symbols, program->instr[BRKT_ARG1]->attrib);
     if (!cell) {
-        printf("%s ", program->instr[BRKT_ARG1]->attrib);
-        fprintf(stderr, "Variable not initialised\n");
-        exit(EXIT_FAILURE);
+        err_interVAR(program, BRKT_ARG1);
     }
 
     *(double*)cell->data += 1;
@@ -146,13 +173,15 @@ void inter_rnd(prog_t* program, symbol_t* symbols) {
 void inter_jump(prog_t* program) {
     int pos;
     if (!checkJumpValue(program->instr[ARG_INDEX]->attrib)) {
+        err_printLocation(program->instr[ARG_INDEX], program->filename);
         ON_ERROR("INTERPRETER: Expected an integer value for jump");
     }
 
     pos = atoi(program->instr[ARG_INDEX]->attrib);
 
     if (!checkValidJump(program, pos)) {
-        ON_ERROR("INTERPRETER: JUMP does not go to valid point in program\n");
+        err_printLocation(program->instr[ARG_INDEX], program->filename);
+        ON_ERROR("INTERPRETER: JUMP does not go to valid INSTRUCT in program\n");
     }
     program->pos = pos;
 }
@@ -164,17 +193,17 @@ void inter_print(prog_t* program, symbol_t* symbols) {
         case NUMVAR:
             cell = getVariable(symbols, program->instr[ARG_INDEX]->attrib);
             if (!cell) {
-                printf("%s ", program->instr[ARG_INDEX]->attrib);
-                ON_ERROR("Variable has not been initialised\n");
+                err_interVAR(program, ARG_INDEX);
             }
+
             printf("%f", *(double*)cell->data);
             break;
         case STRVAR:
             cell = getVariable(symbols, program->instr[ARG_INDEX]->attrib);
             if (!cell) {
-                printf("%s ", program->instr[ARG_INDEX]->attrib);
-                ON_ERROR("Variable has not been initialised\n");
+                err_interVAR(program, ARG_INDEX);
             }
+
             printf("%s ", (char*)cell->data);
             break;
         case NUMCON:
@@ -182,7 +211,7 @@ void inter_print(prog_t* program, symbol_t* symbols) {
             printf("%s ", program->instr[ARG_INDEX]->attrib);
             break;
         default:
-            ON_ERROR("Something went wrong\n");
+            err_interUndef(program);
     }
 
     if (program->instr[0]->type == PRINTN) {
@@ -199,35 +228,39 @@ void inter_set(prog_t* program, symbol_t* symbols) {
         case STRCON:
             str = allocString(strlen(program->instr[SET_VAL]->attrib));
             strcpy(str, program->instr[SET_VAL]->attrib);
+
             updateVariable(symbols, program->instr[SET_VAR]->attrib, str);
             break;
         case STRVAR:
             cell = getVariable(symbols, program->instr[SET_VAL]->attrib);
             if (!cell) {
-                printf("%s ", program->instr[SET_VAL]->attrib);
-                ON_ERROR("Variable not initialised\n");
+                err_interVAR(program, SET_VAL);
             }
+
             str = allocString(strlen((char*)cell->data));
             strcpy(str, (char*)cell->data);
+
             updateVariable(symbols, program->instr[SET_VAR]->attrib, str);
             break;
         case NUMCON:
             num = allocNumber();
             *num = strtod(program->instr[SET_VAL]->attrib, NULL);
+
             updateVariable(symbols, program->instr[SET_VAR]->attrib, num);
             break;
         case NUMVAR:
             cell = getVariable(symbols, program->instr[SET_VAL]->attrib);
             if (!cell) {
-                printf("%s ", program->instr[SET_VAL]->attrib);
-                ON_ERROR("Variable not initialised\n");
+                err_interVAR(program, SET_VAL);
             }
+
             num = allocNumber();
             *num = *(double*)cell->data;
+
             updateVariable(symbols, program->instr[SET_VAR]->attrib, num);
             break;
         default:
-            ON_ERROR("Something went wrong\n");
+            err_interUndef(program);
     }
 }
 
@@ -266,7 +299,7 @@ void findElseJump(prog_t* program) {
     token_t* token = nextToken(program);
 
     if (strcmp(token->attrib, "{")) {
-        ON_ERROR("If else statement error\n");
+        err_interCond(program);
     }
 
     while (strcmp(token->attrib, "}") || nest) {
@@ -283,7 +316,6 @@ void findElseJump(prog_t* program) {
 
 bool_t checkJumpValue(char* num) {
     int i;
-    bool_t dot = FALSE;
     for (i = 0; num[i] != '\0'; i++) {
         if (num[i] == '.') {
             return FALSE;

@@ -4,6 +4,8 @@
 #include "symbols.h"
 #include "tokenizer.h"
 
+#define MAX_INPUT_LEN 50
+
 /* ------ INTERPRETER FUNCTIONS ------ */
 /* Ends program and returns success message
  */
