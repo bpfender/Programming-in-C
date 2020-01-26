@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "error.h"
 #include "symbols.h"
 
 #define FACTOR 2
@@ -47,7 +48,8 @@ mvmcell* getFilename(symbol_t* symbols, char* filename) {
 
 /* This was defined like this in the hopes of doing multi-pass lexical and 
  * syntactic analysis. Void* was supposed to point to beginning of program queue, but
- * it doesn't actually matter what the value is for current implementation
+ * it doesn't actually matter what the value is for current implementation, just
+ * that a record of the key is in the table.
 */
 void addFilename(symbol_t* symbols, char* filename, void* prog) {
     mvm_insert(symbols->files, filename, prog);
@@ -112,7 +114,6 @@ mvmcell* mvmcell_init(char* key, void* data) {
     return node;
 }
 
-
 mvmcell* mvmcell_deleteHelper(mvmcell* node, char* key, mvm* m) {
     mvmcell* tmp;
 
@@ -152,4 +153,3 @@ void* allocHandler(void* ptr, size_t nmemb, size_t size) {
     }
     return tmp;
 }
-

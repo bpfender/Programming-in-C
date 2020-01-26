@@ -3,10 +3,6 @@
 
 #include <stdlib.h>
 
-#define ON_ERROR(STR)     \
-    fprintf(stderr, STR); \
-    exit(EXIT_FAILURE)
-
 typedef struct mvmcell {
     char* key;
     void* data;
@@ -22,7 +18,6 @@ typedef struct symbol_t {
     mvm* vars;
     mvm* files;
 } symbol_t;
-
 
 /* ------- SYMBOL TABLE HANDLING ------ */
 symbol_t* initSymbolTable(void);
@@ -53,7 +48,6 @@ mvmcell* getFilename(symbol_t* symbols, char* filename);
 /* Add filename as key to map. As above, data value doesn't currently matter
  */
 void addFilename(symbol_t* symbols, char* filename, void* prog);
-
 
 /* ------- MVM UPDATED FUNCTIONS ------- */
 /* Initialises mvm ADT and zeros all values
