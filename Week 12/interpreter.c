@@ -6,12 +6,6 @@
 #include "interpreter.h"
 #include "parser.h"
 
-/* Error handling for the interpreter is done in this file rather than expanding
- * the extension file needlessly. Given that the interpreter will quit as soon
- * as an error is encountered, it seemed pointless to call extra functions that
- * would just call exit() straight away
- */
-
 #define RND_MOD 100
 
 #define INPUT_LEN 256
