@@ -1,10 +1,37 @@
-Would have liked to do ast, semantic, multi-pass
+The extension is designed to provide more accurate error reporting by recovering
+from errors found during parsing and continuing to parse through the rest of the 
+file regardless.
 
-(Had I implemented this differently,
-I would have parsed each file in turn, making a record of each further file to be
-parsed)
-Would have like to do proper warnings for abort but requires multipass assessment
+This has been successful to some extent, allowing multiple errors to be flagged
+up. However, I also found some challenges. In particular, handling errors at the
+end of a line involves some ambiguity about which section of the program tokens
+belong to. The main challenge is defining what line/INSTRUCT to link an error too 
+if a token is missing or there are too many tokens. This extension takes a naive
+approach of just linking it with the current INSTRUCT, though this also mean that
+error location can be pointed to the 1st word of the next line where it would make
+more sense for them to point to the last word of the current line.
 
-Tokens left does not check for closed brackets
+In addition, the recursive nature of the assignment makes errors with {} hard to
+handle effectively. Because the call stack depends on a } to terminate, if a { is
+missing and a } is encountered, the parse will terminate prematurely.
 
-Doesn't parse closing } well
+I would ideally have like to do multi-pass syntax and semantic checking, and did 
+indeed embark on this path for a week before realising that the scope of building
+a full suite of interpreting/compiling tools was outside the scope of this project.
+However, doing things sequentialy would also allow files to be parsed in turn,
+allowing error messages to be displayed on a file by file basis. Similarly, I would
+have like to include warning messages for ABORT followed by code (i.e. non-executable
+code), but this would have required multi-pass analysis to check where JUMP values
+resolve to.
+
+I a quite pleased with my suggestCorrectToken() function, which calculates the 
+MSD of an invalid token to suggest a suitable INSTRUCT from the grammar.
+
+All in all, while the recursive parsing is quite intuitive to implement, building
+more sophisticated functionality on top of this requires increasing levels of 
+complication. I would really have like to build seperate modules for syntax, 
+semantics, building an AST which could in turn be used directly for interpreting,
+rather than having to reparse a file each time it is called even if it has been
+parsed previously.
+
+A short example of error checking is provided in the form of "testmore.nal"
