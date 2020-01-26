@@ -10,10 +10,7 @@ typedef struct token_err_t {
     char* token;
 } token_err_t;
 
-/* TOKENIZER ERRORS */
-
 #define STR_END(s) (s == '\0' || s == '\n')
-/* FIXME super dirty cost definition at the moment */
 
 bool_t isINSTR(token_t* token) {
     switch (token->type) {

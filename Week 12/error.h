@@ -4,7 +4,7 @@
 #include "tokenizer.h"
 
 /* FIXME this limit needs to be defined somewhere */
-#define MATR_SIZE 50
+#define MATR_SIZE 256
 
 #define ON_ERROR(STR)     \
     fprintf(stderr, STR); \
