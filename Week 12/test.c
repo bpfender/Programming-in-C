@@ -24,11 +24,11 @@ int main(void) {
     mvmcell* cell;
 
     /* Testing of TOKENIZER */
-    program = initProgQueue("TEST");
+    program = initProgram("TEST");
     assert(strcmp(program->filename, "TEST") == 0);
     assert(program->len == 0);
     assert(program->pos == 0);
-    freeProgQueue(program);
+    freeProgram(program);
 
     assert(isFILE("FILE") == TRUE);
     assert(isFILE("file") == FALSE);
@@ -170,10 +170,10 @@ int main(void) {
     assert(tst_token.word == 0);
     free(tst_token.attrib);
 
-    program = initProgQueue("test");
-    enqueueToken(program, "PRINT $VAR", 5, 0, 0);
+    program = initProgram("test");
+    addToken(program, "PRINT $VAR", 5, 0, 0);
     assert(program->len == 1);
-    enqueueToken(program, "#URYYB#  ", 7, 0, 1);
+    addToken(program, "#URYYB#  ", 7, 0, 1);
     assert(program->len == 2);
 
     assert(strcmp(program->token[0].attrib, "PRINT") == 0);
@@ -191,14 +191,14 @@ int main(void) {
     assert(token->line == 0);
     assert(token->word == 0);
 
-    token = dequeueToken(program);
+    token = nextToken(program);
     assert(program->pos == 1);
     assert(strcmp(token->attrib, "PRINT") == 0);
     assert(token->type == PRINT);
     assert(token->line == 0);
     assert(token->word == 0);
 
-    freeProgQueue(program);
+    freeProgram(program);
 
     assert(tokenizeFile("error") == NULL);
     program = tokenizeFile("test1.nal");
@@ -208,7 +208,7 @@ int main(void) {
     assert(program->token[2].type == STRCON);
     assert(program->token[3].type == SECTION);
 
-    freeProgQueue(program);
+    freeProgram(program);
 
     /* Testing of SYMBOLS */
     symbols = initSymbolTable();
@@ -224,7 +224,7 @@ int main(void) {
     assert(getVariable(symbols, "invalid") == NULL);
     assert(getFilename(symbols, "invalid") == NULL);
 
-    addVariable(symbols, "VAR1");
+    updateVariable(symbols, "VAR1", NULL);
     cell = getVariable(symbols, "VAR1");
     assert(cell);
     assert(cell->data == NULL);
@@ -292,7 +292,7 @@ int main(void) {
     assert(program->instr[4]->type == STRVAR);
     assert(program->instr[5]->type == BRACKET);
     assert(parseBrackets(program, STRVAR, DOUBLE) == FALSE);
-    freeProgQueue(program);
+    freeProgram(program);
 
     program = tokenizeFile("./snglbrkt.nal");
     fillTokenString(program, 4);
@@ -300,7 +300,7 @@ int main(void) {
     assert(program->instr[2]->type == NUMVAR);
     assert(program->instr[3]->type == BRACKET);
     assert(parseBrackets(program, NUMVAR, SINGLE) == FALSE);
-    freeProgQueue(program);
+    freeProgram(program);
 
     program = tokenizeFile("./condbrkt.nal");
     fillTokenString(program, 6);
@@ -310,7 +310,7 @@ int main(void) {
     assert(program->instr[4]->type == STRCON);
     assert(program->instr[5]->type == BRACKET);
     assert(parseCondBracket(program) == FALSE);
-    freeProgQueue(program);
+    freeProgram(program);
 
     program = tokenizeFile("./set.nal");
     fillTokenString(program, 3);
@@ -319,62 +319,18 @@ int main(void) {
     assert(program->instr[2]->type == STRCON);
     assert(parseSetVals(program) == FALSE);
 
-    freeProgQueue(program);
+    freeProgram(program);
 
-    /*
+    /* INTERPRETER Checking */
+    program = tokenizeFile("./test2.nal");
 
+    assert(checkJumpValue("5") == TRUE);
+    assert(checkJumpValue("4.5") == FALSE);
 
-    char tst_line[500] = "$A1=#Neill#";
-    char word[50];
-    char* pos = tst_line;
-    line_t len;
-    int i;
-    prog_t* program;
-    symbol_t* symbols = initSymbolTable();
-    char filename[500];
+    assert(checkValidJump(program, 7) == TRUE);
+    assert(checkValidJump(program, 10) == FALSE);
 
-    symbol_t* symboltab;
-    mvm* files;
+    freeProgram(program);
 
-    printf("Testing start...\n");
-
-    while ((len = parseBufferWords(&pos))) {
-        memcpy(word, pos, len * sizeof(char));
-        word[len] = '\0';
-        printf("%s ", word);
-        pos += len;
-    }
-    printf("\n");
-
-    program = tokenizeFile("test5.nal");
-    for (i = 0; i < program->len; i++) {
-        printInstr(program->token[i].type);
-        printf(" Line: %d Word: %d", program->token[i].line, program->token[i].word);
-        printf(" %s\n", program->token[i].attrib);
-    }
-    printf("\n\n");
-    freeProgQueue(program);
-    freeSymbolTable(symbols);
-
-    printf("PARSE TEST\n");
-
-    strcpy(filename, "escape211.nal");
-    symboltab = initSymbolTable();
-    addFilename(symboltab, filename, NULL);
-    files = tok_filesinit();
-    program = tokenizeFile(filename);
-    if (!program) {
-        fprintf(stderr, "Failed to open file\n");
-        exit(EXIT_FAILURE);
-    }
-    tok_insertfilename(files, filename, program);
-
-    parseFile(program, symboltab);
-
-    tok_freefilenames(files);
-    freeSymbolTable(symboltab);
-
-    printf("Testing end...\n");
-*/
     return 0;
 }
